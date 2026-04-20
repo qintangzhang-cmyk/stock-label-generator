@@ -1,0 +1,1386 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>咖啡贴纸生成器 · Coffee Sticker Studio</title>
+<style>
+  :root {
+    --brand: #ff6a00;
+    --brand-dark: #e05a00;
+    --text: #1a1a1a;
+    --muted: #6b7280;
+    --bg: #fafafa;
+    --panel: #ffffff;
+    --border: #e5e7eb;
+    --up: #e53935;
+    --down: #16a34a;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .wrap {
+    display: grid;
+    grid-template-columns: 440px 1fr;
+    gap: 20px;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .panel {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .panel-body { padding: 20px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: #fafafa;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 14px 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--text); background: rgba(0,0,0,0.02); }
+  .tab-btn.active { color: var(--brand); border-bottom-color: var(--brand); background: #fff; }
+  .tab-body { display: none; padding: 20px; }
+  .tab-body.active { display: block; }
+
+  h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
+  h3:not(:first-child) { margin-top: 24px; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: #374151;
+    margin: 12px 0 6px;
+    font-weight: 500;
+  }
+  label:first-child { margin-top: 0; }
+
+  input[type=text], input[type=password], input[type=number], textarea, select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.12);
+  }
+  textarea { resize: vertical; min-height: 64px; font-family: var(--mono); font-size: 12px; }
+  input[type=color] { width: 44px; height: 36px; padding: 2px; cursor: pointer; border-radius: 8px; }
+  input[type=file] { font-size: 12px; padding: 6px; }
+
+  .checks { display: flex; flex-wrap: wrap; gap: 10px; }
+  .checks label { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-weight: normal; cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  .checks label:has(input:checked) { background: #fff7ed; border-color: var(--brand); color: var(--brand); }
+  .checks input { width: auto; margin: 0; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  button {
+    width: 100%;
+    padding: 11px;
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, transform 0.05s;
+  }
+  button:hover { background: var(--brand-dark); }
+  button:active { transform: translateY(1px); }
+  button.secondary { background: #1f2937; }
+  button.secondary:hover { background: #111827; }
+
+  .status {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 12px;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+  .hint code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px; }
+
+  .mode-hint {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    background: #fff7ed;
+    border-left: 3px solid var(--brand);
+    border-radius: 4px;
+    font-size: 12px;
+    color: #7c2d12;
+    line-height: 1.5;
+  }
+
+  .tag { display: inline-block; padding: 1px 6px; background: #f3f4f6; border-radius: 3px; font-size: 10px; color: var(--muted); margin-left: 4px; }
+
+  .mode-field { display: none; }
+  .mode-field.show { display: block; }
+
+  /* Preview panel */
+  .preview-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .canvas-wrap {
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    width: 100%;
+  }
+  canvas {
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-radius: 2px;
+    image-rendering: auto;
+  }
+  .size-info {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    font-family: var(--mono);
+  }
+
+  details { width: 100%; margin-top: 20px; }
+  summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--muted); padding: 8px 0; user-select: none; }
+  summary:hover { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; text-align: left; }
+  th { background: #f9fafb; font-weight: 600; color: var(--muted); font-size: 11px; }
+  td input { width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; }
+  td input:hover { background: #f9fafb; }
+  td input:focus { border-color: var(--brand); background: #fff; }
+
+  .app-title {
+    padding: 20px 20px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .app-title .sub { font-size: 11px; color: var(--muted); font-weight: normal; margin-left: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ============ PASSWORD GATE ============ -->
+<div id="gate" style="position:fixed;inset:0;background:linear-gradient(180deg,#f97316,#ea580c);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:99999;font-family:-apple-system,'PingFang HK','PingFang TC','Microsoft JhengHei',sans-serif;">
+  <div style="font-size:72px;margin-bottom:8px;">☕</div>
+  <h1 style="color:white;font-size:26px;margin:0 0 4px;font-weight:700;">咖啡貼紙生成器</h1>
+  <p style="color:white;opacity:0.85;margin:0 0 28px;font-size:13px;letter-spacing:1px;">Coffee × Securities</p>
+  <form id="gateForm" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:90vw;">
+    <input type="password" id="gatePwd" placeholder="請輸入密碼" autofocus
+      style="padding:12px 16px;border-radius:10px;border:0;font-size:16px;width:240px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <button type="submit"
+      style="padding:12px 24px;background:#1f2937;color:white;border:0;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;">進入</button>
+  </form>
+  <div id="gateMsg" style="color:white;min-height:20px;margin-top:14px;font-size:14px;"></div>
+</div>
+<script>
+(async () => {
+  // 預設密碼 = "cafe2026"。要改密碼：打開瀏覽器 Console 跑：
+  //   (async s => { const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s)); return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join(''); })('新密碼')
+  // 把輸出貼到下面 HASH 裡
+  const HASH = '05e1d1ef9ff7562ae720f5fbb06f6456559ffb9e0dcd17092451698768fc867b';
+  const sha256 = async s => {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
+  };
+  const gate = document.getElementById('gate');
+  if (localStorage.getItem('cafe_gate_v1') === HASH) { gate.remove(); return; }
+  document.getElementById('gateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pwd = document.getElementById('gatePwd').value;
+    const h = await sha256(pwd);
+    if (h === HASH) {
+      localStorage.setItem('cafe_gate_v1', HASH);
+      gate.remove();
+    } else {
+      document.getElementById('gateMsg').textContent = '✗ 密碼錯誤';
+      document.getElementById('gatePwd').select();
+    }
+  });
+})();
+</script>
+
+<div class="wrap">
+
+  <!-- LEFT: CONFIG -->
+  <div class="panel">
+    <div class="app-title">☕ 咖啡贴纸生成器<span class="sub">Coffee × Securities</span></div>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="data">📊 数据</button>
+      <button class="tab-btn" data-tab="content">📝 内容</button>
+      <button class="tab-btn" data-tab="style">🎨 样式</button>
+    </nav>
+
+    <!-- Tab: Data -->
+    <section class="tab-body active" data-tab="data">
+      <h3>贴纸模式</h3>
+      <select id="labelMode">
+        <option value="topn">涨幅 Top N（经典）</option>
+        <option value="mood">市场情绪贴纸</option>
+        <option value="star">昨日主角股</option>
+        <option value="earnings">财报周提醒</option>
+        <option value="history">金融史彩蛋</option>
+      </select>
+      <div class="mode-hint" id="modeHint"></div>
+
+      <h3>数据源</h3>
+      <select id="dataSource">
+        <option value="static">每日自动更新（云端）</option>
+        <option value="longbridge">Longbridge（本地代理）</option>
+        <option value="finnhub">Finnhub</option>
+        <option value="manual">手动输入</option>
+      </select>
+
+      <div id="staticFields" class="mode-field show">
+        <div class="hint">由 GitHub Actions 每天 HKT 07:30 自动拉取，无需开电脑。</div>
+      </div>
+
+      <div id="lbFields" class="mode-field">
+        <label>代理地址</label>
+        <input type="text" id="proxyUrl" value="http://localhost:8787">
+        <div class="hint">先启动：<code>python3 longbridge_proxy.py</code></div>
+      </div>
+
+      <div id="finnhubFields" class="mode-field">
+        <label>Finnhub API Key</label>
+        <input type="password" id="apiKey" placeholder="finnhub.io/register">
+      </div>
+
+      <div class="mode-field" data-needs="topn mood star">
+        <label>观察池（逗号/换行分隔，美股不必加 .US，港股加 .HK，A 股加 .SH/.SZ）</label>
+        <textarea id="tickers" rows="8">AAPL,MSFT,NVDA,GOOGL,AMZN,META,TSLA,NFLX,AMD,AVGO,ORCL,CRM,ADBE,PLTR,COIN,UBER
+JPM,V,MA,WMT,COST,DIS,KO,MCD,SBUX,NKE,UNH,LLY,XOM
+BABA,PDD,JD,BIDU,NIO,LI,XPEV,TME,BILI,NTES
+700.HK,9988.HK,3690.HK,1810.HK,9618.HK,1299.HK,2318.HK,1024.HK,1211.HK,9866.HK
+600519.SH,300750.SZ</textarea>
+        <div class="hint">分五组：美国科技 / 美国消费金融 / 中概股 / 港股蓝筹 / A 股核心。50 只股票涵盖 Tencent/NVIDIA/NIO/Alibaba 等知名股。</div>
+      </div>
+
+      <div class="mode-field" data-needs="topn">
+        <div class="row2">
+          <div><label>显示数量</label><input type="number" id="topN" value="3" min="1" max="10"></div>
+          <div><label>涨跌着色</label>
+            <select id="colorConv">
+              <option value="cn">红涨绿跌</option>
+              <option value="us">绿涨红跌</option>
+              <option value="mono">单色</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="mode-field" data-needs="mood">
+        <label>大盘指数代码</label>
+        <input type="text" id="moodIndex" value="SPY.US">
+        <div class="hint">SPY.US 跟踪 S&P 500；港股可用 2800.HK</div>
+      </div>
+
+      <div class="mode-field" data-needs="earnings">
+        <label>本周财报安排（每行：代码 日期 [EPS预期]）</label>
+        <textarea id="earningsList" rows="6">NVDA 週三 EPS $0.75
+TSLA 週四 EPS $0.62
+NFLX 週四 EPS $4.50
+GS 週二 EPS $9.80</textarea>
+      </div>
+
+      <div class="mode-field" data-needs="history">
+        <div class="hint">自动根据今天的日期匹配金融史事件（内置 40+ 条，会随机抽取）</div>
+      </div>
+
+      <button id="fetchBtn" style="margin-top:20px">🔄 生成贴纸</button>
+      <div id="status" class="status"></div>
+    </section>
+
+    <!-- Tab: Content -->
+    <section class="tab-body" data-tab="content">
+      <h3>文案</h3>
+      <label>标题</label>
+      <input type="text" id="title" value="標普昨日升幅Top3">
+
+      <div class="mode-field" data-needs="topn">
+        <label>显示字段</label>
+        <div class="checks">
+          <label><input type="checkbox" id="showTicker" checked>代码</label>
+          <label><input type="checkbox" id="showChange" checked>涨跌幅</label>
+          <label><input type="checkbox" id="showPrice">现价</label>
+          <label><input type="checkbox" id="showArrow" checked>趋势箭头</label>
+        </div>
+      </div>
+
+      <label>底部提醒文字（支持 {time} {date} 占位符）</label>
+      <textarea id="footer" rows="3">篩選標準：市值>1000億、成交量>1000萬股；
+數據時點：{time}；內容僅供參考，不構成投資建議。</textarea>
+
+      <div class="mode-field" data-needs="star">
+        <label>主角副标题（例：1 行公司一句话或新闻标题）</label>
+        <input type="text" id="starCaption" value="市值突破 4 萬億美元，AI 持續強勢">
+      </div>
+    </section>
+
+    <!-- Tab: Style -->
+    <section class="tab-body" data-tab="style">
+      <h3>尺寸（物理毫米）</h3>
+      <label>预设</label>
+      <select id="sizePreset">
+        <option value="40x30">40×30 mm · 小杯贴</option>
+        <option value="50x30">50×30 mm · 细长</option>
+        <option value="58x40" selected>58×40 mm · 杯贴常用 ⭐</option>
+        <option value="60x40">60×40 mm</option>
+        <option value="70x50">70×50 mm · 大杯贴</option>
+        <option value="80x50">80×50 mm · 收据宽</option>
+        <option value="80x80">80×80 mm · 方形</option>
+        <option value="custom">自定义</option>
+      </select>
+
+      <div class="row2" style="margin-top: 10px">
+        <div><label>宽 (mm)</label><input type="number" id="widthMm" value="58"></div>
+        <div><label>高 (mm)</label><input type="number" id="heightMm" value="40"></div>
+      </div>
+
+      <label>打印 DPI</label>
+      <select id="dpi">
+        <option value="203">203 dpi · 热敏标准</option>
+        <option value="300" selected>300 dpi · 高清（推荐）</option>
+        <option value="600">600 dpi · 超清</option>
+      </select>
+
+      <h3>配色 & 模板</h3>
+      <div class="row2">
+        <div><label>主题色</label><input type="color" id="themeColor" value="#ff6a00"></div>
+        <div><label>风格</label>
+          <select id="uiStyle">
+            <option value="classic">经典橙</option>
+            <option value="mono">极简黑白</option>
+            <option value="led">LED 屏（咖啡厅同款）</option>
+          </select>
+        </div>
+      </div>
+
+      <label>背景模板图（可选）</label>
+      <input type="file" id="bgImage" accept="image/*">
+
+      <label>模板模式</label>
+      <select id="tplMode">
+        <option value="none">不使用模板</option>
+        <option value="full">整张铺底</option>
+        <option value="bottom">仅底部条带</option>
+      </select>
+
+      <h3>打印机</h3>
+      <div class="row2">
+        <div>
+          <label>目标打印机</label>
+          <select id="printerName">
+            <option value="">自动（系统默认）</option>
+          </select>
+        </div>
+        <div>
+          <label>份数</label>
+          <input type="number" id="printCopies" value="1" min="1" max="99">
+        </div>
+      </div>
+      <button id="refreshPrintersBtn" style="background:#6b7280; margin-top:8px; font-size:12px; padding:7px">🔄 刷新打印机列表</button>
+      <div class="hint">需代理运行 + CUPS 已装驱动。没有打印机时列表为空。</div>
+    </section>
+
+    <div class="panel-body" style="padding: 0 20px 20px">
+      <div class="row2">
+        <button id="downloadBtn" class="secondary">📥 下载 PNG</button>
+        <button id="printBtn">🖨️ 直接打印</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PREVIEW -->
+  <div class="panel preview-area">
+    <div class="canvas-wrap">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="size-info" id="sizeInfo">58×40 mm · 685×473 px @ 300dpi</div>
+
+    <details>
+      <summary>数据详情（可手动修改）</summary>
+      <table id="dataTable">
+        <thead><tr><th>代码</th><th>涨跌%</th><th>现价</th><th>名称/备注</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const canvas = $('canvas');
+const ctx = canvas.getContext('2d');
+
+let stocks = [];
+let moodData = null;  // {indexSymbol, changePct, price}
+let bgImg = null;
+let dataTime = '';
+
+// ============ CONFIG PERSISTENCE ============
+const STORAGE_KEY = 'stockLabelConfig_v2';
+function saveConfig() {
+  const cfg = {};
+  document.querySelectorAll('[id]').forEach(el => {
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      if (el.type === 'file' || el.type === 'button') return;
+      if (el.type === 'checkbox') cfg[el.id] = el.checked;
+      else cfg[el.id] = el.value;
+    }
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+}
+function loadConfig() {
+  try {
+    const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    Object.entries(cfg).forEach(([k, v]) => {
+      const el = $(k);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = v;
+      else el.value = v;
+    });
+  } catch (e) {}
+}
+
+// ============ MODE HINTS ============
+const MODE_HINTS = {
+  topn:     '经典涨幅榜：从观察池中筛选涨幅 Top N 展示。',
+  mood:     '根据大盘指数当日涨跌幅生成情绪贴纸：配色、表情、主文案自动匹配。',
+  star:     '只展示 1 只涨幅最高的股票，搭配一句副标题/新闻。',
+  earnings: '本周财报提醒，手动填写或接入 API。',
+  history:  '金融史「今日发生」，从内置事件库随机抽取一条。',
+};
+
+const MODE_DEFAULTS = {
+  topn:     { title: '標普昨日升幅Top3',   footer: '篩選標準：市值>1000億、成交量>1000萬股；\n數據時點：{time}；內容僅供參考，不構成投資建議。' },
+  mood:     { title: '今日市場情緒',        footer: '數據時點：{time}；內容僅供參考，不構成投資建議。' },
+  star:     { title: '昨日主角股',          footer: '數據時點：{time}；內容僅供參考，不構成投資建議。' },
+  earnings: { title: '本週財報提醒',        footer: '財報日期僅供參考；實際盈利以公司公告為準。' },
+  history:  { title: '金融史·今日',         footer: '{date} · 數據來源：公開資料整理。' },
+};
+
+let modeOverrides = {};
+let currentMode = 'topn';
+
+function loadModeOverrides() {
+  try { modeOverrides = JSON.parse(localStorage.getItem('modeOverrides_v1') || '{}'); }
+  catch (e) { modeOverrides = {}; }
+}
+function saveModeOverrides() {
+  localStorage.setItem('modeOverrides_v1', JSON.stringify(modeOverrides));
+}
+function getModeValue(mode, key) {
+  return modeOverrides[mode]?.[key] ?? MODE_DEFAULTS[mode]?.[key] ?? '';
+}
+function setModeValue(mode, key, val) {
+  if (!modeOverrides[mode]) modeOverrides[mode] = {};
+  modeOverrides[mode][key] = val;
+  saveModeOverrides();
+}
+function applyModeTemplate(mode) {
+  $('title').value = getModeValue(mode, 'title');
+  $('footer').value = getModeValue(mode, 'footer');
+}
+
+// ============ HISTORICAL EVENTS ============
+const HISTORY_EVENTS = {
+  "01-03": {year: 2018, text: "比特幣突破 15,000 美元歷史高位"},
+  "01-14": {year: 2000, text: "道指收於 11,722，標誌大牛市頂點前奏"},
+  "01-29": {year: 2010, text: "蘋果發布第一代 iPad，開啟移動互聯網新時代"},
+  "02-03": {year: 1637, text: "荷蘭鬱金香泡沫破滅，人類史上首次金融狂熱"},
+  "02-05": {year: 2018, text: "道指單日暴跌 1,175 點，VIX 飆升 116%"},
+  "02-19": {year: 2020, text: "標普 500 創 3,386 新高，COVID 前最後的狂歡"},
+  "03-09": {year: 2009, text: "標普觸底 666 點，此後開啟十年超級牛市"},
+  "03-10": {year: 2000, text: "納斯達克收於 5,048，科網泡沫峰值"},
+  "03-12": {year: 2020, text: "標普單日跌 9.5%，COVID 恐慌熔斷"},
+  "03-16": {year: 2020, text: "道指暴跌 12.9%，史上第二大單日跌幅"},
+  "03-23": {year: 2020, text: "美聯儲宣布無限量 QE，市場當日觸底反轉"},
+  "04-02": {year: 1792, text: "美國國會通過《鑄幣法案》，確立美元地位"},
+  "04-14": {year: 2000, text: "納斯達克單日暴跌 9.7%，科網泡沫加速破裂"},
+  "04-20": {year: 2010, text: "BP 深水地平線爆炸，隨後股價腰斬"},
+  "05-06": {year: 2010, text: "閃電崩盤：道指幾分鐘內暴跌千點後收復"},
+  "05-18": {year: 2012, text: "Facebook 上市，首日從 38 美元跌至 38.23"},
+  "06-15": {year: 2015, text: "上證綜指 5,178 見頂，隨後三個月腰斬"},
+  "06-23": {year: 2016, text: "英國公投脫歐，英鎊單日創 31 年最大跌幅"},
+  "07-11": {year: 2007, text: "貝爾斯登兩隻次貸基金清盤，危機序幕"},
+  "08-05": {year: 2011, text: "標普首次下調美國主權信用評級至 AA+"},
+  "08-15": {year: 1971, text: "尼克遜關閉黃金窗口，布雷頓森林體系瓦解"},
+  "08-19": {year: 2004, text: "Google 上市，開盤 85 美元"},
+  "08-24": {year: 2015, text: "A 股千股跌停，上證單日跌 8.49%"},
+  "09-15": {year: 2008, text: "雷曼兄弟申請破產，金融海嘯正式爆發"},
+  "09-19": {year: 2014, text: "阿里巴巴紐交所上市，募資 250 億美元"},
+  "09-29": {year: 2008, text: "眾議院否決 7,000 億救市方案，道指跌 778 點"},
+  "10-16": {year: 2007, text: "上證綜指觸及 6,124 歷史峰值"},
+  "10-19": {year: 1987, text: "黑色星期一：道指單日暴跌 22.6%，史上最大"},
+  "10-24": {year: 1929, text: "黑色星期四：美股崩盤，大蕭條序幕"},
+  "10-28": {year: 1929, text: "黑色星期一：道指跌 13.5%"},
+  "10-29": {year: 1929, text: "黑色星期二：道指再跌 12%，1,600 萬股易手"},
+  "11-08": {year: 2016, text: "特朗普意外當選，道指期貨跌 800 點後反轉"},
+  "11-09": {year: 1989, text: "柏林牆倒塌，資本主義全球擴張新紀元"},
+  "11-30": {year: 2020, text: "特斯拉獲納入標普 500，年內暴漲近 8 倍"},
+  "12-11": {year: 2008, text: "麥道夫被捕，500 億美元龐氏騙局曝光"},
+  "12-12": {year: 1980, text: "蘋果公司上市，首日市值 17.78 億美元"},
+  "12-16": {year: 2015, text: "美聯儲加息 25bp，結束 7 年零利率"},
+  "04-19": {year: 2022, text: "Netflix 財報暴雷，盤後跌 27%，引發流媒體板塊重估"},
+  "04-17": {year: 2008, text: "谷歌超越沃爾瑪成為美國第四大公司"},
+  "04-18": {year: 1906, text: "舊金山大地震，美國保險業面臨首次世紀級賠付"},
+};
+
+function pickHistoryEvent() {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const key = `${mm}-${dd}`;
+  if (HISTORY_EVENTS[key]) return {date: key, ...HISTORY_EVENTS[key]};
+  const keys = Object.keys(HISTORY_EVENTS);
+  const rk = keys[Math.floor(Math.random() * keys.length)];
+  return {date: rk, ...HISTORY_EVENTS[rk]};
+}
+
+function parseEarningsEntries() {
+  return $('earningsList').value.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const parts = line.split(/\s+/);
+    return { ticker: parts[0]||'', day: parts[1]||'', note: parts.slice(2).join(' '), price:0, changePct:0 };
+  });
+}
+
+function isStockShape(s) { return s && 'changePct' in s && 'price' in s && !('day' in s) && !('year' in s); }
+
+function resetStocksForMode() {
+  const mode = $('labelMode').value;
+  if (mode === 'history') {
+    if (!stocks[0] || !('year' in stocks[0])) stocks = [pickHistoryEvent()];
+  } else if (mode === 'earnings') {
+    stocks = parseEarningsEntries();
+    if (!stocks.length) stocks = [{ticker:'', day:'', note:'', price:0, changePct:0}];
+  } else if (mode === 'star') {
+    if (stocks.length && isStockShape(stocks[0])) stocks = [stocks[0]];
+    else stocks = [{ticker:'NVDA', changePct:4.20, price:201.68, name:'NVIDIA'}];
+  } else if (mode === 'topn') {
+    if (!stocks.length || !isStockShape(stocks[0])) {
+      stocks = [
+        {ticker:'TSLA', changePct:7.63, price:400.62, name:'Tesla'},
+        {ticker:'PLTR', changePct:4.75, price:146.39, name:'Palantir'},
+        {ticker:'MSFT', changePct:4.63, price:425.30, name:'Microsoft'},
+      ];
+    }
+  } else if (mode === 'mood') {
+    if (!moodData) moodData = {ticker:'SPY', changePct:1.23, price:520.45};
+  }
+}
+
+// ============ MOOD LOGIC ============
+function computeMood(changePct) {
+  if (changePct >= 2)     return {emoji:'🚀', label:'強勢突破', color:'#dc2626', desc:'大幅走高，情緒亢奮'};
+  if (changePct >= 0.5)   return {emoji:'📈', label:'穩健上行', color:'#ea580c', desc:'買盤積極，趨勢向好'};
+  if (changePct > -0.5)   return {emoji:'↔️', label:'窄幅震盪', color:'#64748b', desc:'多空膠著，靜待方向'};
+  if (changePct > -2)     return {emoji:'📉', label:'承壓回落', color:'#16a34a', desc:'賣盤佔優，謹慎觀望'};
+  return                         {emoji:'🔻', label:'風險警戒', color:'#15803d', desc:'大幅下挫，情緒悲觀'};
+}
+
+// ============ DATA FETCH ============
+let staticCache = null;
+async function fetchFromStatic(tickers) {
+  if (!staticCache) {
+    const res = await fetch('./quotes.json?t=' + Date.now());
+    if (!res.ok) throw new Error(`quotes.json HTTP ${res.status}`);
+    staticCache = await res.json();
+  }
+  const want = new Set(tickers.map(t => t.toUpperCase()));
+  return (staticCache.quotes || [])
+    .filter(q => want.has(q.symbol) || want.has(q.ticker))
+    .filter(q => q.price > 0)
+    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: q.name || '' }));
+}
+async function fetchFromLongbridge(proxyUrl, tickers) {
+  const base = proxyUrl.replace(/\/$/, '');
+  const url = `${base}/quotes?symbols=${encodeURIComponent(tickers.join(','))}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`代理 HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error(data.error || '代理响应异常');
+  return data
+    .filter(q => !q.error && q.price > 0)
+    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: '' }));
+}
+async function fetchFinnhubQuote(ticker, apiKey) {
+  const t = ticker.replace(/\.US$/i, '');
+  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(t)}&token=${apiKey}`;
+  const res = await fetch(url);
+  const d = await res.json();
+  if (!d || d.c == null || d.c === 0) return null;
+  return { ticker: t, symbol: t, price: d.c, changePct: d.dp, name: '' };
+}
+
+async function fetchData(tickers) {
+  const source = $('dataSource').value;
+  if (source === 'static') {
+    staticCache = null;  // force refresh each generate
+    return fetchFromStatic(tickers);
+  } else if (source === 'longbridge') {
+    return fetchFromLongbridge($('proxyUrl').value.trim() || 'http://localhost:8787', tickers);
+  } else if (source === 'finnhub') {
+    const k = $('apiKey').value.trim();
+    if (!k) throw new Error('请填写 Finnhub API Key');
+    const qs = await Promise.all(tickers.map(t => fetchFinnhubQuote(t, k).catch(() => null)));
+    return qs.filter(Boolean);
+  } else {
+    return [];  // manual
+  }
+}
+
+function showStatus(msg, type = 'ok') {
+  const s = $('status');
+  s.textContent = msg;
+  s.className = `status show ${type}`;
+  if (type === 'ok') setTimeout(() => s.classList.remove('show'), 4000);
+}
+
+function parseTickerList() {
+  return $('tickers').value.split(/[,\n\s]+/).map(s => s.trim()).filter(Boolean);
+}
+
+function nowTimeStr() {
+  if ($('dataSource').value === 'static' && staticCache?.generatedAt) {
+    const d = new Date(staticCache.generatedAt);
+    return new Intl.DateTimeFormat('zh-HK', {
+      timeZone: 'Asia/Hong_Kong',
+      month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(d) + ' HKT';
+  }
+  const now = new Date();
+  return new Intl.DateTimeFormat('zh-CN', {
+    timeZone: 'America/New_York',
+    month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
+  }).format(now) + ' EDT';
+}
+
+async function generate() {
+  saveConfig();
+  const mode = $('labelMode').value;
+  const source = $('dataSource').value;
+
+  try {
+    if (mode === 'topn') {
+      const tickers = parseTickerList();
+      if (!tickers.length && source !== 'manual') throw new Error('观察池为空');
+      if (source !== 'manual') {
+        showStatus(`获取 ${tickers.length} 只股票...`, 'info');
+        stocks = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
+        const n = parseInt($('topN').value) || 3;
+        stocks = stocks.slice(0, n);
+      } else if (stocks.length === 0) {
+        stocks = Array.from({length: parseInt($('topN').value)||3}, () => ({ticker:'', price:0, changePct:0, name:''}));
+      }
+      dataTime = nowTimeStr();
+      showStatus(`✓ 成功`);
+    }
+    else if (mode === 'mood') {
+      const idx = $('moodIndex').value.trim() || 'SPY.US';
+      showStatus(`获取 ${idx}...`, 'info');
+      const data = await fetchData([idx]);
+      if (!data.length) throw new Error('大盘数据获取失败');
+      moodData = data[0];
+      dataTime = nowTimeStr();
+      showStatus(`✓ ${idx} ${moodData.changePct >= 0 ? '+' : ''}${moodData.changePct.toFixed(2)}%`);
+    }
+    else if (mode === 'star') {
+      const tickers = parseTickerList();
+      if (!tickers.length) throw new Error('观察池为空');
+      showStatus(`获取 ${tickers.length} 只...`, 'info');
+      const data = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
+      if (!data.length) throw new Error('无有效数据');
+      stocks = [data[0]];
+      dataTime = nowTimeStr();
+      showStatus(`✓ 主角：${stocks[0].ticker}`);
+    }
+    else if (mode === 'earnings') {
+      stocks = $('earningsList').value.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+        const parts = line.split(/\s+/);
+        return { ticker: parts[0] || '', day: parts[1] || '', note: parts.slice(2).join(' '), price: 0, changePct: 0 };
+      });
+      dataTime = nowTimeStr();
+      showStatus(`✓ ${stocks.length} 条财报`);
+    }
+    else if (mode === 'history') {
+      stocks = [pickHistoryEvent()];
+      dataTime = nowTimeStr();
+      showStatus(`✓ ${stocks[0].date} 事件`);
+    }
+  } catch (e) {
+    const hint = source === 'longbridge' && mode !== 'history' && mode !== 'earnings'
+      ? '（检查代理是否启动：python3 longbridge_proxy.py）' : '';
+    showStatus(`失败: ${e.message}${hint}`, 'err');
+    return;
+  }
+
+  renderTable();
+  render();
+}
+
+// ============ TABLE ============
+function renderTable() {
+  const tbody = $('dataTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  const mode = $('labelMode').value;
+  stocks.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    if (mode === 'history') {
+      tr.innerHTML = `<td>日期</td><td colspan="3">${s.date} (${s.year})：${s.text}</td>`;
+    } else if (mode === 'earnings') {
+      tr.innerHTML = `
+        <td><input value="${s.ticker||''}" data-i="${i}" data-k="ticker"></td>
+        <td><input value="${s.day||''}" data-i="${i}" data-k="day"></td>
+        <td>—</td>
+        <td><input value="${s.note||''}" data-i="${i}" data-k="note"></td>`;
+    } else {
+      tr.innerHTML = `
+        <td><input value="${s.ticker||''}" data-i="${i}" data-k="ticker"></td>
+        <td><input type="number" step="0.01" value="${(s.changePct||0).toFixed(2)}" data-i="${i}" data-k="changePct"></td>
+        <td><input type="number" step="0.01" value="${(s.price||0).toFixed(2)}" data-i="${i}" data-k="price"></td>
+        <td><input value="${s.name||''}" data-i="${i}" data-k="name"></td>`;
+    }
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const i = +e.target.dataset.i, k = e.target.dataset.k;
+      let v = e.target.value;
+      if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
+      stocks[i][k] = v;
+      render();
+    });
+  });
+}
+
+// ============ CANVAS RENDER ============
+function computeCanvasSize() {
+  const w = parseFloat($('widthMm').value) || 58;
+  const h = parseFloat($('heightMm').value) || 40;
+  const dpi = parseInt($('dpi').value) || 300;
+  const renderW = Math.round(w * dpi / 25.4);
+  const renderH = Math.round(h * dpi / 25.4);
+  return {w, h, dpi, renderW, renderH};
+}
+
+function setCanvasSize() {
+  const {w, h, dpi, renderW, renderH} = computeCanvasSize();
+  canvas.width = renderW;
+  canvas.height = renderH;
+  // Display scale: fit to ~420px wide
+  const maxDisplay = 480;
+  const scale = Math.min(1, maxDisplay / renderW);
+  canvas.style.width = Math.round(renderW * scale) + 'px';
+  canvas.style.height = Math.round(renderH * scale) + 'px';
+  $('sizeInfo').textContent = `${w}×${h} mm · ${renderW}×${renderH} px @ ${dpi}dpi`;
+  return {renderW, renderH};
+}
+
+// Material Design trending_up / trending_down icon — single filled polygon
+function drawPath(ctx, x, y, w, h, pts, color) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  pts.forEach(([px, py], i) => {
+    const cx = x + px * w, cy = y + py * h;
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+const TREND_UP_PATH = [
+  [0.667, 0.250], [0.762, 0.345], [0.559, 0.549], [0.392, 0.382],
+  [0.083, 0.691], [0.142, 0.750], [0.392, 0.500], [0.559, 0.667],
+  [0.821, 0.405], [0.917, 0.500], [0.917, 0.250], [0.667, 0.250],
+];
+const TREND_DOWN_PATH = [
+  [0.667, 0.750], [0.762, 0.655], [0.559, 0.451], [0.392, 0.618],
+  [0.083, 0.309], [0.142, 0.250], [0.392, 0.500], [0.559, 0.333],
+  [0.821, 0.595], [0.917, 0.500], [0.917, 0.750], [0.667, 0.750],
+];
+
+function drawTrendUp(ctx, x, y, w, h, color)   { drawPath(ctx, x, y, w, h, TREND_UP_PATH, color); }
+function drawTrendDown(ctx, x, y, w, h, color) { drawPath(ctx, x, y, w, h, TREND_DOWN_PATH, color); }
+
+// Text wrap for CJK
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 99) {
+  let cy = y, lines = 0;
+  for (const para of text.split('\n')) {
+    let line = '';
+    for (const ch of para) {
+      const test = line + ch;
+      if (ctx.measureText(test).width > maxWidth && line) {
+        ctx.fillText(line, x, cy);
+        lines++;
+        if (lines >= maxLines) return cy;
+        line = ch;
+        cy += lineHeight;
+      } else line = test;
+    }
+    if (line) { ctx.fillText(line, x, cy); lines++; cy += lineHeight; if (lines >= maxLines) return cy; }
+  }
+  return cy;
+}
+
+const LED_UP   = '#00D4E6';
+const LED_DOWN = '#FF3B5C';
+
+function isLed() { return $('uiStyle').value === 'led'; }
+
+function pctColor(pct) {
+  if (isLed()) return pct >= 0 ? LED_UP : LED_DOWN;
+  const conv = $('colorConv').value;
+  if (conv === 'mono') return '#111';
+  if (conv === 'cn') return pct >= 0 ? 'var-up' : 'var-down';
+  return pct >= 0 ? 'var-down' : 'var-up';
+}
+function resolveColor(c) {
+  if (c === 'var-up') return getComputedStyle(document.documentElement).getPropertyValue('--up').trim() || '#e53935';
+  if (c === 'var-down') return getComputedStyle(document.documentElement).getPropertyValue('--down').trim() || '#16a34a';
+  return c;
+}
+
+function drawBg(ctx, W, H) {
+  const style = $('uiStyle').value;
+  if (style === 'led') { ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H); }
+  else { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); }
+
+  if (bgImg && $('tplMode').value === 'full') ctx.drawImage(bgImg, 0, 0, W, H);
+}
+function textColor() {
+  return isLed() ? '#ffffff' : '#111';
+}
+function mutedColor() {
+  return isLed() ? '#9ca3af' : '#6b7280';
+}
+
+function drawHeaderBar(ctx, W, headerH, title) {
+  if (isLed()) {
+    // Dark background continues; thin cyan underline instead of solid bar
+    ctx.fillStyle = '#fff';
+    const fs = Math.round(headerH * 0.46);
+    ctx.font = `bold ${fs}px -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(title, W * 0.04, headerH / 2);
+    // Cyan underline
+    ctx.fillStyle = LED_UP;
+    ctx.fillRect(W * 0.04, headerH - 2, W * 0.16, 2);
+    // Cyan trend icon on the right
+    const iconW = headerH * 1.1, iconH = headerH * 0.55;
+    drawTrendUp(ctx, W - iconW - W*0.03, (headerH - iconH)/2, iconW, iconH, LED_UP);
+    return;
+  }
+  const color = $('themeColor').value;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, W, headerH);
+  ctx.fillStyle = '#fff';
+  const fs = Math.round(headerH * 0.48);
+  ctx.font = `bold ${fs}px -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, W * 0.04, headerH / 2);
+  const iconW = headerH * 1.1, iconH = headerH * 0.55;
+  drawTrendUp(ctx, W - iconW - W*0.03, (headerH - iconH)/2, iconW, iconH, '#fff');
+}
+
+function drawFooterText(ctx, W, H, startY) {
+  const tpl = $('tplMode').value;
+  const raw = $('footer').value
+    .replace(/\{time\}/g, dataTime || '—')
+    .replace(/\{date\}/g, new Date().toLocaleDateString('zh-CN'));
+  const footerH = H - startY;
+
+  if (bgImg && tpl === 'bottom') {
+    const ratio = bgImg.height / bgImg.width;
+    const imgH = Math.min(W * ratio, footerH);
+    ctx.drawImage(bgImg, 0, H - imgH, W, imgH);
+    return;
+  }
+
+  if (isLed()) {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(W*0.025, startY, W - W*0.05, footerH - 4);
+    // Thin cyan top border for the footer section
+    ctx.fillStyle = LED_UP;
+    ctx.fillRect(W*0.025, startY, W - W*0.05, 1);
+  } else {
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(W*0.025, startY, W - W*0.05, footerH - 4);
+  }
+  ctx.fillStyle = mutedColor();
+  const fs = Math.max(9, Math.round(W * 0.026));
+  ctx.font = `${fs}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  wrapText(ctx, raw, W*0.05, startY + W*0.02, W - W*0.1, fs * 1.35, Math.floor(footerH / (fs*1.4)));
+}
+
+// ============ MODE RENDERERS ============
+function renderTopN(W, H) {
+  const headerH = Math.round(H * 0.20);
+  drawHeaderBar(ctx, W, headerH, $('title').value);
+
+  const footerH = Math.round(H * 0.22);
+  const bodyStart = headerH + Math.round(H * 0.03);
+  const bodyEnd = H - footerH;
+  const bodyH = bodyEnd - bodyStart;
+
+  const n = stocks.length || 1;
+  const rowH = bodyH / n;
+  const showArrow = $('showArrow').checked;
+  const showPrice = $('showPrice').checked;
+  const showChange = $('showChange').checked;
+  const showTicker = $('showTicker').checked;
+
+  stocks.forEach((s, i) => {
+    const y = bodyStart + i * rowH + rowH / 2;
+    const pct = s.changePct || 0;
+    const col = resolveColor(pctColor(pct));
+
+    // Arrow (left)
+    let xText = W * 0.05;
+    if (showArrow) {
+      const aW = rowH * 0.85, aH = rowH * 0.55;
+      const ay = y - aH / 2;
+      if (pct >= 0) drawTrendUp(ctx, W * 0.04, ay, aW, aH, col);
+      else drawTrendDown(ctx, W * 0.04, ay, aW, aH, col);
+      xText = W * 0.04 + aW + W * 0.02;
+    }
+    // Ticker
+    if (showTicker) {
+      ctx.fillStyle = textColor();
+      const fs = Math.round(rowH * 0.55);
+      ctx.font = `bold ${fs}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(s.ticker || '—', xText, y);
+    }
+    // Right side: change% (big) + price (small below)
+    const rightX = W - W * 0.04;
+    if (showChange) {
+      ctx.fillStyle = col;
+      const fs = Math.round(rowH * 0.56);
+      ctx.font = `bold ${fs}px ${"-apple-system, SF Mono, Menlo, Consolas, monospace"}`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+      const sign = pct >= 0 ? '+' : '';
+      ctx.fillText(`${sign}${pct.toFixed(2)}%`, rightX, showPrice ? y - rowH*0.12 : y);
+    }
+    if (showPrice) {
+      ctx.fillStyle = mutedColor();
+      const fs = Math.round(rowH * 0.26);
+      ctx.font = `${fs}px ${"-apple-system, SF Mono, monospace"}`;
+      ctx.textAlign = 'right';
+      ctx.fillText(`$${(s.price||0).toFixed(2)}`, rightX, y + rowH*0.24);
+    }
+  });
+
+  drawFooterText(ctx, W, H, bodyEnd);
+}
+
+function renderMood(W, H) {
+  const m = computeMood(moodData ? moodData.changePct : 0);
+  const pct = moodData ? moodData.changePct : 0;
+  // Full background tinted
+  ctx.fillStyle = m.color;
+  ctx.fillRect(0, 0, W, H);
+  // White card inside
+  const pad = W * 0.04;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(pad, pad, W - pad*2, H - pad*2);
+
+  // Emoji (big) — text rendered
+  ctx.fillStyle = m.color;
+  const emojiSize = Math.round(H * 0.32);
+  ctx.font = `${emojiSize}px -apple-system, "Apple Color Emoji", sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(m.emoji, W * 0.28, H * 0.40);
+
+  // Mood label
+  ctx.fillStyle = '#111';
+  const labelFS = Math.round(H * 0.11);
+  ctx.font = `bold ${labelFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText(m.label, W * 0.45, H * 0.32);
+
+  // Change%
+  ctx.fillStyle = m.color;
+  const pctFS = Math.round(H * 0.14);
+  ctx.font = `bold ${pctFS}px -apple-system, SF Mono, monospace`;
+  const sign = pct >= 0 ? '+' : '';
+  ctx.fillText(`${sign}${pct.toFixed(2)}%`, W * 0.45, H * 0.48);
+
+  // Desc
+  ctx.fillStyle = mutedColor();
+  const descFS = Math.round(H * 0.055);
+  ctx.font = `${descFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.fillText(m.desc, W * 0.08, H * 0.72);
+
+  // Footer small
+  ctx.fillStyle = '#9ca3af';
+  const fs = Math.round(H * 0.04);
+  ctx.font = `${fs}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textBaseline = 'bottom';
+  const idx = moodData ? moodData.ticker : 'SPY';
+  ctx.fillText(`${idx} · ${dataTime} · 僅供參考`, W * 0.08, H - pad - 4);
+}
+
+function renderStar(W, H) {
+  const s = stocks[0] && isStockShape(stocks[0]) ? stocks[0] : {ticker:'—', changePct:0, price:0};
+  const pct = s.changePct || 0;
+  const col = resolveColor(pctColor(pct));
+  const pad = W * 0.05;
+
+  // Header
+  const headerH = Math.round(H * 0.16);
+  drawHeaderBar(ctx, W, headerH, $('title').value || '昨日主角');
+
+  // Change% + arrow — right-aligned, measured first so ticker left gets remaining space
+  const pctText = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+  const pctFS = Math.round(H * 0.15);
+  ctx.font = `bold ${pctFS}px -apple-system, SF Mono, monospace`;
+  const pctW = ctx.measureText(pctText).width;
+
+  const arrowH = H * 0.14, arrowW = arrowH * 1.25;
+  const rowY = H * 0.42;
+
+  // Draw change% at right edge
+  ctx.fillStyle = col;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  ctx.fillText(pctText, W - pad, rowY);
+  // Arrow just left of %
+  if (pct >= 0) drawTrendUp(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
+  else drawTrendDown(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
+
+  // Ticker — left, sized to fit remaining space
+  const tickerMaxW = W - pad*2 - pctW - arrowW - W*0.04;
+  let tkFS = Math.round(H * 0.32);
+  ctx.fillStyle = textColor();
+  ctx.font = `900 ${tkFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  // Shrink if overflows
+  while (ctx.measureText(s.ticker||'—').width > tickerMaxW && tkFS > 12) {
+    tkFS -= 2;
+    ctx.font = `900 ${tkFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  }
+  ctx.textAlign = 'left';
+  ctx.fillText(s.ticker || '—', pad, rowY);
+
+  // Price (below ticker)
+  ctx.fillStyle = mutedColor();
+  const prFS = Math.round(H * 0.075);
+  ctx.font = `${prFS}px -apple-system, SF Mono, monospace`;
+  ctx.fillText(`$${(s.price||0).toFixed(2)}`, pad, H * 0.62);
+
+  // Caption
+  const cap = $('starCaption').value || '';
+  ctx.fillStyle = textColor();
+  const capFS = Math.round(H * 0.068);
+  ctx.font = `500 ${capFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textBaseline = 'top';
+  wrapText(ctx, cap, pad, H * 0.74, W - pad*2, capFS * 1.35, 2);
+
+  drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
+}
+
+function renderEarnings(W, H) {
+  const headerH = Math.round(H * 0.20);
+  drawHeaderBar(ctx, W, headerH, $('title').value || '本週財報');
+
+  const bodyStart = headerH + H*0.03;
+  const bodyEnd = H - Math.round(H * 0.18);
+  const rows = stocks.length || 1;
+  const rowH = (bodyEnd - bodyStart) / rows;
+
+  stocks.forEach((s, i) => {
+    const y = bodyStart + i * rowH + rowH / 2;
+    ctx.textBaseline = 'middle';
+
+    // Day badge (left)
+    ctx.fillStyle = '#fff7ed';
+    const badgeW = W * 0.16, badgeH = rowH * 0.72;
+    ctx.fillRect(W * 0.04, y - badgeH/2, badgeW, badgeH);
+    ctx.strokeStyle = $('themeColor').value;
+    ctx.lineWidth = 1;
+    ctx.strokeRect(W * 0.04, y - badgeH/2, badgeW, badgeH);
+    ctx.fillStyle = $('themeColor').value;
+    const dayFS = Math.round(rowH * 0.30);
+    ctx.font = `bold ${dayFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+    ctx.textAlign = 'center';
+    ctx.fillText(s.day || '?', W * 0.04 + badgeW/2, y);
+
+    // Ticker
+    ctx.fillStyle = textColor();
+    const tkFS = Math.round(rowH * 0.42);
+    ctx.font = `bold ${tkFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+    ctx.textAlign = 'left';
+    ctx.fillText(s.ticker || '—', W * 0.24, y);
+
+    // Note
+    ctx.fillStyle = mutedColor();
+    const noteFS = Math.round(rowH * 0.26);
+    ctx.font = `${noteFS}px -apple-system, SF Mono, monospace`;
+    ctx.textAlign = 'right';
+    ctx.fillText(s.note || '', W - W * 0.04, y);
+  });
+
+  drawFooterText(ctx, W, H, bodyEnd);
+}
+
+function renderHistory(W, H) {
+  const ev = stocks[0] || pickHistoryEvent();
+  const headerH = Math.round(H * 0.18);
+  drawHeaderBar(ctx, W, headerH, $('title').value || '金融史·今日');
+
+  // Big year
+  ctx.fillStyle = $('themeColor').value;
+  const yrFS = Math.round(H * 0.24);
+  ctx.font = `900 ${yrFS}px -apple-system, SF Mono, monospace`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(String(ev.year), W * 0.05, H * 0.35);
+
+  // Date small
+  ctx.fillStyle = mutedColor();
+  const dtFS = Math.round(H * 0.07);
+  ctx.font = `${dtFS}px -apple-system, SF Mono, monospace`;
+  ctx.fillText(`On ${ev.date}`, W * 0.05, H * 0.50);
+
+  // Event text
+  ctx.fillStyle = textColor();
+  const txFS = Math.round(H * 0.075);
+  ctx.font = `500 ${txFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textBaseline = 'top';
+  wrapText(ctx, ev.text, W * 0.05, H * 0.58, W * 0.9, txFS * 1.40, 3);
+
+  drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
+}
+
+// ============ MAIN RENDER DISPATCH ============
+function render() {
+  const {renderW, renderH} = setCanvasSize();
+  drawBg(ctx, renderW, renderH);
+
+  const mode = $('labelMode').value;
+  if (mode === 'mood')           renderMood(renderW, renderH);
+  else if (mode === 'star')      renderStar(renderW, renderH);
+  else if (mode === 'earnings')  renderEarnings(renderW, renderH);
+  else if (mode === 'history')   renderHistory(renderW, renderH);
+  else                           renderTopN(renderW, renderH);
+}
+
+// ============ UI STATE ============
+function updateModeUI() {
+  const mode = $('labelMode').value;
+  $('modeHint').textContent = MODE_HINTS[mode] || '';
+  document.querySelectorAll('.mode-field[data-needs]').forEach(el => {
+    const needs = el.dataset.needs.split(/\s+/);
+    el.classList.toggle('show', needs.includes(mode));
+  });
+}
+function updateSourceUI() {
+  const s = $('dataSource').value;
+  $('staticFields').classList.toggle('show', s === 'static');
+  $('lbFields').classList.toggle('show', s === 'longbridge');
+  $('finnhubFields').classList.toggle('show', s === 'finnhub');
+}
+function applySizePreset() {
+  const p = $('sizePreset').value;
+  if (p === 'custom') return;
+  const [w, h] = p.split('x').map(Number);
+  $('widthMm').value = w;
+  $('heightMm').value = h;
+}
+
+// ============ EVENTS ============
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tab-body').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  });
+});
+
+$('fetchBtn').addEventListener('click', generate);
+$('downloadBtn').addEventListener('click', () => {
+  const a = document.createElement('a');
+  const d = new Date();
+  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+  a.download = `coffee-sticker-${$('labelMode').value}-${stamp}.png`;
+  a.href = canvas.toDataURL('image/png');
+  a.click();
+});
+
+// ============ PRINTER ============
+async function refreshPrinters() {
+  const proxyUrl = ($('proxyUrl').value.trim() || 'http://localhost:8787').replace(/\/$/, '');
+  try {
+    const r = await fetch(`${proxyUrl}/printers`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const sel = $('printerName');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">自动（系统默认' + (d.default ? `：${d.default}` : '') + '）</option>' +
+      (d.printers || []).map(p => `<option value="${p}">${p}${p === d.default ? ' ★' : ''}</option>`).join('');
+    sel.value = current;
+    showStatus(`✓ 找到 ${d.printers.length} 台打印机`);
+  } catch (e) {
+    showStatus(`获取打印机失败: ${e.message}（代理是否启动？）`, 'err');
+  }
+}
+
+async function printSticker() {
+  const proxyUrl = ($('proxyUrl').value.trim() || 'http://localhost:8787').replace(/\/$/, '');
+  const widthMm = parseFloat($('widthMm').value) || 58;
+  const heightMm = parseFloat($('heightMm').value) || 40;
+  const payload = {
+    image: canvas.toDataURL('image/png'),
+    printer: $('printerName').value || null,
+    copies: parseInt($('printCopies').value) || 1,
+    media: `${widthMm}x${heightMm}mm`,
+  };
+  showStatus('📨 发送打印任务...', 'info');
+  try {
+    const r = await fetch(`${proxyUrl}/print`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || '打印失败');
+    showStatus(`✓ 已发送 ${payload.copies} 份到 ${d.printer || '默认打印机'}`);
+  } catch (e) {
+    showStatus(`打印失败: ${e.message}`, 'err');
+  }
+}
+
+$('refreshPrintersBtn').addEventListener('click', refreshPrinters);
+$('printBtn').addEventListener('click', printSticker);
+
+$('bgImage').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) { bgImg = null; render(); return; }
+  const r = new FileReader();
+  r.onload = ev => { const img = new Image(); img.onload = () => { bgImg = img; render(); }; img.src = ev.target.result; };
+  r.readAsDataURL(f);
+});
+
+$('labelMode').addEventListener('change', () => {
+  // Save current mode's title/footer before switching
+  setModeValue(currentMode, 'title', $('title').value);
+  setModeValue(currentMode, 'footer', $('footer').value);
+  // Switch and load new mode's template
+  currentMode = $('labelMode').value;
+  applyModeTemplate(currentMode);
+  updateModeUI();
+  resetStocksForMode();
+  saveConfig();
+  renderTable();
+  render();
+});
+$('earningsList').addEventListener('input', () => {
+  if ($('labelMode').value === 'earnings') { resetStocksForMode(); renderTable(); }
+  saveConfig(); render();
+});
+$('dataSource').addEventListener('change', () => { updateSourceUI(); saveConfig(); });
+$('sizePreset').addEventListener('change', () => { applySizePreset(); saveConfig(); render(); });
+
+['themeColor','widthMm','heightMm','dpi','colorConv','tplMode','topN',
+ 'moodIndex','starCaption','uiStyle','printerName','printCopies',
+ 'showTicker','showChange','showPrice','showArrow'].forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', () => { saveConfig(); render(); });
+  el.addEventListener('change', () => { saveConfig(); render(); });
+});
+
+// Title and footer are per-mode
+$('title').addEventListener('input', () => {
+  setModeValue(currentMode, 'title', $('title').value);
+  saveConfig();
+  render();
+});
+$('footer').addEventListener('input', () => {
+  setModeValue(currentMode, 'footer', $('footer').value);
+  saveConfig();
+  render();
+});
+
+// ============ INIT ============
+loadConfig();
+loadModeOverrides();
+currentMode = $('labelMode').value;
+
+// First-run migration: if no per-mode overrides, seed current mode from whatever's in inputs
+if (!modeOverrides[currentMode]) {
+  setModeValue(currentMode, 'title', $('title').value);
+  setModeValue(currentMode, 'footer', $('footer').value);
+}
+applyModeTemplate(currentMode);
+
+updateModeUI();
+updateSourceUI();
+
+moodData = {ticker:'SPY', changePct:1.23, price:520.45};
+dataTime = nowTimeStr();
+resetStocksForMode();
+renderTable();
+render();
+</script>
+
+</body>
+</html>

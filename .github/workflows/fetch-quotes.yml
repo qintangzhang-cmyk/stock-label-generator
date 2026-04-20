@@ -1,0 +1,70 @@
+name: Fetch Quotes
+
+on:
+  # HKT 07:30 = UTC 23:30 前一天
+  schedule:
+    - cron: '30 23 * * *'
+  # Actions 页面支持手动点 "Run workflow"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Longbridge CLI
+        run: |
+          curl -sSL https://github.com/longbridge/longbridge-terminal/raw/main/install | sh
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+
+      - name: Restore OAuth token
+        env:
+          LB_CLIENT_ID: ${{ secrets.LONGBRIDGE_CLIENT_ID }}
+          LB_TOKEN_JSON: ${{ secrets.LONGBRIDGE_TOKEN_JSON }}
+        run: |
+          if [ -z "$LB_CLIENT_ID" ] || [ -z "$LB_TOKEN_JSON" ]; then
+            echo "::error::Missing LONGBRIDGE_CLIENT_ID or LONGBRIDGE_TOKEN_JSON secret"
+            exit 1
+          fi
+          mkdir -p ~/.longbridge/openapi/tokens
+          printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
+
+      - name: Build quotes.json
+        run: |
+          python3 scripts/build_quotes.py > quotes.json
+          echo "::notice::Fetched $(python3 -c 'import json; print(json.load(open(\"quotes.json\"))[\"count\"])') symbols"
+
+      - name: Persist refreshed token (in case CLI refreshed it)
+        env:
+          LB_CLIENT_ID: ${{ secrets.LONGBRIDGE_CLIENT_ID }}
+        run: |
+          # After CLI usage, token file may have been auto-refreshed.
+          # We DO NOT commit it to the repo. Instead we echo a hint if it changed
+          # (manual Secret update will be needed ~every 90 days).
+          if [ -f "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID" ]; then
+            echo "Token file size: $(wc -c < "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID") bytes"
+          fi
+
+      - name: Commit quotes.json
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add quotes.json
+          if git diff --cached --quiet; then
+            echo "No changes in quotes.json"
+          else
+            git commit -m "chore(data): refresh quotes $(date -u '+%Y-%m-%d %H:%M UTC')"
+            git push
+          fi
