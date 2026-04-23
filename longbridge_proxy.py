@@ -248,20 +248,31 @@ class Handler(BaseHTTPRequestHandler):
 
 
 def main():
-    if not shutil.which('longbridge'):
-        print("❌ Longbridge CLI not found.")
-        print("   Install: brew install --cask longbridge/tap/longbridge-terminal")
-        print("   Login:   longbridge login")
-        sys.exit(1)
+    has_cli = shutil.which('longbridge') is not None
+    has_lpr = shutil.which('lpr') is not None
 
-    print(f"🚀 Longbridge proxy on http://localhost:{PORT}")
-    print(f"   Health: curl http://localhost:{PORT}/health")
-    print(f"   Try:    curl 'http://localhost:{PORT}/quotes?symbols=TSLA.US,AAPL.US'")
-    print(f"   Stop:   Ctrl+C")
+    print("=" * 50)
+    print("☕  咖啡貼紙打印服務")
+    print("=" * 50)
+    if has_cli:
+        print("✓ Longbridge CLI 已安装（/quotes 可用）")
+    else:
+        print("⚠  Longbridge CLI 未安装 — /quotes 不可用")
+        print("   网页使用云端数据源（static）时可以忽略")
+    if has_lpr:
+        default_printer = get_default_printer() or '（无默认，用 lpstat -p 查看）'
+        print(f"✓ lpr 就绪（默认打印机：{default_printer}）")
+    else:
+        print("❌ lpr 未找到 — 打印不可用（Mac 应该自带）")
+
+    print(f"\n🚀 服务运行于 http://localhost:{PORT}")
+    print(f"   保持此窗口开启，关闭即停止打印功能")
+    print(f"   手动停止：Ctrl+C")
+    print("=" * 50 + "\n")
     try:
         HTTPServer(('127.0.0.1', PORT), Handler).serve_forever()
     except KeyboardInterrupt:
-        print("\n👋 stopped")
+        print("\n👋 已停止")
 
 
 if __name__ == '__main__':
