@@ -381,11 +381,11 @@ BABA,PDD,JD,BIDU,NIO,LI,XPEV,TME,BILI,NTES
       </div>
 
       <div class="mode-field" data-needs="earnings">
-        <label>本周财报安排（每行：代码 日期 [EPS预期]）</label>
-        <textarea id="earningsList" rows="6">NVDA 週三 EPS $0.75
-TSLA 週四 EPS $0.62
-NFLX 週四 EPS $4.50
-GS 週二 EPS $9.80</textarea>
+        <label>本周财报安排（每行：代码 M/D [週X] [EPS预期]；週X可省略，自动推导）</label>
+        <textarea id="earningsList" rows="6">NVDA 4/29 EPS $0.75
+TSLA 4/30 EPS $0.62
+NFLX 4/30 EPS $4.50
+GS 4/28 EPS $9.80</textarea>
       </div>
 
       <div class="mode-field" data-needs="history">
@@ -746,9 +746,34 @@ function pickHoliday() {
 }
 
 function parseEarningsEntries() {
+  // Accepts: "TICKER M/D [週X] [note...]"  or  "TICKER 週X [note...]" (legacy)
+  const DATE_RE = /^\d{1,2}[\/\-]\d{1,2}$/;
+  const DAY_RE  = /^週[一二三四五六日天]$/;
   return $('earningsList').value.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
     const parts = line.split(/\s+/);
-    return { ticker: parts[0]||'', day: parts[1]||'', note: parts.slice(2).join(' '), price:0, changePct:0 };
+    const ticker = parts[0] || '';
+    let date = '', day = '', noteStart = 1;
+    if (parts[1] && DATE_RE.test(parts[1])) {
+      date = parts[1].replace('-', '/');
+      noteStart = 2;
+      if (parts[2] && DAY_RE.test(parts[2])) {
+        day = parts[2];
+        noteStart = 3;
+      } else {
+        day = deriveWeekday(date);
+      }
+    } else if (parts[1] && DAY_RE.test(parts[1])) {
+      day = parts[1];
+      noteStart = 2;
+    }
+    return {
+      ticker,
+      date,
+      day,
+      note: parts.slice(noteStart).join(' '),
+      price: 0,
+      changePct: 0,
+    };
   });
 }
 
@@ -1057,6 +1082,111 @@ const BRAND_FONT = `"Cera Pro", "PingFang HK", "PingFang TC", "Source Han Sans C
 const BODY_FONT  = `-apple-system, BlinkMacSystemFont, "PingFang HK", "PingFang TC", "Source Han Sans CN", sans-serif`;
 const NUM_FONT   = `"SF Pro Display", "Cera Pro", SFMono-Regular, Menlo, Consolas, monospace`;
 
+// Official Longbridge logos from their CDN (CORS-enabled)
+const LB_LOGO_MARK_URL = 'https://assets.wbrks.com/assets/logo/logo1.png';       // 500x500 bar-chart icon
+const LB_LOGO_FULL_URL = 'https://assets.wbrks.com/assets/logo/light/hk.png';   // 633x139 full signature
+let lbLogoMark = null;
+let lbLogoFull = null;
+(function preloadLBLogos() {
+  const m = new Image();
+  m.crossOrigin = 'anonymous';
+  m.onload = () => { lbLogoMark = m; if (typeof render === 'function') render(); };
+  m.src = LB_LOGO_MARK_URL;
+  const f = new Image();
+  f.crossOrigin = 'anonymous';
+  f.onload = () => { lbLogoFull = f; if (typeof render === 'function') render(); };
+  f.src = LB_LOGO_FULL_URL;
+})();
+
+// Mode → eyebrow text (shown in header instead of duplicate LONGBRIDGE wordmark)
+const MODE_EYEBROW = {
+  topn:     'TOP MOVERS',
+  mood:     'MARKET SENTIMENT',
+  star:     'SPOTLIGHT',
+  earnings: 'EARNINGS WEEK',
+  history:  'MARKET HISTORY',
+  holiday:  'FESTIVE',
+};
+function getCurrentEyebrow() {
+  const m = ($('labelMode') && $('labelMode').value) || 'topn';
+  return MODE_EYEBROW[m] || 'LONGBRIDGE';
+}
+
+// Longbridge 4-color bar palette (matches the official mark: teal, mint, amber, coral)
+const LB_MARK_COLORS = ['#00B8B8', '#5FD4C8', '#FFC24B', '#FF7A70'];
+
+// Vector bar-chart mark — ascending bars in brand colors. Used when lbLogoMark isn't loaded yet.
+function drawMarkVector(ctx, x, y, size) {
+  const barW = size * 0.18, gap = size * 0.05;
+  const heights = [0.28, 0.50, 0.72, 0.95];
+  const baseY = y + size;
+  heights.forEach((h, i) => {
+    ctx.fillStyle = LB_MARK_COLORS[i];
+    const barH = size * h;
+    ctx.fillRect(x + i * (barW + gap), baseY - barH, barW, barH);
+  });
+}
+
+// Draw the bar-chart mark (image if loaded, vector fallback otherwise)
+function drawLogoMark(ctx, x, y, size) {
+  if (lbLogoMark && lbLogoMark.complete && lbLogoMark.naturalWidth) {
+    ctx.drawImage(lbLogoMark, x, y, size, size);
+    return;
+  }
+  drawMarkVector(ctx, x, y, size);
+}
+
+// Draw the full "Hong Kong LONGBRIDGE" lockup at (rightX, bottomY). Image if loaded, vector fallback.
+function drawLogoFull(ctx, rightX, bottomY, targetH) {
+  if (lbLogoFull && lbLogoFull.complete && lbLogoFull.naturalWidth) {
+    const ratio = lbLogoFull.width / lbLogoFull.height;
+    const h = targetH;
+    const w = h * ratio;
+    ctx.drawImage(lbLogoFull, rightX - w, bottomY - h, w, h);
+    return;
+  }
+  // Vector fallback: mini mark + LONGBRIDGE wordmark, right-aligned
+  const fs = Math.round(targetH * 0.72);
+  ctx.font = `900 ${fs}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = LB_TEXT;
+  ctx.fillText('LONGBRIDGE', rightX, bottomY);
+  const textW = ctx.measureText('LONGBRIDGE').width;
+  const markSize = targetH * 0.85;
+  drawMarkVector(ctx, rightX - textW - markSize - 4, bottomY - markSize, markSize);
+}
+
+// Mood chart: 4 brand-colored bars arranged to express sentiment (ascending / flat / descending)
+function drawMoodChart(ctx, cx, cy, size, pct) {
+  const barW = size * 0.18, gap = size * 0.05;
+  const totalW = barW * 4 + gap * 3;
+  const x0 = cx - totalW / 2;
+  const baseY = cy + size / 2;
+  let heights;
+  if (pct >= 0.5)       heights = [0.30, 0.50, 0.72, 0.95]; // strong up
+  else if (pct >= 0)    heights = [0.45, 0.55, 0.70, 0.85]; // mild up
+  else if (pct > -0.5)  heights = [0.60, 0.60, 0.60, 0.60]; // flat
+  else if (pct > -2)    heights = [0.85, 0.70, 0.55, 0.45]; // mild down
+  else                  heights = [0.95, 0.72, 0.50, 0.30]; // strong down
+  heights.forEach((h, i) => {
+    ctx.fillStyle = LB_MARK_COLORS[i];
+    const barH = size * h;
+    ctx.fillRect(x0 + i * (barW + gap), baseY - barH, barW, barH);
+  });
+}
+
+// Derive Chinese weekday label from MM/DD or M-D (assumes current year)
+function deriveWeekday(mmdd) {
+  if (!mmdd) return '';
+  const parts = mmdd.split(/[\/\-]/).map(Number);
+  if (parts.length !== 2 || parts.some(isNaN)) return '';
+  const [m, d] = parts;
+  const y = new Date().getFullYear();
+  const dow = new Date(y, m - 1, d).getDay();
+  return ['週日','週一','週二','週三','週四','週五','週六'][dow];
+}
+
 function isLed() { return $('uiStyle').value === 'led'; }
 function isLb()  { return $('uiStyle').value === 'longbridge'; }
 function isMono(){ return $('uiStyle').value === 'mono'; }
@@ -1100,38 +1230,37 @@ function brandColor() {
   return $('themeColor').value;
 }
 
-// Small "LONGBRIDGE" wordmark bottom-right; used as a quiet brand anchor
-function drawLBWordmark(ctx, W, H, color) {
+// Bottom-right brand anchor — uses the official "Hong Kong · LONGBRIDGE" lockup image when loaded
+function drawLBWordmark(ctx, W, H) {
   if (!isLb()) return;
-  const fs = Math.max(8, Math.round(W * 0.026));
-  ctx.fillStyle = color || LB_MUTED;
-  ctx.font = `700 ${fs}px ${BRAND_FONT}`;
-  ctx.textBaseline = 'bottom';
-  ctx.textAlign = 'right';
-  // Tracked-out, compact mark — looks close to the site header wordmark
-  ctx.save();
-  ctx.globalAlpha = 0.75;
-  ctx.fillText('LONGBRIDGE', W - W * 0.05, H - W * 0.025);
-  ctx.restore();
+  const targetH = Math.max(14, Math.round(H * 0.07));
+  drawLogoFull(ctx, W - W * 0.05, H - W * 0.02, targetH);
 }
 
 function drawHeaderBar(ctx, W, headerH, title) {
   if (isLb()) {
-    // Longbridge: minimal eyebrow + big dark title + teal rule
+    // Longbridge: brand mark + mode eyebrow + big title + teal rule
     const pad = W * 0.05;
-    // Eyebrow (small teal label, letter-spaced)
+    // Brand mark (small bar-chart icon at top-left)
+    const markSize = Math.max(16, Math.round(headerH * 0.28));
+    drawLogoMark(ctx, pad, Math.round(headerH * 0.10), markSize);
+    // Mode eyebrow (small teal label, letter-spaced) — to the right of the mark
     ctx.fillStyle = LB_BRAND;
-    const ebFS = Math.max(9, Math.round(headerH * 0.20));
-    ctx.font = `700 ${ebFS}px ${BRAND_FONT}`;
-    ctx.textBaseline = 'top';
+    const ebFS = Math.max(9, Math.round(headerH * 0.18));
+    ctx.font = `800 ${ebFS}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    ctx.fillText('LONGBRIDGE', pad, headerH * 0.12);
+    const ebY = Math.round(headerH * 0.10) + markSize / 2;
+    ctx.save();
+    ctx.letterSpacing && (ctx.letterSpacing = '1.5px');
+    ctx.fillText(getCurrentEyebrow(), pad + markSize + pad * 0.5, ebY);
+    ctx.restore();
     // Main title below
     ctx.fillStyle = LB_TEXT;
-    const fs = Math.round(headerH * 0.42);
+    const fs = Math.round(headerH * 0.44);
     ctx.font = `900 ${fs}px ${BRAND_FONT}`;
     ctx.textBaseline = 'middle';
-    ctx.fillText(title, pad, headerH * 0.66);
+    ctx.fillText(title, pad, headerH * 0.72);
     // Thin teal rule at the very bottom of header, short accent
     ctx.fillStyle = LB_BRAND;
     const ruleW = Math.max(W * 0.14, pad * 3);
@@ -1201,9 +1330,11 @@ function drawFooterText(ctx, W, H, startY) {
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
   const footerStartY = isLb() ? startY + W * 0.025 : startY + W * 0.02;
-  wrapText(ctx, raw, W*0.05, footerStartY, W - W*0.22, fs * 1.35, Math.floor(footerH / (fs*1.4)));
-  // Draw LB wordmark in the bottom-right corner (only when LB style)
-  drawLBWordmark(ctx, W, H, LB_BRAND);
+  // Leave room for the LB lockup (≈ W*0.34 at default H) when LB style
+  const textMaxW = isLb() ? W * 0.58 : W - W*0.22;
+  wrapText(ctx, raw, W*0.05, footerStartY, textMaxW, fs * 1.35, Math.floor(footerH / (fs*1.4)));
+  // Draw the official Longbridge lockup bottom-right (only when LB style)
+  drawLBWordmark(ctx, W, H);
 }
 
 // ============ MODE RENDERERS ============
@@ -1290,48 +1421,48 @@ function renderMood(W, H) {
   const pct = moodData ? moodData.changePct : 0;
 
   if (isLb()) {
-    // Longbridge: white card, soft teal tint zone for emoji, clean type
+    // Longbridge: brand mark top-left, eyebrow, then big ticker + % with mood chart on the right
     const pad = W * 0.05;
-    // Eyebrow + title
+    // Brand mark + eyebrow row
+    const markSize = Math.max(16, Math.round(H * 0.09));
+    drawLogoMark(ctx, pad, pad * 0.9, markSize);
     ctx.fillStyle = LB_BRAND;
-    ctx.font = `700 ${Math.max(10, Math.round(W * 0.035))}px ${BRAND_FONT}`;
-    ctx.textBaseline = 'top';
+    ctx.font = `800 ${Math.max(10, Math.round(W * 0.032))}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
     ctx.textAlign = 'left';
-    ctx.fillText('MARKET SENTIMENT', pad, pad);
+    ctx.fillText('MARKET SENTIMENT', pad + markSize + pad * 0.5, pad * 0.9 + markSize / 2);
     // Accent rule
     ctx.fillStyle = LB_BRAND;
-    ctx.fillRect(pad, pad + W * 0.055, W * 0.10, 2);
+    ctx.fillRect(pad, pad + markSize + W * 0.015, W * 0.10, 2);
 
     // Big ticker (index symbol)
     const idx = moodData ? moodData.ticker : 'SPY';
     ctx.fillStyle = LB_TEXT;
-    ctx.font = `900 ${Math.round(H * 0.09)}px ${BRAND_FONT}`;
+    ctx.font = `900 ${Math.round(H * 0.10)}px ${BRAND_FONT}`;
     ctx.textBaseline = 'top';
-    ctx.fillText(idx, pad, pad + W * 0.09);
+    ctx.fillText(idx, pad, pad + markSize + W * 0.035);
 
     // Change% huge, brand red/green
     ctx.fillStyle = pct >= 0 ? LB_UP : LB_DOWN;
-    const pctFS = Math.round(H * 0.20);
+    const pctFS = Math.round(H * 0.21);
     ctx.font = `900 ${pctFS}px ${NUM_FONT}`;
     ctx.textBaseline = 'middle';
     const sign = pct >= 0 ? '+' : '';
-    ctx.fillText(`${sign}${pct.toFixed(2)}%`, pad, H * 0.48);
+    ctx.fillText(`${sign}${pct.toFixed(2)}%`, pad, H * 0.50);
 
-    // Emoji subtly on the right
-    ctx.font = `${Math.round(H * 0.22)}px "Apple Color Emoji","Segoe UI Emoji", sans-serif`;
-    ctx.textAlign = 'right';
-    ctx.textBaseline = 'middle';
-    ctx.fillText(m.emoji, W - pad, H * 0.48);
+    // Mood chart (4 brand-colored bars) on the right — on-brand, print-friendly, no emoji
+    const chartSize = Math.round(H * 0.28);
+    drawMoodChart(ctx, W - pad - chartSize / 2, H * 0.50, chartSize, pct);
 
     // Mood label + desc on lower half
     ctx.fillStyle = LB_TEXT;
     ctx.font = `700 ${Math.round(H * 0.075)}px ${BRAND_FONT}`;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'top';
-    ctx.fillText(m.label, pad, H * 0.66);
+    ctx.fillText(m.label, pad, H * 0.68);
     ctx.fillStyle = LB_MUTED;
     ctx.font = `400 ${Math.round(H * 0.052)}px ${BODY_FONT}`;
-    wrapText(ctx, m.desc, pad, H * 0.76, W - pad*2, H * 0.058, 2);
+    wrapText(ctx, m.desc, pad, H * 0.78, W - pad*2, H * 0.058, 2);
 
     // Footer
     drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
@@ -1451,11 +1582,13 @@ function renderEarnings(W, H) {
     const y = bodyStart + i * rowH + rowH / 2;
     ctx.textBaseline = 'middle';
 
-    // Day badge (left)
+    // Day badge (left) — wider pill so it can hold "M/D" + "週X" stacked
     const badgeBg  = isLb() ? LB_TINT   : '#fff7ed';
     const badgeStr = isLb() ? LB_BRAND  : $('themeColor').value;
     ctx.fillStyle = badgeBg;
-    const badgeW = W * 0.16, badgeH = rowH * 0.72;
+    const hasDate = !!s.date;
+    const badgeW = hasDate ? W * 0.20 : W * 0.16;
+    const badgeH = rowH * 0.78;
     const badgeX = W * 0.04;
     const badgeY = y - badgeH / 2;
     if (isLb()) {
@@ -1480,17 +1613,31 @@ function renderEarnings(W, H) {
       ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
     }
     ctx.fillStyle = badgeStr;
-    const dayFS = Math.round(rowH * 0.30);
-    ctx.font = `${isLb() ? 800 : 'bold'} ${dayFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
     ctx.textAlign = 'center';
-    ctx.fillText(s.day || '?', badgeX + badgeW/2, y);
+    if (hasDate) {
+      // Primary line: M/D
+      const dateFS = Math.round(rowH * 0.30);
+      ctx.font = `${isLb() ? 900 : 'bold'} ${dateFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(s.date, badgeX + badgeW/2, y - rowH * 0.04);
+      // Secondary line: 週X
+      const dayFS = Math.round(rowH * 0.22);
+      ctx.font = `${isLb() ? 700 : 'normal'} ${dayFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+      ctx.fillText(s.day || '', badgeX + badgeW/2, y + rowH * 0.22);
+      ctx.textBaseline = 'middle';
+    } else {
+      const dayFS = Math.round(rowH * 0.30);
+      ctx.font = `${isLb() ? 800 : 'bold'} ${dayFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+      ctx.fillText(s.day || '?', badgeX + badgeW/2, y);
+    }
 
     // Ticker
+    const tickerX = badgeX + badgeW + W * 0.03;
     ctx.fillStyle = textColor();
     const tkFS = Math.round(rowH * 0.42);
     ctx.font = `${isLb() ? 900 : 'bold'} ${tkFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
     ctx.textAlign = 'left';
-    ctx.fillText(s.ticker || '—', W * 0.24, y);
+    ctx.fillText(s.ticker || '—', tickerX, y);
 
     // Note
     ctx.fillStyle = mutedColor();
