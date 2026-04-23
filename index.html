@@ -547,6 +547,19 @@ function loadConfig() {
       if (el.type === 'checkbox') el.checked = v;
       else el.value = v;
     });
+    // One-shot migration: upgrade legacy default (classic orange) to Longbridge brand.
+    // Only affects users who never manually touched style/theme — custom picks are preserved.
+    const MIGRATED_KEY = 'cafe_lb_brand_migrated_v1';
+    if (!localStorage.getItem(MIGRATED_KEY)) {
+      const uiStyleEl = $('uiStyle');
+      const themeEl   = $('themeColor');
+      const wasLegacyStyle = !cfg.uiStyle || cfg.uiStyle === 'classic';
+      const wasLegacyTheme = !cfg.themeColor || cfg.themeColor === '#ff6a00';
+      if (wasLegacyStyle && uiStyleEl) uiStyleEl.value = 'longbridge';
+      if (wasLegacyTheme && themeEl)   themeEl.value   = '#00B8B8';
+      localStorage.setItem(MIGRATED_KEY, '1');
+      saveConfig();
+    }
   } catch (e) {}
 }
 
