@@ -5,17 +5,39 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>咖啡贴纸生成器 · Coffee Sticker Studio</title>
 <style>
+  /* Longbridge brand font, served by their public CDN */
+  @font-face {
+    font-family: 'Cera Pro';
+    src: url('https://assets.lbkrs.com/uploads/1da143cd-071d-4e4c-a10f-37b14ba48c10/cera-pro-regular.otf');
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Cera Pro';
+    src: url('https://assets.lbkrs.com/pkg/annual-2023/Cera-Pro-Bold.otf');
+    font-weight: 700;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Cera Pro';
+    src: url('https://assets.lbkrs.com/pkg/annual-2023/Cera-Pro-Black.otf');
+    font-weight: 900;
+    font-display: swap;
+  }
   :root {
-    --brand: #ff6a00;
-    --brand-dark: #e05a00;
-    --text: #1a1a1a;
-    --muted: #6b7280;
-    --bg: #fafafa;
+    --brand: #00B8B8;        /* Longbridge teal */
+    --brand-dark: #008C91;
+    --brand-tint: #DFF7F3;
+    --text: #0A0E19;
+    --muted: #82888D;
+    --bg: #F8F9FA;
     --panel: #ffffff;
-    --border: #e5e7eb;
-    --up: #e53935;
-    --down: #16a34a;
+    --border: #E6E7E8;
+    --up: #F7415F;           /* HK/CN convention: red = up */
+    --down: #2AD390;
     --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+    --brand-font: 'Cera Pro', "PingFang HK", "PingFang TC", "Source Han Sans CN", "Microsoft JhengHei", -apple-system, sans-serif;
+    --body-font: -apple-system, BlinkMacSystemFont, "PingFang HK", "PingFang TC", "Source Han Sans CN", "Microsoft JhengHei", sans-serif;
   }
   * { box-sizing: border-box; }
   html, body { margin: 0; padding: 0; }
@@ -208,15 +230,15 @@
 <body>
 
 <!-- ============ PASSWORD GATE ============ -->
-<div id="gate" style="position:fixed;inset:0;background:linear-gradient(180deg,#f97316,#ea580c);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:99999;font-family:-apple-system,'PingFang HK','PingFang TC','Microsoft JhengHei',sans-serif;">
+<div id="gate" style="position:fixed;inset:0;background:linear-gradient(180deg,#00B8B8 0%,#008C91 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:99999;font-family:'Cera Pro',-apple-system,'PingFang HK','PingFang TC','Microsoft JhengHei',sans-serif;">
   <div style="font-size:72px;margin-bottom:8px;">☕</div>
-  <h1 style="color:white;font-size:26px;margin:0 0 4px;font-weight:700;">咖啡貼紙生成器</h1>
-  <p style="color:white;opacity:0.85;margin:0 0 28px;font-size:13px;letter-spacing:1px;">Coffee × Securities</p>
+  <h1 style="color:white;font-size:26px;margin:0 0 4px;font-weight:900;letter-spacing:0.5px;">咖啡貼紙生成器</h1>
+  <p style="color:white;opacity:0.85;margin:0 0 28px;font-size:12px;letter-spacing:2.5px;font-weight:700;">LONGBRIDGE × CAFÉ</p>
   <form id="gateForm" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:90vw;">
     <input type="password" id="gatePwd" placeholder="請輸入密碼" autofocus
-      style="padding:12px 16px;border-radius:10px;border:0;font-size:16px;width:240px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+      style="padding:12px 16px;border-radius:4px;border:0;font-size:16px;width:240px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
     <button type="submit"
-      style="padding:12px 24px;background:#1f2937;color:white;border:0;border-radius:10px;font-size:16px;font-weight:600;cursor:pointer;">進入</button>
+      style="padding:12px 24px;background:#0A0E19;color:white;border:0;border-radius:4px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:1px;">進入</button>
   </form>
   <div id="gateMsg" style="color:white;min-height:20px;margin-top:14px;font-size:14px;"></div>
 </div>
@@ -429,9 +451,10 @@ GS 週二 EPS $9.80</textarea>
 
       <h3>配色 & 模板</h3>
       <div class="row2">
-        <div><label>主题色</label><input type="color" id="themeColor" value="#ff6a00"></div>
+        <div><label>主题色</label><input type="color" id="themeColor" value="#00B8B8"></div>
         <div><label>风格</label>
           <select id="uiStyle">
+            <option value="longbridge" selected>長橋品牌（默認）</option>
             <option value="classic">经典橙</option>
             <option value="mono">极简黑白</option>
             <option value="led">LED 屏（咖啡厅同款）</option>
@@ -1007,36 +1030,101 @@ function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 99) {
 const LED_UP   = '#00D4E6';
 const LED_DOWN = '#FF3B5C';
 
+// Longbridge brand tokens — mirrors the HK marketing site design system
+const LB_BRAND   = '#00B8B8';
+const LB_BRAND_D = '#008C91';
+const LB_TINT    = '#DFF7F3';
+const LB_TEXT    = '#0A0E19';
+const LB_MUTED   = '#82888D';
+const LB_UP      = '#F7415F';   // red = 上涨（HK/CN 慣例）
+const LB_DOWN    = '#2AD390';   // 绿 = 下跌
+const LB_BORDER  = '#E6E7E8';
+
+const BRAND_FONT = `"Cera Pro", "PingFang HK", "PingFang TC", "Source Han Sans CN", "Microsoft JhengHei", -apple-system, sans-serif`;
+const BODY_FONT  = `-apple-system, BlinkMacSystemFont, "PingFang HK", "PingFang TC", "Source Han Sans CN", sans-serif`;
+const NUM_FONT   = `"SF Pro Display", "Cera Pro", SFMono-Regular, Menlo, Consolas, monospace`;
+
 function isLed() { return $('uiStyle').value === 'led'; }
+function isLb()  { return $('uiStyle').value === 'longbridge'; }
+function isMono(){ return $('uiStyle').value === 'mono'; }
 
 function pctColor(pct) {
   if (isLed()) return pct >= 0 ? LED_UP : LED_DOWN;
+  // Longbridge preset auto-applies HK (red=up) convention regardless of dropdown
+  if (isLb()) return pct >= 0 ? LB_UP : LB_DOWN;
   const conv = $('colorConv').value;
   if (conv === 'mono') return '#111';
   if (conv === 'cn') return pct >= 0 ? 'var-up' : 'var-down';
   return pct >= 0 ? 'var-down' : 'var-up';
 }
 function resolveColor(c) {
-  if (c === 'var-up') return getComputedStyle(document.documentElement).getPropertyValue('--up').trim() || '#e53935';
-  if (c === 'var-down') return getComputedStyle(document.documentElement).getPropertyValue('--down').trim() || '#16a34a';
+  if (c === 'var-up') return getComputedStyle(document.documentElement).getPropertyValue('--up').trim() || '#F7415F';
+  if (c === 'var-down') return getComputedStyle(document.documentElement).getPropertyValue('--down').trim() || '#2AD390';
   return c;
 }
 
 function drawBg(ctx, W, H) {
   const style = $('uiStyle').value;
   if (style === 'led') { ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H); }
+  else if (style === 'longbridge') { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); }
   else { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); }
 
   if (bgImg && $('tplMode').value === 'full') ctx.drawImage(bgImg, 0, 0, W, H);
 }
 function textColor() {
-  return isLed() ? '#ffffff' : '#111';
+  if (isLed()) return '#ffffff';
+  if (isLb())  return LB_TEXT;
+  return '#111';
 }
 function mutedColor() {
-  return isLed() ? '#9ca3af' : '#6b7280';
+  if (isLed()) return '#9ca3af';
+  if (isLb())  return LB_MUTED;
+  return '#6b7280';
+}
+function brandColor() {
+  if (isLed()) return LED_UP;
+  if (isLb())  return LB_BRAND;
+  return $('themeColor').value;
+}
+
+// Small "LONGBRIDGE" wordmark bottom-right; used as a quiet brand anchor
+function drawLBWordmark(ctx, W, H, color) {
+  if (!isLb()) return;
+  const fs = Math.max(8, Math.round(W * 0.026));
+  ctx.fillStyle = color || LB_MUTED;
+  ctx.font = `700 ${fs}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'right';
+  // Tracked-out, compact mark — looks close to the site header wordmark
+  ctx.save();
+  ctx.globalAlpha = 0.75;
+  ctx.fillText('LONGBRIDGE', W - W * 0.05, H - W * 0.025);
+  ctx.restore();
 }
 
 function drawHeaderBar(ctx, W, headerH, title) {
+  if (isLb()) {
+    // Longbridge: minimal eyebrow + big dark title + teal rule
+    const pad = W * 0.05;
+    // Eyebrow (small teal label, letter-spaced)
+    ctx.fillStyle = LB_BRAND;
+    const ebFS = Math.max(9, Math.round(headerH * 0.20));
+    ctx.font = `700 ${ebFS}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillText('LONGBRIDGE', pad, headerH * 0.12);
+    // Main title below
+    ctx.fillStyle = LB_TEXT;
+    const fs = Math.round(headerH * 0.42);
+    ctx.font = `900 ${fs}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, pad, headerH * 0.66);
+    // Thin teal rule at the very bottom of header, short accent
+    ctx.fillStyle = LB_BRAND;
+    const ruleW = Math.max(W * 0.14, pad * 3);
+    ctx.fillRect(pad, headerH - Math.max(2, Math.round(headerH * 0.04)), ruleW, Math.max(2, Math.round(headerH * 0.04)));
+    return;
+  }
   if (isLed()) {
     // Dark background continues; thin cyan underline instead of solid bar
     ctx.fillStyle = '#fff';
@@ -1086,16 +1174,23 @@ function drawFooterText(ctx, W, H, startY) {
     // Thin cyan top border for the footer section
     ctx.fillStyle = LED_UP;
     ctx.fillRect(W*0.025, startY, W - W*0.05, 1);
+  } else if (isLb()) {
+    // Longbridge: no background card — just a hairline separator
+    ctx.fillStyle = LB_BORDER;
+    ctx.fillRect(W*0.05, startY, W - W*0.10, 1);
   } else {
     ctx.fillStyle = '#f8fafc';
     ctx.fillRect(W*0.025, startY, W - W*0.05, footerH - 4);
   }
   ctx.fillStyle = mutedColor();
   const fs = Math.max(9, Math.round(W * 0.026));
-  ctx.font = `${fs}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.font = `${fs}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'left';
-  wrapText(ctx, raw, W*0.05, startY + W*0.02, W - W*0.1, fs * 1.35, Math.floor(footerH / (fs*1.4)));
+  const footerStartY = isLb() ? startY + W * 0.025 : startY + W * 0.02;
+  wrapText(ctx, raw, W*0.05, footerStartY, W - W*0.22, fs * 1.35, Math.floor(footerH / (fs*1.4)));
+  // Draw LB wordmark in the bottom-right corner (only when LB style)
+  drawLBWordmark(ctx, W, H, LB_BRAND);
 }
 
 // ============ MODE RENDERERS ============
@@ -1120,9 +1215,25 @@ function renderTopN(W, H) {
     const pct = s.changePct || 0;
     const col = resolveColor(pctColor(pct));
 
-    // Arrow (left)
+    // Longbridge style: teal rank number + thin row separator
     let xText = W * 0.05;
-    if (showArrow) {
+    if (isLb()) {
+      // Rank number (01, 02, 03) in teal
+      ctx.fillStyle = LB_BRAND;
+      const rkFS = Math.round(rowH * 0.26);
+      ctx.font = `700 ${rkFS}px ${NUM_FONT}`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      const rank = String(i + 1).padStart(2, '0');
+      ctx.fillText(rank, W * 0.05, y);
+      xText = W * 0.05 + ctx.measureText(rank).width + W * 0.025;
+      // Thin row separator (except for first row)
+      if (i > 0) {
+        ctx.fillStyle = LB_BORDER;
+        ctx.fillRect(W * 0.05, bodyStart + i * rowH, W * 0.9, 1);
+      }
+    } else if (showArrow) {
+      // Classic/mono/led: original arrow on the left
       const aW = rowH * 0.85, aH = rowH * 0.55;
       const ay = y - aH / 2;
       if (pct >= 0) drawTrendUp(ctx, W * 0.04, ay, aW, aH, col);
@@ -1132,8 +1243,8 @@ function renderTopN(W, H) {
     // Ticker
     if (showTicker) {
       ctx.fillStyle = textColor();
-      const fs = Math.round(rowH * 0.55);
-      ctx.font = `bold ${fs}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+      const fs = Math.round(rowH * (isLb() ? 0.48 : 0.55));
+      ctx.font = `${isLb() ? 900 : 'bold'} ${fs}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'left';
       ctx.fillText(s.ticker || '—', xText, y);
@@ -1143,7 +1254,7 @@ function renderTopN(W, H) {
     if (showChange) {
       ctx.fillStyle = col;
       const fs = Math.round(rowH * 0.56);
-      ctx.font = `bold ${fs}px ${"-apple-system, SF Mono, Menlo, Consolas, monospace"}`;
+      ctx.font = `${isLb() ? 900 : 'bold'} ${fs}px ${NUM_FONT}`;
       ctx.textBaseline = 'middle';
       ctx.textAlign = 'right';
       const sign = pct >= 0 ? '+' : '';
@@ -1152,7 +1263,7 @@ function renderTopN(W, H) {
     if (showPrice) {
       ctx.fillStyle = mutedColor();
       const fs = Math.round(rowH * 0.26);
-      ctx.font = `${fs}px ${"-apple-system, SF Mono, monospace"}`;
+      ctx.font = `${fs}px ${NUM_FONT}`;
       ctx.textAlign = 'right';
       ctx.fillText(`$${(s.price||0).toFixed(2)}`, rightX, y + rowH*0.24);
     }
@@ -1164,15 +1275,63 @@ function renderTopN(W, H) {
 function renderMood(W, H) {
   const m = computeMood(moodData ? moodData.changePct : 0);
   const pct = moodData ? moodData.changePct : 0;
-  // Full background tinted
+
+  if (isLb()) {
+    // Longbridge: white card, soft teal tint zone for emoji, clean type
+    const pad = W * 0.05;
+    // Eyebrow + title
+    ctx.fillStyle = LB_BRAND;
+    ctx.font = `700 ${Math.max(10, Math.round(W * 0.035))}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'top';
+    ctx.textAlign = 'left';
+    ctx.fillText('MARKET SENTIMENT', pad, pad);
+    // Accent rule
+    ctx.fillStyle = LB_BRAND;
+    ctx.fillRect(pad, pad + W * 0.055, W * 0.10, 2);
+
+    // Big ticker (index symbol)
+    const idx = moodData ? moodData.ticker : 'SPY';
+    ctx.fillStyle = LB_TEXT;
+    ctx.font = `900 ${Math.round(H * 0.09)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(idx, pad, pad + W * 0.09);
+
+    // Change% huge, brand red/green
+    ctx.fillStyle = pct >= 0 ? LB_UP : LB_DOWN;
+    const pctFS = Math.round(H * 0.20);
+    ctx.font = `900 ${pctFS}px ${NUM_FONT}`;
+    ctx.textBaseline = 'middle';
+    const sign = pct >= 0 ? '+' : '';
+    ctx.fillText(`${sign}${pct.toFixed(2)}%`, pad, H * 0.48);
+
+    // Emoji subtly on the right
+    ctx.font = `${Math.round(H * 0.22)}px "Apple Color Emoji","Segoe UI Emoji", sans-serif`;
+    ctx.textAlign = 'right';
+    ctx.textBaseline = 'middle';
+    ctx.fillText(m.emoji, W - pad, H * 0.48);
+
+    // Mood label + desc on lower half
+    ctx.fillStyle = LB_TEXT;
+    ctx.font = `700 ${Math.round(H * 0.075)}px ${BRAND_FONT}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(m.label, pad, H * 0.66);
+    ctx.fillStyle = LB_MUTED;
+    ctx.font = `400 ${Math.round(H * 0.052)}px ${BODY_FONT}`;
+    wrapText(ctx, m.desc, pad, H * 0.76, W - pad*2, H * 0.058, 2);
+
+    // Footer
+    drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
+    return;
+  }
+
+  // Original mood design (other styles)
   ctx.fillStyle = m.color;
   ctx.fillRect(0, 0, W, H);
-  // White card inside
   const pad = W * 0.04;
   ctx.fillStyle = '#fff';
   ctx.fillRect(pad, pad, W - pad*2, H - pad*2);
 
-  // Emoji (big) — text rendered
   ctx.fillStyle = m.color;
   const emojiSize = Math.round(H * 0.32);
   ctx.font = `${emojiSize}px -apple-system, "Apple Color Emoji", sans-serif`;
@@ -1180,27 +1339,23 @@ function renderMood(W, H) {
   ctx.textAlign = 'center';
   ctx.fillText(m.emoji, W * 0.28, H * 0.40);
 
-  // Mood label
   ctx.fillStyle = '#111';
   const labelFS = Math.round(H * 0.11);
   ctx.font = `bold ${labelFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
   ctx.textAlign = 'left';
   ctx.fillText(m.label, W * 0.45, H * 0.32);
 
-  // Change%
   ctx.fillStyle = m.color;
   const pctFS = Math.round(H * 0.14);
   ctx.font = `bold ${pctFS}px -apple-system, SF Mono, monospace`;
   const sign = pct >= 0 ? '+' : '';
   ctx.fillText(`${sign}${pct.toFixed(2)}%`, W * 0.45, H * 0.48);
 
-  // Desc
   ctx.fillStyle = mutedColor();
   const descFS = Math.round(H * 0.055);
   ctx.font = `${descFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
   ctx.fillText(m.desc, W * 0.08, H * 0.72);
 
-  // Footer small
   ctx.fillStyle = '#9ca3af';
   const fs = Math.round(H * 0.04);
   ctx.font = `${fs}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
@@ -1222,30 +1377,33 @@ function renderStar(W, H) {
   // Change% + arrow — right-aligned, measured first so ticker left gets remaining space
   const pctText = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
   const pctFS = Math.round(H * 0.15);
-  ctx.font = `bold ${pctFS}px -apple-system, SF Mono, monospace`;
+  ctx.font = `${isLb() ? 900 : 'bold'} ${pctFS}px ${NUM_FONT}`;
   const pctW = ctx.measureText(pctText).width;
 
   const arrowH = H * 0.14, arrowW = arrowH * 1.25;
-  const rowY = H * 0.42;
+  const rowY = H * 0.44;
 
   // Draw change% at right edge
   ctx.fillStyle = col;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'right';
   ctx.fillText(pctText, W - pad, rowY);
-  // Arrow just left of %
-  if (pct >= 0) drawTrendUp(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
-  else drawTrendDown(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
+  // Arrow just left of % (skip in Longbridge — the red/green + sign is enough)
+  let arrowSlot = 0;
+  if (!isLb()) {
+    if (pct >= 0) drawTrendUp(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
+    else drawTrendDown(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
+    arrowSlot = arrowW + W*0.015;
+  }
 
   // Ticker — left, sized to fit remaining space
-  const tickerMaxW = W - pad*2 - pctW - arrowW - W*0.04;
+  const tickerMaxW = W - pad*2 - pctW - arrowSlot - W*0.04;
   let tkFS = Math.round(H * 0.32);
   ctx.fillStyle = textColor();
-  ctx.font = `900 ${tkFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
-  // Shrink if overflows
+  ctx.font = `900 ${tkFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
   while (ctx.measureText(s.ticker||'—').width > tickerMaxW && tkFS > 12) {
     tkFS -= 2;
-    ctx.font = `900 ${tkFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+    ctx.font = `900 ${tkFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
   }
   ctx.textAlign = 'left';
   ctx.fillText(s.ticker || '—', pad, rowY);
@@ -1253,14 +1411,14 @@ function renderStar(W, H) {
   // Price (below ticker)
   ctx.fillStyle = mutedColor();
   const prFS = Math.round(H * 0.075);
-  ctx.font = `${prFS}px -apple-system, SF Mono, monospace`;
-  ctx.fillText(`$${(s.price||0).toFixed(2)}`, pad, H * 0.62);
+  ctx.font = `${prFS}px ${NUM_FONT}`;
+  ctx.fillText(`$${(s.price||0).toFixed(2)}`, pad, H * 0.64);
 
   // Caption
   const cap = $('starCaption').value || '';
   ctx.fillStyle = textColor();
   const capFS = Math.round(H * 0.068);
-  ctx.font = `500 ${capFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.font = `${isLb() ? 500 : 500} ${capFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
   ctx.textBaseline = 'top';
   wrapText(ctx, cap, pad, H * 0.74, W - pad*2, capFS * 1.35, 2);
 
@@ -1281,29 +1439,50 @@ function renderEarnings(W, H) {
     ctx.textBaseline = 'middle';
 
     // Day badge (left)
-    ctx.fillStyle = '#fff7ed';
+    const badgeBg  = isLb() ? LB_TINT   : '#fff7ed';
+    const badgeStr = isLb() ? LB_BRAND  : $('themeColor').value;
+    ctx.fillStyle = badgeBg;
     const badgeW = W * 0.16, badgeH = rowH * 0.72;
-    ctx.fillRect(W * 0.04, y - badgeH/2, badgeW, badgeH);
-    ctx.strokeStyle = $('themeColor').value;
-    ctx.lineWidth = 1;
-    ctx.strokeRect(W * 0.04, y - badgeH/2, badgeW, badgeH);
-    ctx.fillStyle = $('themeColor').value;
+    const badgeX = W * 0.04;
+    const badgeY = y - badgeH / 2;
+    if (isLb()) {
+      // Rounded pill-style badge
+      const r = Math.min(badgeH / 2, 6);
+      ctx.beginPath();
+      ctx.moveTo(badgeX + r, badgeY);
+      ctx.lineTo(badgeX + badgeW - r, badgeY);
+      ctx.quadraticCurveTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + r);
+      ctx.lineTo(badgeX + badgeW, badgeY + badgeH - r);
+      ctx.quadraticCurveTo(badgeX + badgeW, badgeY + badgeH, badgeX + badgeW - r, badgeY + badgeH);
+      ctx.lineTo(badgeX + r, badgeY + badgeH);
+      ctx.quadraticCurveTo(badgeX, badgeY + badgeH, badgeX, badgeY + badgeH - r);
+      ctx.lineTo(badgeX, badgeY + r);
+      ctx.quadraticCurveTo(badgeX, badgeY, badgeX + r, badgeY);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+      ctx.strokeStyle = badgeStr;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+    }
+    ctx.fillStyle = badgeStr;
     const dayFS = Math.round(rowH * 0.30);
-    ctx.font = `bold ${dayFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+    ctx.font = `${isLb() ? 800 : 'bold'} ${dayFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
     ctx.textAlign = 'center';
-    ctx.fillText(s.day || '?', W * 0.04 + badgeW/2, y);
+    ctx.fillText(s.day || '?', badgeX + badgeW/2, y);
 
     // Ticker
     ctx.fillStyle = textColor();
     const tkFS = Math.round(rowH * 0.42);
-    ctx.font = `bold ${tkFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+    ctx.font = `${isLb() ? 900 : 'bold'} ${tkFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
     ctx.textAlign = 'left';
     ctx.fillText(s.ticker || '—', W * 0.24, y);
 
     // Note
     ctx.fillStyle = mutedColor();
     const noteFS = Math.round(rowH * 0.26);
-    ctx.font = `${noteFS}px -apple-system, SF Mono, monospace`;
+    ctx.font = `${noteFS}px ${isLb() ? BODY_FONT : '-apple-system, SF Mono, monospace'}`;
     ctx.textAlign = 'right';
     ctx.fillText(s.note || '', W - W * 0.04, y);
   });
@@ -1323,27 +1502,27 @@ function renderHistory(W, H) {
   drawHeaderBar(ctx, W, headerH, title);
 
   // Big year
-  ctx.fillStyle = $('themeColor').value;
+  ctx.fillStyle = isLb() ? LB_BRAND : $('themeColor').value;
   const yrFS = Math.round(H * 0.24);
-  ctx.font = `900 ${yrFS}px -apple-system, SF Mono, monospace`;
+  ctx.font = `900 ${yrFS}px ${isLb() ? NUM_FONT : '-apple-system, SF Mono, monospace'}`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'left';
-  ctx.fillText(String(ev.year), W * 0.05, H * 0.35);
+  ctx.fillText(String(ev.year), W * 0.05, H * 0.36);
 
   // Date in Chinese format: "2月3日" instead of "On 02-03"
   ctx.fillStyle = mutedColor();
   const dtFS = Math.round(H * 0.07);
-  ctx.font = `${dtFS}px -apple-system, "PingFang HK", "PingFang TC", SF Mono, monospace`;
+  ctx.font = `${dtFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", SF Mono, monospace'}`;
   const [mmStr, ddStr] = ev.date.split('-');
   const dateLabel = `${parseInt(mmStr, 10)}月${parseInt(ddStr, 10)}日`;
-  ctx.fillText(dateLabel, W * 0.05, H * 0.50);
+  ctx.fillText(dateLabel, W * 0.05, H * 0.51);
 
   // Event text
   ctx.fillStyle = textColor();
   const txFS = Math.round(H * 0.075);
-  ctx.font = `500 ${txFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.font = `${isLb() ? 500 : 500} ${txFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
   ctx.textBaseline = 'top';
-  wrapText(ctx, ev.text, W * 0.05, H * 0.58, W * 0.9, txFS * 1.40, 3);
+  wrapText(ctx, ev.text, W * 0.05, H * 0.59, W * 0.9, txFS * 1.40, 3);
 
   drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
 }
@@ -1351,30 +1530,31 @@ function renderHistory(W, H) {
 function renderHoliday(W, H) {
   const h = pickHoliday();
   const headerH = Math.round(H * 0.18);
-  const title = $('title').value || `☕ ${h.name}`;
+  const title = $('title').value || (isLb() ? h.name : `☕ ${h.name}`);
   drawHeaderBar(ctx, W, headerH, title);
 
   // Giant emoji in the middle — use system color emoji font
-  const emojiFS = Math.round(H * 0.38);
+  const emojiFS = Math.round(H * (isLb() ? 0.32 : 0.38));
   ctx.font = `${emojiFS}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  ctx.fillText(h.emoji, W * 0.5, H * 0.42);
+  ctx.fillText(h.emoji, W * 0.5, H * (isLb() ? 0.46 : 0.42));
 
-  // Holiday name — bold, centered
-  ctx.fillStyle = h.color || $('themeColor').value;
-  const ntFS = Math.round(H * 0.12);
-  ctx.font = `800 ${ntFS}px -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", sans-serif`;
-  ctx.fillText(h.name, W * 0.5, H * 0.66);
+  // Holiday name — LB: only show if no custom title, else skip to avoid duplication
+  if (!isLb() || !$('title').value) {
+    ctx.fillStyle = isLb() ? LB_TEXT : (h.color || $('themeColor').value);
+    const ntFS = Math.round(H * (isLb() ? 0.095 : 0.12));
+    ctx.font = `${isLb() ? 900 : 800} ${ntFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", sans-serif'}`;
+    ctx.fillText(h.name, W * 0.5, H * (isLb() ? 0.68 : 0.66));
+  }
 
   // Flavor line — muted, wrapped, centered-ish
   ctx.fillStyle = mutedColor();
   const lnFS = Math.round(H * 0.065);
-  ctx.font = `500 ${lnFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.font = `${isLb() ? 400 : 500} ${lnFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
   ctx.textBaseline = 'top';
   ctx.textAlign = 'center';
-  // wrapText is left-aligned, so emulate centered wrapping inline
-  wrapTextCentered(ctx, h.line, W * 0.5, H * 0.76, W * 0.9, lnFS * 1.35, 2);
+  wrapTextCentered(ctx, h.line, W * 0.5, H * 0.78, W * 0.9, lnFS * 1.35, 2);
   ctx.textAlign = 'left';
 
   drawFooterText(ctx, W, H, H - Math.round(H * 0.10));
