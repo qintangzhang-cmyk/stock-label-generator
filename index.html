@@ -268,8 +268,43 @@
         <option value="star">昨日主角股</option>
         <option value="earnings">财报周提醒</option>
         <option value="history">金融史彩蛋</option>
+        <option value="holiday">节日彩蛋 🎉</option>
       </select>
       <div class="mode-hint" id="modeHint"></div>
+      <div id="holidayBanner" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;cursor:pointer;"></div>
+
+      <div class="mode-field" data-needs="holiday">
+        <label>节日选择</label>
+        <select id="holidayPick">
+          <option value="auto">自動（跟隨今日）</option>
+          <optgroup label="固定節日">
+            <option value="01-01">元旦 🎊</option>
+            <option value="02-14">情人節 💘</option>
+            <option value="03-14">圓周率日 π</option>
+            <option value="04-01">愚人節 🤡</option>
+            <option value="05-01">勞動節 💪</option>
+            <option value="07-01">香港回歸 🇭🇰</option>
+            <option value="10-01">國慶日 🇨🇳</option>
+            <option value="10-31">萬聖節 🎃</option>
+            <option value="11-11">雙十一 🛒</option>
+            <option value="12-24">平安夜 🌲</option>
+            <option value="12-25">聖誕節 🎄</option>
+          </optgroup>
+          <optgroup label="2026 農曆/浮動節日">
+            <option value="2026-02-17">農曆新年 🧧</option>
+            <option value="2026-03-03">元宵節 🏮</option>
+            <option value="2026-04-05">清明節 🌧️</option>
+            <option value="2026-05-10">母親節 🌷</option>
+            <option value="2026-06-19">端午節 🌊</option>
+            <option value="2026-06-21">父親節 👔</option>
+            <option value="2026-08-19">七夕 💑</option>
+            <option value="2026-09-25">中秋節 🌕</option>
+            <option value="2026-10-18">重陽節 🍂</option>
+            <option value="2026-11-26">感恩節 🦃</option>
+          </optgroup>
+        </select>
+        <div class="hint">可以自由預覽任何節日效果；設為「自動」時只在真的是節日時觸發。</div>
+      </div>
 
       <h3>数据源</h3>
       <select id="dataSource">
@@ -499,6 +534,7 @@ const MODE_HINTS = {
   star:     '只展示 1 只涨幅最高的股票，搭配一句副标题/新闻。',
   earnings: '本周财报提醒，手动填写或接入 API。',
   history:  '金融史「今日发生」，从内置事件库随机抽取一条。',
+  holiday:  '节日彩蛋：自动识别中国/香港传统节日和常见西方节日，搭配咖啡与金融梗文案。',
 };
 
 const MODE_DEFAULTS = {
@@ -507,6 +543,7 @@ const MODE_DEFAULTS = {
   star:     { title: '昨日主角股',          footer: '數據時點：{time}；內容僅供參考，不構成投資建議。' },
   earnings: { title: '本週財報提醒',        footer: '財報日期僅供參考；實際盈利以公司公告為準。' },
   history:  { title: '金融史·今日',         footer: '{date} · 數據來源：公開資料整理。' },
+  holiday:  { title: '',                    footer: '{date} · ☕ LB Café 祝您節日快樂。' },
 };
 
 let modeOverrides = {};
@@ -591,6 +628,87 @@ function pickHistoryEvent() {
   return {date: rk, isToday: false, ...HISTORY_EVENTS[rk]};
 }
 
+// ============ HOLIDAYS ============
+// 固定陽曆節日（每年相同）
+const HOLIDAYS_SOLAR = {
+  '01-01': {name:'元旦',         emoji:'🎊', line:'新年開市，願今年組合跑贏道指。',           color:'#ef4444'},
+  '02-14': {name:'情人節',       emoji:'💘', line:'愛情也要做組合管理，記得分散風險。',       color:'#ec4899'},
+  '03-08': {name:'婦女節',       emoji:'🌸', line:'敬投資路上的每一位女神。',                 color:'#ec4899'},
+  '03-14': {name:'圓周率日',     emoji:'π',  line:'願你的組合像 π 一樣，無限延伸。',          color:'#6366f1'},
+  '04-01': {name:'愚人節',       emoji:'🤡', line:'本日所有看漲邏輯，皆為愚人節玩笑。',       color:'#f97316'},
+  '05-01': {name:'勞動節',       emoji:'💪', line:'勞動最光榮，複利最溫柔。',                 color:'#ef4444'},
+  '05-04': {name:'青年節',       emoji:'🔥', line:'年輕就是最大的本金。',                     color:'#ef4444'},
+  '06-01': {name:'兒童節',       emoji:'🎈', line:'保持童心，也保持倉位。',                   color:'#f59e0b'},
+  '07-01': {name:'香港回歸紀念', emoji:'🇭🇰', line:'維港夜色，港股長紅。',                     color:'#dc2626'},
+  '08-08': {name:'爸爸節',       emoji:'👔', line:'爸爸教我的第一課：別追高。',               color:'#1d4ed8'},
+  '10-01': {name:'國慶日',       emoji:'🇨🇳', line:'紅盤賀歲，祝祖國生日快樂。',               color:'#dc2626'},
+  '10-31': {name:'萬聖節',       emoji:'🎃', line:'Trick or Treat · 糖果還是熊市？',           color:'#ea580c'},
+  '11-11': {name:'雙十一',       emoji:'🛒', line:'買買買，也別忘了加倉指數。',               color:'#ef4444'},
+  '12-24': {name:'平安夜',       emoji:'🌲', line:'平安夜 · 願你的倉位平安。',               color:'#16a34a'},
+  '12-25': {name:'聖誕節',       emoji:'🎄', line:'Santa Rally · 聖誕老人快來送紅包。',       color:'#16a34a'},
+  '12-31': {name:'除夕倒數',     emoji:'🎆', line:'年底埋單，明年再戰。',                     color:'#6366f1'},
+};
+
+// 農曆 / 浮動節日（需按年維護）— 覆蓋 2026、2027
+const HOLIDAYS_MOVABLE = {
+  // 2026（丙午·馬年）
+  '2026-02-17': {name:'農曆新年',     emoji:'🧧', line:'恭喜發財 · 馬年紅盤開市。',             color:'#dc2626'},
+  '2026-02-18': {name:'年初二',       emoji:'🐴', line:'馬到成功 · 組合奔騰。',                 color:'#dc2626'},
+  '2026-02-19': {name:'年初三',       emoji:'🧧', line:'開年三杯咖啡，全年好運相隨。',         color:'#dc2626'},
+  '2026-03-03': {name:'元宵節',       emoji:'🏮', line:'花燈看完，A 股準時開工。',             color:'#dc2626'},
+  '2026-04-05': {name:'清明節',       emoji:'🌧️', line:'慎終追遠 · 也回望一下自己的組合。',    color:'#16a34a'},
+  '2026-04-06': {name:'清明假期',     emoji:'🌸', line:'雨紛紛，茶一杯。',                     color:'#16a34a'},
+  '2026-05-10': {name:'母親節',       emoji:'🌷', line:'媽媽是永遠的穩健配置。',               color:'#ec4899'},
+  '2026-05-25': {name:'佛誕',         emoji:'🪷', line:'一念之間，牛熊皆是心境。',             color:'#f59e0b'},
+  '2026-06-19': {name:'端午節',       emoji:'🌊', line:'粽子與股票，今天選粽子。',             color:'#16a34a'},
+  '2026-06-21': {name:'父親節',       emoji:'👔', line:'爸爸教我的第一課：別追高。',           color:'#1d4ed8'},
+  '2026-08-19': {name:'七夕',         emoji:'💑', line:'良辰美景，情人節概念股起飛。',         color:'#ec4899'},
+  '2026-09-25': {name:'中秋節',       emoji:'🌕', line:'月圓人團圓 · 組合記得再平衡。',       color:'#f59e0b'},
+  '2026-10-18': {name:'重陽節',       emoji:'🍂', line:'登高望遠 · 股票看長線。',             color:'#ea580c'},
+  '2026-11-26': {name:'感恩節',       emoji:'🦃', line:'感謝今年沒被 Margin Call。',           color:'#ea580c'},
+  // 2027（丁未·羊年）
+  '2027-02-06': {name:'農曆新年',     emoji:'🧧', line:'恭喜發財 · 羊年洋洋得意。',             color:'#dc2626'},
+  '2027-02-07': {name:'年初二',       emoji:'🐑', line:'三陽開泰 · 組合步步高。',             color:'#dc2626'},
+  '2027-02-20': {name:'元宵節',       emoji:'🏮', line:'花燈看完，A 股準時開工。',             color:'#dc2626'},
+  '2027-04-05': {name:'清明節',       emoji:'🌧️', line:'慎終追遠 · 也回望一下自己的組合。',    color:'#16a34a'},
+  '2027-05-09': {name:'母親節',       emoji:'🌷', line:'媽媽是永遠的穩健配置。',               color:'#ec4899'},
+  '2027-05-13': {name:'佛誕',         emoji:'🪷', line:'一念之間，牛熊皆是心境。',             color:'#f59e0b'},
+  '2027-06-09': {name:'端午節',       emoji:'🌊', line:'粽子與股票，今天選粽子。',             color:'#16a34a'},
+  '2027-06-20': {name:'父親節',       emoji:'👔', line:'爸爸教我的第一課：別追高。',           color:'#1d4ed8'},
+  '2027-08-08': {name:'七夕',         emoji:'💑', line:'良辰美景，情人節概念股起飛。',         color:'#ec4899'},
+  '2027-09-15': {name:'中秋節',       emoji:'🌕', line:'月圓人團圓 · 組合記得再平衡。',       color:'#f59e0b'},
+  '2027-10-08': {name:'重陽節',       emoji:'🍂', line:'登高望遠 · 股票看長線。',             color:'#ea580c'},
+  '2027-11-25': {name:'感恩節',       emoji:'🦃', line:'感謝今年沒被 Margin Call。',           color:'#ea580c'},
+};
+
+function holidayKeyToday() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return {full: `${d.getFullYear()}-${mm}-${dd}`, solar: `${mm}-${dd}`};
+}
+
+// Returns today's holiday object if any, else null.
+function detectTodayHoliday() {
+  const k = holidayKeyToday();
+  return HOLIDAYS_MOVABLE[k.full] || HOLIDAYS_SOLAR[k.solar] || null;
+}
+
+// Returns the holiday to render based on current selection; falls back to a
+// default if nothing chosen. Override via #holidayPick dropdown.
+function pickHoliday() {
+  const pick = document.getElementById('holidayPick')?.value || 'auto';
+  if (pick !== 'auto') {
+    // Values are either YYYY-MM-DD (movable) or MM-DD (solar)
+    const h = HOLIDAYS_MOVABLE[pick] || HOLIDAYS_SOLAR[pick];
+    if (h) return {...h, isToday: false};
+  }
+  const today = detectTodayHoliday();
+  if (today) return {...today, isToday: true};
+  // No match — give a graceful generic line that still works as a fun label
+  return {name:'今日特飲', emoji:'☕', line:'每一天，都值得一杯好咖啡。', color:'#f97316', isToday:false};
+}
+
 function parseEarningsEntries() {
   return $('earningsList').value.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
     const parts = line.split(/\s+/);
@@ -620,6 +738,9 @@ function resetStocksForMode() {
     }
   } else if (mode === 'mood') {
     if (!moodData) moodData = {ticker:'SPY', changePct:1.23, price:520.45};
+  } else if (mode === 'holiday') {
+    // Holiday mode doesn't depend on stock data — clear the table
+    stocks = [];
   }
 }
 
@@ -760,6 +881,11 @@ async function generate() {
       stocks = [pickHistoryEvent()];
       dataTime = nowTimeStr();
       showStatus(`✓ ${stocks[0].date} 事件`);
+    }
+    else if (mode === 'holiday') {
+      const h = pickHoliday();
+      dataTime = nowTimeStr();
+      showStatus(`✓ ${h.name}${h.isToday ? '（今日）' : '（預覽）'}`);
     }
   } catch (e) {
     const hint = source === 'longbridge' && mode !== 'history' && mode !== 'earnings'
@@ -1222,6 +1348,57 @@ function renderHistory(W, H) {
   drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
 }
 
+function renderHoliday(W, H) {
+  const h = pickHoliday();
+  const headerH = Math.round(H * 0.18);
+  const title = $('title').value || `☕ ${h.name}`;
+  drawHeaderBar(ctx, W, headerH, title);
+
+  // Giant emoji in the middle — use system color emoji font
+  const emojiFS = Math.round(H * 0.38);
+  ctx.font = `${emojiFS}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(h.emoji, W * 0.5, H * 0.42);
+
+  // Holiday name — bold, centered
+  ctx.fillStyle = h.color || $('themeColor').value;
+  const ntFS = Math.round(H * 0.12);
+  ctx.font = `800 ${ntFS}px -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", sans-serif`;
+  ctx.fillText(h.name, W * 0.5, H * 0.66);
+
+  // Flavor line — muted, wrapped, centered-ish
+  ctx.fillStyle = mutedColor();
+  const lnFS = Math.round(H * 0.065);
+  ctx.font = `500 ${lnFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+  // wrapText is left-aligned, so emulate centered wrapping inline
+  wrapTextCentered(ctx, h.line, W * 0.5, H * 0.76, W * 0.9, lnFS * 1.35, 2);
+  ctx.textAlign = 'left';
+
+  drawFooterText(ctx, W, H, H - Math.round(H * 0.10));
+}
+
+// Centered wrap helper (canvas wrapText is left-aligned only)
+function wrapTextCentered(ctx, text, cx, y, maxWidth, lineHeight, maxLines = 2) {
+  const chars = (text || '').split('');
+  const lines = [];
+  let cur = '';
+  for (const ch of chars) {
+    const test = cur + ch;
+    if (ctx.measureText(test).width > maxWidth && cur) {
+      lines.push(cur);
+      cur = ch;
+      if (lines.length >= maxLines - 1) break;
+    } else {
+      cur = test;
+    }
+  }
+  if (cur && lines.length < maxLines) lines.push(cur);
+  lines.forEach((ln, i) => ctx.fillText(ln, cx, y + i * lineHeight));
+}
+
 // ============ MAIN RENDER DISPATCH ============
 function render() {
   const {renderW, renderH} = setCanvasSize();
@@ -1232,6 +1409,7 @@ function render() {
   else if (mode === 'star')      renderStar(renderW, renderH);
   else if (mode === 'earnings')  renderEarnings(renderW, renderH);
   else if (mode === 'history')   renderHistory(renderW, renderH);
+  else if (mode === 'holiday')   renderHoliday(renderW, renderH);
   else                           renderTopN(renderW, renderH);
 }
 
@@ -1343,6 +1521,7 @@ $('labelMode').addEventListener('change', () => {
   saveConfig();
   renderTable();
   render();
+  refreshHolidayBanner();
 });
 $('earningsList').addEventListener('input', () => {
   if ($('labelMode').value === 'earnings') { resetStocksForMode(); renderTable(); }
@@ -1350,6 +1529,25 @@ $('earningsList').addEventListener('input', () => {
 });
 $('dataSource').addEventListener('change', () => { updateSourceUI(); saveConfig(); });
 $('sizePreset').addEventListener('change', () => { applySizePreset(); saveConfig(); render(); });
+document.getElementById('holidayPick')?.addEventListener('change', () => { saveConfig(); render(); });
+
+// Auto-suggest holiday mode if today is actually a holiday
+function refreshHolidayBanner() {
+  const banner = document.getElementById('holidayBanner');
+  if (!banner) return;
+  const today = detectTodayHoliday();
+  const mode = $('labelMode').value;
+  if (today && mode !== 'holiday') {
+    banner.style.display = 'block';
+    banner.textContent = `🎉 今天是「${today.name}」，點這裡切換節日貼紙模式 →`;
+    banner.onclick = () => {
+      $('labelMode').value = 'holiday';
+      $('labelMode').dispatchEvent(new Event('change'));
+    };
+  } else {
+    banner.style.display = 'none';
+  }
+}
 
 ['themeColor','widthMm','heightMm','dpi','colorConv','tplMode','topN',
  'moodIndex','starCaption','uiStyle','printerName','printCopies',
@@ -1392,6 +1590,7 @@ dataTime = nowTimeStr();
 resetStocksForMode();
 renderTable();
 render();
+refreshHolidayBanner();
 </script>
 
 </body>
