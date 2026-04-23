@@ -574,6 +574,10 @@ const HISTORY_EVENTS = {
   "04-19": {year: 2022, text: "Netflix 財報暴雷，盤後跌 27%，引發流媒體板塊重估"},
   "04-17": {year: 2008, text: "谷歌超越沃爾瑪成為美國第四大公司"},
   "04-18": {year: 1906, text: "舊金山大地震，美國保險業面臨首次世紀級賠付"},
+  "04-22": {year: 1993, text: "Mosaic 1.0 發布，互聯網商業化序幕，催生科網泡沫"},
+  "04-23": {year: 2013, text: "AP 推特遭黑客劫持偽發爆炸假消息，道指 3 分鐘蒸發 1,360 億美元"},
+  "04-26": {year: 2003, text: "非典疫情重創港股，恒指跌至 8,409 的五年低點"},
+  "04-28": {year: 2000, text: "思科超越微軟成為全球市值最高公司，科網泡沫的頂點注腳"},
 };
 
 function pickHistoryEvent() {
@@ -581,10 +585,10 @@ function pickHistoryEvent() {
   const mm = String(now.getMonth() + 1).padStart(2, '0');
   const dd = String(now.getDate()).padStart(2, '0');
   const key = `${mm}-${dd}`;
-  if (HISTORY_EVENTS[key]) return {date: key, ...HISTORY_EVENTS[key]};
+  if (HISTORY_EVENTS[key]) return {date: key, isToday: true, ...HISTORY_EVENTS[key]};
   const keys = Object.keys(HISTORY_EVENTS);
   const rk = keys[Math.floor(Math.random() * keys.length)];
-  return {date: rk, ...HISTORY_EVENTS[rk]};
+  return {date: rk, isToday: false, ...HISTORY_EVENTS[rk]};
 }
 
 function parseEarningsEntries() {
@@ -1184,7 +1188,13 @@ function renderEarnings(W, H) {
 function renderHistory(W, H) {
   const ev = stocks[0] || pickHistoryEvent();
   const headerH = Math.round(H * 0.18);
-  drawHeaderBar(ctx, W, headerH, $('title').value || '金融史·今日');
+  // If user hasn't customized the title and today has no matching event,
+  // swap 今日 → 往昔 so the header doesn't lie about the date.
+  let title = $('title').value || '金融史·今日';
+  if (!ev.isToday && (title === '金融史·今日' || title === '金融史・今日')) {
+    title = '金融史·往昔';
+  }
+  drawHeaderBar(ctx, W, headerH, title);
 
   // Big year
   ctx.fillStyle = $('themeColor').value;
@@ -1194,11 +1204,13 @@ function renderHistory(W, H) {
   ctx.textAlign = 'left';
   ctx.fillText(String(ev.year), W * 0.05, H * 0.35);
 
-  // Date small
+  // Date in Chinese format: "2月3日" instead of "On 02-03"
   ctx.fillStyle = mutedColor();
   const dtFS = Math.round(H * 0.07);
-  ctx.font = `${dtFS}px -apple-system, SF Mono, monospace`;
-  ctx.fillText(`On ${ev.date}`, W * 0.05, H * 0.50);
+  ctx.font = `${dtFS}px -apple-system, "PingFang HK", "PingFang TC", SF Mono, monospace`;
+  const [mmStr, ddStr] = ev.date.split('-');
+  const dateLabel = `${parseInt(mmStr, 10)}月${parseInt(ddStr, 10)}日`;
+  ctx.fillText(dateLabel, W * 0.05, H * 0.50);
 
   // Event text
   ctx.fillStyle = textColor();
