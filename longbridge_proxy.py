@@ -96,6 +96,40 @@ def fetch_quotes(symbols):
     return out
 
 
+def fetch_static_info(symbols):
+    """Fetch `total_shares` etc. Used to compute market cap (price × total_shares)."""
+    normalized = [_normalize(s) for s in symbols if s.strip()]
+    if not normalized:
+        return {}
+    try:
+        r = subprocess.run(
+            ['longbridge', 'static-info', *normalized, '--format', 'json'],
+            capture_output=True, text=True, timeout=TIMEOUT_SEC,
+        )
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return {}
+    if r.returncode != 0:
+        return {}
+    try:
+        raw = json.loads(r.stdout)
+    except json.JSONDecodeError:
+        return {}
+    if not isinstance(raw, list):
+        raw = [raw]
+    out = {}
+    for q in raw:
+        if isinstance(q, dict) and q.get('symbol'):
+            out[q['symbol']] = {
+                "total_shares": _num(q.get('total_shares')),
+                "circulating_shares": _num(q.get('circulating_shares')),
+                "name_en": q.get('name_en', ''),
+                "name_zh": q.get('name_zh', ''),
+                "currency": q.get('currency', ''),
+                "exchange": q.get('exchange', ''),
+            }
+    return out
+
+
 def list_printers():
     """List CUPS printer names via `lpstat -p`."""
     try:
@@ -205,6 +239,32 @@ class Handler(BaseHTTPRequestHandler):
             return
 
         results = fetch_quotes(symbols)
+
+        # Optional: enrich with market cap + names via static-info
+        if params.get('mcap', ['0'])[0] == '1':
+            info = fetch_static_info(symbols)
+            for r in results:
+                meta = info.get(r.get('symbol', ''))
+                if not meta:
+                    continue
+                total_shares = meta.get('total_shares', 0)
+                price = r.get('price', 0)
+                r['marketCap'] = round(price * total_shares, 2) if total_shares else 0
+                r['nameEn'] = meta.get('name_en', '')
+                r['nameZh'] = meta.get('name_zh', '')
+                r['currency'] = meta.get('currency', '')
+                r['exchange'] = meta.get('exchange', '')
+
+        # Optional: sort by changePct and take top N
+        try:
+            top_n = int(params.get('top', ['0'])[0])
+        except ValueError:
+            top_n = 0
+        if top_n > 0:
+            valid = [r for r in results if 'error' not in r]
+            valid.sort(key=lambda r: r.get('changePct', 0), reverse=True)
+            results = valid[:top_n]
+
         self._send_json(200, results)
 
     def do_POST(self):
@@ -271,6 +331,14 @@ def main():
     print("=" * 50 + "\n")
     try:
         HTTPServer(('127.0.0.1', PORT), Handler).serve_forever()
+    except OSError as e:
+        # macOS EADDRINUSE = 48, Linux = 98
+        if e.errno in (48, 98):
+            print(f"\n❌ 端口 {PORT} 已被占用——上一次 proxy 可能没关干净")
+            print(f"   一键清理：  pkill -f longbridge_proxy.py")
+            print(f"   查看占用者：lsof -i :{PORT}")
+            sys.exit(1)
+        raise
     except KeyboardInterrupt:
         print("\n👋 已停止")
 
