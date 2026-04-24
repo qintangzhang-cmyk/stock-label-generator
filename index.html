@@ -491,7 +491,7 @@ GS 4/28 EPS $9.80</textarea>
 
     <div class="panel-body" style="padding: 0 20px 20px">
       <div class="row2">
-        <button id="downloadBtn" class="secondary">📥 下载 PNG</button>
+        <button id="downloadBtn" class="secondary">📥 下载 JPG</button>
         <button id="printBtn">🖨️ 直接打印</button>
       </div>
     </div>
@@ -1790,8 +1790,9 @@ $('downloadBtn').addEventListener('click', () => {
   const a = document.createElement('a');
   const d = new Date();
   const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
-  a.download = `coffee-sticker-${$('labelMode').value}-${stamp}.png`;
-  a.href = canvas.toDataURL('image/png');
+  a.download = `coffee-sticker-${$('labelMode').value}-${stamp}.jpg`;
+  // 0.95 quality — high fidelity for label print, keeps file small
+  a.href = canvas.toDataURL('image/jpeg', 0.95);
   a.click();
 });
 
