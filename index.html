@@ -1427,29 +1427,44 @@ function renderTopNClassic(W, H) {
     const cellY = headerH + s.row * cellH;
     const cx = cellX + cellW / 2;
 
-    // Ticker label (upper portion of cell). Auto-shrink if it would overflow the colored block.
+    // Ticker label — centered in upper half of cell. Auto-shrink to fit colored block.
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const label = s.label || s.ticker || '—';
-    let tickerFS = Math.round(cellH * 0.28);
-    const maxTickerW = cellW * 0.78;
+    let tickerFS = Math.round(cellH * 0.30);
+    const maxTextW = cellW * 0.76;
     ctx.font = `900 ${tickerFS}px ${BRAND_FONT}`;
-    while (ctx.measureText(label).width > maxTickerW && tickerFS > 10) {
+    while (ctx.measureText(label).width > maxTextW && tickerFS > 10) {
       tickerFS -= 2;
       ctx.font = `900 ${tickerFS}px ${BRAND_FONT}`;
     }
-    ctx.fillText(label, cx, cellY + cellH * 0.36);
+    // Ticker center at 32% of cell height (mid of upper half with some breathing room)
+    ctx.fillText(label, cx, cellY + cellH * 0.32);
 
-    // Percentage (lower portion) — black regardless of sign per design spec (option a)
+    // Percentage — Cera Pro Black + extra stroke to match the visual weight of the ticker letters
+    // (Cera Pro digits naturally render thinner than caps even at the same weight)
     if (!s.missing) {
       const pct = s.changePct || 0;
       const sign = pct >= 0 ? '+' : '';
-      ctx.font = `900 ${Math.round(cellH * 0.18)}px ${NUM_FONT}`;
-      ctx.fillText(`${sign}${pct.toFixed(2)}%`, cx, cellY + cellH * 0.72);
+      let pctFS = Math.round(cellH * 0.22);
+      const pctText = `${sign}${pct.toFixed(2)}%`;
+      ctx.font = `900 ${pctFS}px ${BRAND_FONT}`;
+      while (ctx.measureText(pctText).width > maxTextW && pctFS > 8) {
+        pctFS -= 1;
+        ctx.font = `900 ${pctFS}px ${BRAND_FONT}`;
+      }
+      const py = cellY + cellH * 0.72;
+      ctx.fillStyle = '#000';
+      ctx.fillText(pctText, cx, py);
+      // Subtle extra stroke (≈4% of font size) — visual weight bump without distorting glyphs
+      ctx.lineWidth = Math.max(1, pctFS * 0.04);
+      ctx.strokeStyle = '#000';
+      ctx.lineJoin = 'round';
+      ctx.strokeText(pctText, cx, py);
     } else {
       ctx.fillStyle = '#888';
-      ctx.font = `${Math.round(cellH * 0.16)}px ${BODY_FONT}`;
+      ctx.font = `${Math.round(cellH * 0.18)}px ${BODY_FONT}`;
       ctx.fillText('—', cx, cellY + cellH * 0.72);
     }
   }
