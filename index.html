@@ -898,18 +898,47 @@ async function generate() {
 
   try {
     if (mode === 'topn') {
-      const tickers = parseTickerList();
-      if (!tickers.length && source !== 'manual') throw new Error('观察池为空');
-      if (source !== 'manual') {
-        showStatus(`获取 ${tickers.length} 只股票...`, 'info');
-        stocks = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
-        const n = parseInt($('topN').value) || 3;
-        stocks = stocks.slice(0, n);
-      } else if (stocks.length === 0) {
-        stocks = Array.from({length: parseInt($('topN').value)||3}, () => ({ticker:'', price:0, changePct:0, name:''}));
+      if (isLb()) {
+        // Classic Longbridge template: fixed M7 roster, fixed cell layout, no ranking
+        if (source === 'manual') {
+          stocks = M7_LAYOUT.map(m => ({
+            ticker: m.label, symbol: m.fetch + '.US',
+            label: m.label, col: m.col, row: m.row,
+            price: 0, changePct: 0, missing: true,
+          }));
+        } else {
+          showStatus(`获取美股七巨頭...`, 'info');
+          const data = await fetchData(M7_FETCH_SYMBOLS);
+          const byFetch = {};
+          for (const d of data) byFetch[(d.ticker || '').toUpperCase()] = d;
+          stocks = M7_LAYOUT.map(m => {
+            const d = byFetch[m.fetch];
+            return d ? {
+              ...d, ticker: m.label,            // display the label, not the fetch symbol
+              label: m.label, col: m.col, row: m.row,
+            } : {
+              ticker: m.label, symbol: m.fetch + '.US',
+              label: m.label, col: m.col, row: m.row,
+              price: 0, changePct: 0, missing: true,
+            };
+          });
+        }
+        dataTime = nowTimeStr();
+        showStatus(`✓ 七巨頭已更新`);
+      } else {
+        const tickers = parseTickerList();
+        if (!tickers.length && source !== 'manual') throw new Error('观察池为空');
+        if (source !== 'manual') {
+          showStatus(`获取 ${tickers.length} 只股票...`, 'info');
+          stocks = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
+          const n = parseInt($('topN').value) || 3;
+          stocks = stocks.slice(0, n);
+        } else if (stocks.length === 0) {
+          stocks = Array.from({length: parseInt($('topN').value)||3}, () => ({ticker:'', price:0, changePct:0, name:''}));
+        }
+        dataTime = nowTimeStr();
+        showStatus(`✓ 成功`);
       }
-      dataTime = nowTimeStr();
-      showStatus(`✓ 成功`);
     }
     else if (mode === 'mood') {
       const idx = $('moodIndex').value.trim() || 'SPY.US';
@@ -1097,6 +1126,30 @@ let lbLogoFull = null;
   f.onload = () => { lbLogoFull = f; if (typeof render === 'function') render(); };
   f.src = LB_LOGO_FULL_URL;
 })();
+
+// ======== Official Longbridge templates (per-mode background art) ========
+const LB_TPL_TOPN_CLASSIC = './assets/templates/topn_classic.png';
+let tplTopnClassic = null;
+(function preloadLBTemplates() {
+  const t = new Image();
+  t.onload = () => { tplTopnClassic = t; if (typeof render === 'function') render(); };
+  t.src = LB_TPL_TOPN_CLASSIC;
+})();
+
+// "Magnificent 7" — fixed roster + fixed cell positions for the topn-classic template
+// label = what we draw on the sticker (matches official design),
+// fetch = symbol used to query data (e.g. Alphabet → fetch GOOGL, display GOOG)
+const M7_LAYOUT = [
+  { label: 'AAPL', fetch: 'AAPL',  col: 0, row: 0 },
+  { label: 'MSFT', fetch: 'MSFT',  col: 1, row: 0 },
+  { label: 'NVDA', fetch: 'NVDA',  col: 2, row: 0 },
+  { label: 'AMZN', fetch: 'AMZN',  col: 3, row: 0 },
+  { label: 'META', fetch: 'META',  col: 0, row: 1 },
+  { label: 'GOOG', fetch: 'GOOGL', col: 1, row: 1 },
+  { label: 'TSLA', fetch: 'TSLA',  col: 2, row: 1 },
+  // (col=3, row=1) is the mascot illustration baked into the template — no overlay
+];
+const M7_FETCH_SYMBOLS = M7_LAYOUT.map(m => m.fetch);
 
 // Mode → eyebrow text (shown in header instead of duplicate LONGBRIDGE wordmark)
 const MODE_EYEBROW = {
@@ -1338,7 +1391,74 @@ function drawFooterText(ctx, W, H, startY) {
 }
 
 // ============ MODE RENDERERS ============
+
+// Longbridge official "美股七巨頭" classic template — uses topn_classic.png as full-bleed art,
+// then overlays ticker label + yesterday's % change in each of 7 cells (8th cell is the mascot).
+function renderTopNClassic(W, H) {
+  // Background: official template (stretches slightly to match 58×40mm aspect — imperceptible)
+  if (tplTopnClassic && tplTopnClassic.complete && tplTopnClassic.naturalWidth) {
+    ctx.drawImage(tplTopnClassic, 0, 0, W, H);
+  } else {
+    // Fallback: solid white + teal header so the layout still reads if the asset 404s
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#00DBB6'; ctx.fillRect(0, 0, W, H * 0.25);
+    ctx.fillStyle = '#000';
+    ctx.font = `900 ${Math.round(H * 0.13)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.fillText('美股七巨頭', W / 2, H * 0.125);
+  }
+
+  // "*僅供參考" small disclaimer top-right of the teal header band
+  ctx.fillStyle = '#000';
+  ctx.font = `700 ${Math.max(8, Math.round(H * 0.045))}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  ctx.fillText('*僅供參考', W - W * 0.025, H * 0.215);
+
+  // 4×2 grid below header (header ≈ 25% of canvas height)
+  const headerH = H * 0.25;
+  const gridH = H - headerH;
+  const cellW = W / 4;
+  const cellH = gridH / 2;
+
+  for (const s of (stocks || [])) {
+    if (s.col == null || s.row == null) continue;     // skip if not laid out (e.g. non-LB rows)
+    const cellX = s.col * cellW;
+    const cellY = headerH + s.row * cellH;
+    const cx = cellX + cellW / 2;
+
+    // Ticker label (upper portion of cell). Auto-shrink if it would overflow the colored block.
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = s.label || s.ticker || '—';
+    let tickerFS = Math.round(cellH * 0.28);
+    const maxTickerW = cellW * 0.78;
+    ctx.font = `900 ${tickerFS}px ${BRAND_FONT}`;
+    while (ctx.measureText(label).width > maxTickerW && tickerFS > 10) {
+      tickerFS -= 2;
+      ctx.font = `900 ${tickerFS}px ${BRAND_FONT}`;
+    }
+    ctx.fillText(label, cx, cellY + cellH * 0.36);
+
+    // Percentage (lower portion) — black regardless of sign per design spec (option a)
+    if (!s.missing) {
+      const pct = s.changePct || 0;
+      const sign = pct >= 0 ? '+' : '';
+      ctx.font = `900 ${Math.round(cellH * 0.18)}px ${NUM_FONT}`;
+      ctx.fillText(`${sign}${pct.toFixed(2)}%`, cx, cellY + cellH * 0.72);
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.font = `${Math.round(cellH * 0.16)}px ${BODY_FONT}`;
+      ctx.fillText('—', cx, cellY + cellH * 0.72);
+    }
+  }
+}
+
 function renderTopN(W, H) {
+  // Longbridge style → use the official 美股七巨頭 classic template
+  if (isLb()) return renderTopNClassic(W, H);
+
   const headerH = Math.round(H * 0.20);
   drawHeaderBar(ctx, W, headerH, $('title').value);
 
