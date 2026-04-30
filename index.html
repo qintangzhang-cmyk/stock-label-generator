@@ -1549,11 +1549,6 @@ function renderStarClassic(W, H) {
   drawTrophyIcon(ctx, rightColCx, H * 0.707, H * 0.24);
 
   // Footer band — only the editable disclaimer on the right (timestamp dropped per design).
-  // Force-clear the footer band first to mask any prior render artifacts.
-  const footerBandTop = H * 0.875;
-  ctx.fillStyle = '#fff';
-  ctx.fillRect(W * 0.015, footerBandTop, W - W * 0.03, H - footerBandTop - H * 0.005);
-
   const footerY = H * 0.935;
   const footerFS = Math.max(8, Math.round(H * 0.030));
   ctx.fillStyle = '#000';
