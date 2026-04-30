@@ -410,6 +410,9 @@ GS 4/28 EPS $9.80</textarea>
           <label><input type="checkbox" id="showPrice">现价</label>
           <label><input type="checkbox" id="showArrow" checked>趋势箭头</label>
         </div>
+
+        <label>角標文字（僅 Longbridge 經典模板使用，置空則隱藏）</label>
+        <input type="text" id="topnClassicNote" value="*僅供參考" placeholder="*僅供參考">
       </div>
 
       <label>底部提醒文字（支持 {time} {date} 占位符）</label>
@@ -1408,12 +1411,16 @@ function renderTopNClassic(W, H) {
     ctx.fillText('美股七巨頭', W / 2, H * 0.125);
   }
 
-  // "*僅供參考" small disclaimer top-right of the teal header band
-  ctx.fillStyle = '#000';
-  ctx.font = `700 ${Math.max(8, Math.round(H * 0.045))}px ${BRAND_FONT}`;
-  ctx.textBaseline = 'middle';
-  ctx.textAlign = 'right';
-  ctx.fillText('*僅供參考', W - W * 0.025, H * 0.215);
+  // Editable corner note in the teal header band (default "*僅供參考"). Empty string → hidden.
+  const noteEl = $('topnClassicNote');
+  const noteText = (noteEl ? noteEl.value : '*僅供參考').trim();
+  if (noteText) {
+    ctx.fillStyle = '#000';
+    ctx.font = `500 ${Math.max(7, Math.round(H * 0.034))}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'right';
+    ctx.fillText(noteText, W - W * 0.028, H * 0.215);
+  }
 
   // Cell positions calibrated to the actual colored blocks in topn_classic.png (2519×1680):
   //   Outer border ~12px each side ≈ 4.0% of W and ~80px top/60px bottom ≈ 4.8%/3.6% of H
@@ -2026,7 +2033,7 @@ function refreshHolidayBanner() {
 
 ['themeColor','widthMm','heightMm','dpi','colorConv','tplMode','topN',
  'moodIndex','starCaption','uiStyle','printerName','printCopies',
- 'showTicker','showChange','showPrice','showArrow'].forEach(id => {
+ 'showTicker','showChange','showPrice','showArrow','topnClassicNote'].forEach(id => {
   const el = $(id);
   if (!el) return;
   el.addEventListener('input', () => { saveConfig(); render(); });
