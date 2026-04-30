@@ -1149,18 +1149,21 @@ let lbLogoFull = null;
 })();
 
 // ======== Official Longbridge templates (per-mode background art) ========
-const LB_TPL_TOPN_CLASSIC = './assets/templates/topn_classic.png';
-const LB_TPL_STAR_CLASSIC = './assets/templates/star_classic.png';
+const LB_TPL_TOPN_CLASSIC    = './assets/templates/topn_classic.png';
+const LB_TPL_STAR_CLASSIC    = './assets/templates/star_classic.png';
+const LB_TPL_HISTORY_CLASSIC = './assets/templates/history_classic.png';
 let tplTopnClassic = null;
 let tplStarClassic = null;
+let tplHistoryClassic = null;
 (function preloadLBTemplates() {
   const loadOne = (url, setter) => {
     const t = new Image();
     t.onload = () => { setter(t); if (typeof render === 'function') render(); };
     t.src = url;
   };
-  loadOne(LB_TPL_TOPN_CLASSIC, t => tplTopnClassic = t);
-  loadOne(LB_TPL_STAR_CLASSIC, t => tplStarClassic = t);
+  loadOne(LB_TPL_TOPN_CLASSIC,    t => tplTopnClassic    = t);
+  loadOne(LB_TPL_STAR_CLASSIC,    t => tplStarClassic    = t);
+  loadOne(LB_TPL_HISTORY_CLASSIC, t => tplHistoryClassic = t);
 })();
 
 // "Magnificent 7" — fixed roster + fixed cell positions for the topn-classic template
@@ -1549,6 +1552,79 @@ function renderStarClassic(W, H) {
   drawTrophyIcon(ctx, rightColCx, H * 0.707, H * 0.24);
 
   // Footer band — only the editable disclaimer on the right (timestamp dropped per design).
+  const footerY = H * 0.935;
+  const footerFS = Math.max(8, Math.round(H * 0.030));
+  ctx.fillStyle = '#000';
+  ctx.font = `500 ${footerFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  const noteEl = $('topnClassicNote');
+  const note = (noteEl ? noteEl.value : '*僅供參考').trim();
+  if (note) ctx.fillText(note, W - W * 0.025, footerY);
+}
+
+// Longbridge official "金融史·今日" classic template — full-bleed art with year + date + event description
+function renderHistoryClassic(W, H) {
+  // Background template
+  if (tplHistoryClassic && tplHistoryClassic.complete && tplHistoryClassic.naturalWidth) {
+    ctx.drawImage(tplHistoryClassic, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = LB_BRAND; ctx.fillRect(0, 0, W, H * 0.256);
+    ctx.fillStyle = '#000';
+    ctx.font = `900 ${Math.round(H * 0.13)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText('金融史 | 今日', W * 0.04, H * 0.13);
+  }
+
+  // Pull the event from stocks[0] (set by generate() via pickHistoryEvent)
+  const ev = stocks[0] && 'year' in stocks[0] ? stocks[0] : pickHistoryEvent();
+  const year = ev.year || '—';
+  const dateStr = ev.date || '';
+  const dateParts = dateStr.split('-').map(s => String(parseInt(s, 10) || ''));
+  const dateDisplay = (dateParts[0] && dateParts[1]) ? `${dateParts[0]}·${dateParts[1]}` : '—';
+  const text = ev.text || '';
+
+  // Layout (normalized — measured from no-text template):
+  //   header                  0      – 0.256
+  //   body upper              0.256  – 0.608
+  //     year (left)           x: 0–0.669
+  //     date "on M·D" (right) x: 0.669–1.0
+  //   body lower (event)      0.608  – 0.875
+  //   footer band             0.875  – 1.0
+  const upperCy = H * 0.432;
+
+  // BIG year — left column upper
+  ctx.fillStyle = '#000';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  let yFS = Math.round(H * 0.34);
+  ctx.font = `900 ${yFS}px ${BRAND_FONT}`;
+  while (ctx.measureText(String(year)).width > W * 0.62 && yFS > 30) {
+    yFS -= 4;
+    ctx.font = `900 ${yFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(String(year), W * 0.335, upperCy);
+
+  // "on" stacked above "M·D" — right column upper
+  const dateCx = W * 0.834;
+  const onFS = Math.round(H * 0.085);
+  ctx.font = `700 ${onFS}px ${BRAND_FONT}`;
+  ctx.fillText('on', dateCx, upperCy - H * 0.08);
+  const dateFS = Math.round(H * 0.105);
+  ctx.font = `800 ${dateFS}px ${BRAND_FONT}`;
+  ctx.fillText(dateDisplay, dateCx, upperCy + H * 0.07);
+
+  // Event description — full width, body lower, up to 2 lines, vertically centered
+  ctx.fillStyle = '#000';
+  const descFS = Math.round(H * 0.075);
+  ctx.font = `500 ${descFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  // Center 2-line block in y 0.608–0.875 (mid 0.741)
+  wrapText(ctx, text, W * 0.05, H * 0.741 - descFS * 0.65, W * 0.92, descFS * 1.30, 2);
+
+  // Footer band — only the editable disclaimer on the right (timestamp dropped per design)
   const footerY = H * 0.935;
   const footerFS = Math.max(8, Math.round(H * 0.030));
   ctx.fillStyle = '#000';
@@ -1961,6 +2037,9 @@ function renderEarnings(W, H) {
 }
 
 function renderHistory(W, H) {
+  // Longbridge style → official "金融史·今日" classic template
+  if (isLb()) return renderHistoryClassic(W, H);
+
   const ev = stocks[0] || pickHistoryEvent();
   const headerH = Math.round(H * 0.18);
   // If user hasn't customized the title and today has no matching event,
