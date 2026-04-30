@@ -1530,9 +1530,8 @@ function renderStarClassic(W, H) {
   // Trophy — bottom-right (centered in the right column trophy zone)
   drawTrophyIcon(ctx, rightColCx, H * 0.707, H * 0.24);
 
-  // Footer band — timestamp left / editable disclaimer right
-  // Force-clear the footer band first so prior render artifacts (or transparent template corners
-  // letting bgImg bleed through) can never produce overlapping ghost text.
+  // Footer band — only the editable disclaimer on the right (timestamp dropped per design).
+  // Force-clear the footer band first to mask any prior render artifacts.
   const footerBandTop = H * 0.875;
   ctx.fillStyle = '#fff';
   ctx.fillRect(W * 0.015, footerBandTop, W - W * 0.03, H - footerBandTop - H * 0.005);
@@ -1542,10 +1541,6 @@ function renderStarClassic(W, H) {
   ctx.fillStyle = '#000';
   ctx.font = `500 ${footerFS}px ${BRAND_FONT}`;
   ctx.textBaseline = 'middle';
-
-  ctx.textAlign = 'left';
-  if (dataTime) ctx.fillText(`數據時點：${dataTime}`, W * 0.04, footerY);
-
   ctx.textAlign = 'right';
   const noteEl = $('topnClassicNote');
   const note = (noteEl ? noteEl.value : '*僅供參考').trim();
