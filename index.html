@@ -1411,15 +1411,16 @@ function renderTopNClassic(W, H) {
     ctx.fillText('美股七巨頭', W / 2, H * 0.125);
   }
 
-  // Editable corner note in the teal header band (default "*僅供參考"). Empty string → hidden.
+  // Editable corner note in the bottom-right white margin strip (default "*僅供參考"). Empty → hidden.
+  // The template has a ~3% white strip at the very bottom outside the rounded teal border.
   const noteEl = $('topnClassicNote');
   const noteText = (noteEl ? noteEl.value : '*僅供參考').trim();
   if (noteText) {
     ctx.fillStyle = '#000';
-    ctx.font = `500 ${Math.max(7, Math.round(H * 0.034))}px ${BRAND_FONT}`;
+    ctx.font = `500 ${Math.max(8, Math.round(H * 0.030))}px ${BRAND_FONT}`;
     ctx.textBaseline = 'middle';
     ctx.textAlign = 'right';
-    ctx.fillText(noteText, W - W * 0.028, H * 0.215);
+    ctx.fillText(noteText, W - W * 0.025, H * 0.985);
   }
 
   // Cell positions calibrated to the actual colored blocks in topn_classic.png (2519×1680):
