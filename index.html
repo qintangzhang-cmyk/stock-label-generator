@@ -420,8 +420,9 @@ GS 4/28 EPS $9.80</textarea>
 數據時點：{time}；內容僅供參考，不構成投資建議。</textarea>
 
       <div class="mode-field" data-needs="star">
-        <label>主角副标题（例：1 行公司一句话或新闻标题）</label>
-        <input type="text" id="starCaption" value="市值突破 4 萬億美元，AI 持續強勢">
+        <label>主角副标题（生成貼紙时自动按涨跌幅生成；可手动改，下次生成会再覆盖）</label>
+        <textarea id="starCaption" rows="2">市值突破 4 萬億美元
+AI 持續強勢</textarea>
       </div>
     </section>
 
@@ -960,6 +961,23 @@ async function generate() {
       if (!data.length) throw new Error('无有效数据');
       stocks = [data[0]];
       dataTime = nowTimeStr();
+      // Auto-update star caption based on the actual top mover (overwrites manual edits each generate).
+      // Two-clause format that wraps cleanly: "{verb} {%}\n{ticker} 領跑昨日漲幅榜"
+      if (isLb()) {
+        const top = stocks[0];
+        const sign = top.changePct >= 0 ? '+' : '';
+        const t = top.ticker || '—';
+        const p = top.changePct || 0;
+        let trend;
+        if (p >= 3)         trend = '領跑昨日漲幅榜';
+        else if (p >= 1)    trend = '昨日穩步上漲';
+        else if (p >= 0)    trend = '昨日小幅收高';
+        else if (p > -1)    trend = '昨日小幅回調';
+        else if (p > -3)    trend = '昨日承壓回落';
+        else                trend = '昨日大幅下挫';
+        $('starCaption').value = `${t} ${trend}\n收 ${sign}${p.toFixed(2)}%`;
+        saveConfig();
+      }
       showStatus(`✓ 主角：${stocks[0].ticker}`);
     }
     else if (mode === 'earnings') {
@@ -1496,7 +1514,7 @@ function renderStarClassic(W, H) {
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  let tFS = Math.round(H * 0.22);
+  let tFS = Math.round(H * 0.26);
   ctx.font = `700 ${tFS}px ${BRAND_FONT}`;
   while (ctx.measureText(ticker).width > W * 0.58 && tFS > 20) {
     tFS -= 4;
@@ -1524,7 +1542,7 @@ function renderStarClassic(W, H) {
     const capFS = Math.round(H * 0.060);
     ctx.font = `500 ${capFS}px ${BRAND_FONT}`;
     // Vertical center of the caption block (0.581–0.870 → mid 0.726). Two-line block ≈ 0.13 tall.
-    wrapText(ctx, caption, W * 0.05, H * 0.726 - capFS * 0.65, W * 0.55, capFS * 1.30, 2);
+    wrapText(ctx, caption, W * 0.05, H * 0.726 - capFS * 0.65, W * 0.58, capFS * 1.30, 2);
   }
 
   // Trophy — bottom-right (centered in the right column trophy zone)
