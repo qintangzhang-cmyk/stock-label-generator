@@ -1443,30 +1443,30 @@ function renderTopNClassic(W, H) {
     const cellH  = cellBottom - cellTop;
     const cx     = cellX + cellW / 2;
 
-    // Ticker — heavy Cera Pro Black, centered horizontally, upper portion of cell.
+    // Ticker — Cera Pro Bold (one step lighter than Black), centered, upper portion of cell.
     ctx.fillStyle = '#000';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     const label = s.label || s.ticker || '—';
     let tickerFS = Math.round(cellH * 0.32);
     const maxTextW = cellW * 0.78;
-    ctx.font = `900 ${tickerFS}px ${BRAND_FONT}`;
+    ctx.font = `700 ${tickerFS}px ${BRAND_FONT}`;
     while (ctx.measureText(label).width > maxTextW && tickerFS > 10) {
       tickerFS -= 2;
-      ctx.font = `900 ${tickerFS}px ${BRAND_FONT}`;
+      ctx.font = `700 ${tickerFS}px ${BRAND_FONT}`;
     }
     ctx.fillText(label, cx, cellTop + cellH * 0.34);
 
-    // Percentage — lighter weight (700) than ticker, smaller size, no stroke.
+    // Percentage — Cera Pro Medium (lighter than ticker), smaller size, no stroke.
     if (!s.missing) {
       const pct = s.changePct || 0;
       const sign = pct >= 0 ? '+' : '';
       let pctFS = Math.round(cellH * 0.18);
       const pctText = `${sign}${pct.toFixed(2)}%`;
-      ctx.font = `700 ${pctFS}px ${BRAND_FONT}`;
+      ctx.font = `500 ${pctFS}px ${BRAND_FONT}`;
       while (ctx.measureText(pctText).width > maxTextW && pctFS > 8) {
         pctFS -= 1;
-        ctx.font = `700 ${pctFS}px ${BRAND_FONT}`;
+        ctx.font = `500 ${pctFS}px ${BRAND_FONT}`;
       }
       ctx.fillText(pctText, cx, cellTop + cellH * 0.72);
     } else {
