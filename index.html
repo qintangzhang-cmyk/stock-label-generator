@@ -1498,9 +1498,11 @@ let lbLogoFull = null;
 const LB_TPL_TOPN_CLASSIC    = './assets/templates/topn_classic.png';
 const LB_TPL_STAR_CLASSIC    = './assets/templates/star_classic.png';
 const LB_TPL_HISTORY_CLASSIC = './assets/templates/history_classic.png';
+const LB_TPL_MOOD_CLASSIC    = './assets/templates/mood_classic.png';
 let tplTopnClassic = null;
 let tplStarClassic = null;
 let tplHistoryClassic = null;
+let tplMoodClassic = null;
 (function preloadLBTemplates() {
   const loadOne = (url, setter) => {
     const t = new Image();
@@ -1510,6 +1512,7 @@ let tplHistoryClassic = null;
   loadOne(LB_TPL_TOPN_CLASSIC,    t => tplTopnClassic    = t);
   loadOne(LB_TPL_STAR_CLASSIC,    t => tplStarClassic    = t);
   loadOne(LB_TPL_HISTORY_CLASSIC, t => tplHistoryClassic = t);
+  loadOne(LB_TPL_MOOD_CLASSIC,    t => tplMoodClassic    = t);
 })();
 
 // "Magnificent 7" — fixed roster + fixed cell positions for the topn-classic template
@@ -1909,6 +1912,120 @@ function renderStarClassic(W, H) {
   if (note) ctx.fillText(note, W - W * 0.025, footerY);
 }
 
+// Longbridge official "市場情緒" classic template — full-bleed art with dynamic mood label, BIG %, arrow, desc, and right metadata stack
+function renderMoodClassic(W, H) {
+  const m = computeMood(moodData ? moodData.changePct : 0);
+  const pct = moodData ? moodData.changePct : 0;
+  const ticker = (moodData && moodData.ticker) || 'SPY';
+
+  // Background template
+  if (tplMoodClassic && tplMoodClassic.complete && tplMoodClassic.naturalWidth) {
+    ctx.drawImage(tplMoodClassic, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = LB_BRAND; ctx.fillRect(0, 0, W, H * 0.256);
+  }
+
+  // Cover the baked "穩健上行" with the SAME teal as the template (slightly different from LB_BRAND).
+  // Then write the dynamic mood label that matches today's pct.
+  const TPL_TEAL = '#47BBAE';
+  ctx.fillStyle = TPL_TEAL;
+  ctx.fillRect(W * 0.04, H * 0.05, W * 0.55, H * 0.18);
+  ctx.fillStyle = '#000';
+  let labelFS = Math.round(H * 0.13);
+  ctx.font = `900 ${labelFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  while (ctx.measureText(m.label).width > W * 0.54 && labelFS > 24) {
+    labelFS -= 2;
+    ctx.font = `900 ${labelFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(m.label, W * 0.06, H * 0.14);
+
+  // BIG percentage in middle (centered, black for both signs per design)
+  const sign = pct >= 0 ? '+' : '';
+  const pctText = `${sign}${pct.toFixed(2)}%`;
+  ctx.fillStyle = '#000';
+  let pctFS = Math.round(H * 0.34);
+  ctx.font = `900 ${pctFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  while (ctx.measureText(pctText).width > W * 0.86 && pctFS > 60) {
+    pctFS -= 4;
+    ctx.font = `900 ${pctFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(pctText, W * 0.5, H * 0.482);
+
+  // Cover the baked up-arrow box with the template's teal, then draw a fresh arrow matching today's direction
+  const boxRight = W * 0.20;
+  const boxTop = H * 0.708;
+  ctx.fillStyle = TPL_TEAL;
+  ctx.fillRect(0, boxTop, boxRight, H - boxTop);
+  // Arrow icon (white on teal): up if positive, down if negative, slim → for flat
+  const arrowW = W * 0.13, arrowH = H * 0.16;
+  const arrowX = (boxRight - arrowW) / 2;
+  const arrowY = boxTop + (H - boxTop - arrowH) / 2;
+  if (pct >= 0.5) {
+    drawTrendUp(ctx, arrowX, arrowY, arrowW, arrowH, '#fff');
+  } else if (pct <= -0.5) {
+    drawTrendDown(ctx, arrowX, arrowY, arrowW, arrowH, '#fff');
+  } else {
+    // Flat — small horizontal line with arrowhead
+    ctx.strokeStyle = '#fff';
+    ctx.fillStyle = '#fff';
+    ctx.lineWidth = arrowH * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(arrowX + arrowW * 0.10, arrowY + arrowH * 0.55);
+    ctx.lineTo(arrowX + arrowW * 0.78, arrowY + arrowH * 0.55);
+    ctx.stroke();
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(arrowX + arrowW * 0.95, arrowY + arrowH * 0.55);
+    ctx.lineTo(arrowX + arrowW * 0.70, arrowY + arrowH * 0.30);
+    ctx.lineTo(arrowX + arrowW * 0.70, arrowY + arrowH * 0.80);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Mood description (bottom-middle, single line)
+  ctx.fillStyle = '#000';
+  let descFS = Math.round(H * 0.10);
+  ctx.font = `700 ${descFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  // Strip the comma to match the official design's compact look
+  const desc = (m.desc || '').replace(/[，,]/g, '');
+  while (ctx.measureText(desc).width > W * 0.56 && descFS > 22) {
+    descFS -= 2;
+    ctx.font = `700 ${descFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(desc, W * 0.22, H * 0.85);
+
+  // Right metadata stack: ticker / date / time / disclaimer
+  const metaX = W * 0.82;
+  const noteEl = $('topnClassicNote');
+  const note = (noteEl ? noteEl.value : '*僅供參考').trim();
+
+  // Split dataTime "4月20日 04:11 EDT" into date + time
+  const dt = dataTime || '';
+  const dtMatch = dt.match(/^(.+?日)\s*(.+)$/);
+  const datePart = dtMatch ? dtMatch[1] : dt;
+  const timePart = dtMatch ? dtMatch[2] : '';
+
+  const fs = Math.max(8, Math.round(H * 0.034));
+  ctx.fillStyle = '#000';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  // 4 stacked lines, evenly spaced within bottom row 0.708–1.0
+  const lineY = [H * 0.755, H * 0.815, H * 0.870, H * 0.940];
+  ctx.font = `800 ${fs}px ${BRAND_FONT}`;
+  ctx.fillText(ticker, metaX, lineY[0]);
+  ctx.font = `500 ${fs}px ${BRAND_FONT}`;
+  if (datePart) ctx.fillText(datePart, metaX, lineY[1]);
+  if (timePart) ctx.fillText(timePart, metaX, lineY[2]);
+  if (note) ctx.fillText(note, metaX, lineY[3]);
+}
+
 // Longbridge official "金融史·今日" classic template — full-bleed art with year + date + event description
 function renderHistoryClassic(W, H) {
   // Background template
@@ -2146,11 +2263,14 @@ function renderTopN(W, H) {
 }
 
 function renderMood(W, H) {
+  // Longbridge style → official "市場情緒" classic template
+  if (isLb()) return renderMoodClassic(W, H);
+
   const m = computeMood(moodData ? moodData.changePct : 0);
   const pct = moodData ? moodData.changePct : 0;
 
-  if (isLb()) {
-    // Longbridge: brand mark top-left, eyebrow, then big ticker + % with mood chart on the right
+  if (false) {
+    // (legacy LB-minimal branch — short-circuited above; kept for diff history)
     const pad = W * 0.05;
     // Brand mark + eyebrow row
     const markSize = Math.max(16, Math.round(H * 0.09));
