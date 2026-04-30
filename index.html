@@ -1514,7 +1514,7 @@ function renderStarClassic(W, H) {
   ctx.fillStyle = '#000';
   ctx.textBaseline = 'middle';
   ctx.textAlign = 'center';
-  let tFS = Math.round(H * 0.26);
+  let tFS = Math.round(H * 0.32);
   ctx.font = `700 ${tFS}px ${BRAND_FONT}`;
   while (ctx.measureText(ticker).width > W * 0.58 && tFS > 20) {
     tFS -= 4;
@@ -1539,10 +1539,10 @@ function renderStarClassic(W, H) {
     ctx.fillStyle = '#000';
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    const capFS = Math.round(H * 0.060);
+    const capFS = Math.round(H * 0.072);
     ctx.font = `500 ${capFS}px ${BRAND_FONT}`;
-    // Vertical center of the caption block (0.581–0.870 → mid 0.726). Two-line block ≈ 0.13 tall.
-    wrapText(ctx, caption, W * 0.05, H * 0.726 - capFS * 0.65, W * 0.58, capFS * 1.30, 2);
+    // Vertical center of the caption block (0.581–0.870 → mid 0.726). Two-line block ≈ 0.16 tall.
+    wrapText(ctx, caption, W * 0.05, H * 0.726 - capFS * 0.7, W * 0.58, capFS * 1.30, 2);
   }
 
   // Trophy — bottom-right (centered in the right column trophy zone)
