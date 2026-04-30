@@ -1132,11 +1132,17 @@ let lbLogoFull = null;
 
 // ======== Official Longbridge templates (per-mode background art) ========
 const LB_TPL_TOPN_CLASSIC = './assets/templates/topn_classic.png';
+const LB_TPL_STAR_CLASSIC = './assets/templates/star_classic.png';
 let tplTopnClassic = null;
+let tplStarClassic = null;
 (function preloadLBTemplates() {
-  const t = new Image();
-  t.onload = () => { tplTopnClassic = t; if (typeof render === 'function') render(); };
-  t.src = LB_TPL_TOPN_CLASSIC;
+  const loadOne = (url, setter) => {
+    const t = new Image();
+    t.onload = () => { setter(t); if (typeof render === 'function') render(); };
+    t.src = url;
+  };
+  loadOne(LB_TPL_TOPN_CLASSIC, t => tplTopnClassic = t);
+  loadOne(LB_TPL_STAR_CLASSIC, t => tplStarClassic = t);
 })();
 
 // "Magnificent 7" — fixed roster + fixed cell positions for the topn-classic template
@@ -1395,6 +1401,151 @@ function drawFooterText(ctx, W, H, startY) {
 
 // ============ MODE RENDERERS ============
 
+// Filled star shape (used inside the trophy)
+function drawStarShape(ctx, cx, cy, r, points = 5, innerRatio = 0.42) {
+  const innerR = r * innerRatio;
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 === 0 ? r : innerR;
+    const angle = (Math.PI / points) * i - Math.PI / 2;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Vector trophy icon (teal). Used in star-classic bottom-right cell.
+function drawTrophyIcon(ctx, cx, cy, size) {
+  ctx.save();
+  ctx.fillStyle = LB_BRAND;
+  ctx.strokeStyle = LB_BRAND;
+
+  const cupW = size * 0.58, cupH = size * 0.58;
+  const cupX = cx - cupW / 2;
+  const cupY = cy - size * 0.30;
+
+  // Cup body — slightly rounded bottom
+  ctx.beginPath();
+  ctx.moveTo(cupX, cupY);
+  ctx.lineTo(cupX + cupW, cupY);
+  ctx.lineTo(cupX + cupW * 0.92, cupY + cupH * 0.85);
+  ctx.quadraticCurveTo(cupX + cupW / 2, cupY + cupH * 1.05, cupX + cupW * 0.08, cupY + cupH * 0.85);
+  ctx.closePath();
+  ctx.fill();
+
+  // Side handles
+  ctx.lineWidth = size * 0.07;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(cupX, cupY + cupH * 0.30, cupH * 0.30, -Math.PI / 2, Math.PI / 2, false);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cupX + cupW, cupY + cupH * 0.30, cupH * 0.30, -Math.PI / 2, Math.PI / 2, true);
+  ctx.stroke();
+
+  // Stem + base
+  const stemH = size * 0.10, stemW = size * 0.10;
+  ctx.fillRect(cx - stemW / 2, cupY + cupH * 0.95, stemW, stemH);
+  const baseW = size * 0.50, baseH = size * 0.10;
+  ctx.fillRect(cx - baseW / 2, cupY + cupH * 0.95 + stemH, baseW, baseH);
+
+  // Star inside the cup (white)
+  ctx.fillStyle = '#fff';
+  drawStarShape(ctx, cx, cupY + cupH * 0.42, size * 0.13);
+
+  ctx.restore();
+}
+
+// Longbridge official "昨日主角股" classic template — full-bleed art, ticker / % / price / caption / trophy / footer overlaid
+function renderStarClassic(W, H) {
+  // Background: official template
+  if (tplStarClassic && tplStarClassic.complete && tplStarClassic.naturalWidth) {
+    ctx.drawImage(tplStarClassic, 0, 0, W, H);
+  } else {
+    // Fallback bg + header so layout reads if asset 404s
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = LB_BRAND; ctx.fillRect(0, 0, W, H * 0.245);
+    ctx.fillStyle = '#000';
+    ctx.font = `900 ${Math.round(H * 0.13)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText('昨日主角股', W * 0.04, H * 0.12);
+  }
+
+  // Pull current data — generate() puts the top mover at stocks[0]
+  const s = stocks[0] && isStockShape(stocks[0]) ? stocks[0] : { ticker: '—', changePct: 0, price: 0 };
+  const pct = s.changePct || 0;
+  const price = s.price || 0;
+  const ticker = s.ticker || s.label || '—';
+
+  // Layout (normalized — measured from the no-text template):
+  //   header band              0      – 0.245
+  //   vertical divider         x = 0.634
+  //   left col upper (ticker)  y 0.245 – 0.581
+  //   left col lower (caption) y 0.581 – 0.870
+  //   right col % zone         y 0.245 – 0.444
+  //   right col price box      y 0.444 – 0.544
+  //   right col trophy zone    y 0.544 – 0.870
+  //   footer band              y 0.870 – 1.0
+  const leftColCx  = W * 0.317;
+  const rightColCx = W * 0.817;
+
+  // BIG ticker — left column upper, auto-shrunk if it would overflow the column
+  ctx.fillStyle = '#000';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  let tFS = Math.round(H * 0.22);
+  ctx.font = `700 ${tFS}px ${BRAND_FONT}`;
+  while (ctx.measureText(ticker).width > W * 0.58 && tFS > 20) {
+    tFS -= 4;
+    ctx.font = `700 ${tFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(ticker, leftColCx, H * 0.413);
+
+  // Change % — right column, above the price box
+  const sign = pct >= 0 ? '+' : '';
+  ctx.fillStyle = '#000';
+  ctx.font = `700 ${Math.round(H * 0.095)}px ${BRAND_FONT}`;
+  ctx.fillText(`${sign}${pct.toFixed(2)}%`, rightColCx, H * 0.345);
+
+  // Price — centered inside the pre-drawn rounded teal box
+  ctx.fillStyle = '#000';
+  ctx.font = `500 ${Math.round(H * 0.072)}px ${BRAND_FONT}`;
+  ctx.fillText(`$${price.toFixed(2)}`, rightColCx, H * 0.494);
+
+  // Caption — bottom-left, up to 2 lines, won't cross into the trophy column
+  const caption = ($('starCaption') ? $('starCaption').value : '') || '';
+  if (caption) {
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const capFS = Math.round(H * 0.060);
+    ctx.font = `500 ${capFS}px ${BRAND_FONT}`;
+    // Vertical center of the caption block (0.581–0.870 → mid 0.726). Two-line block ≈ 0.13 tall.
+    wrapText(ctx, caption, W * 0.05, H * 0.726 - capFS * 0.65, W * 0.55, capFS * 1.30, 2);
+  }
+
+  // Trophy — bottom-right (centered in the right column trophy zone)
+  drawTrophyIcon(ctx, rightColCx, H * 0.707, H * 0.24);
+
+  // Footer band — timestamp left / editable disclaimer right
+  const footerY = H * 0.935;
+  const footerFS = Math.max(8, Math.round(H * 0.030));
+  ctx.fillStyle = '#000';
+  ctx.font = `500 ${footerFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+
+  ctx.textAlign = 'left';
+  if (dataTime) ctx.fillText(`數據時點：${dataTime}`, W * 0.04, footerY);
+
+  ctx.textAlign = 'right';
+  const noteEl = $('topnClassicNote');
+  const note = (noteEl ? noteEl.value : '*僅供參考').trim();
+  if (note) ctx.fillText(note, W - W * 0.025, footerY);
+}
+
 // Longbridge official "美股七巨頭" classic template — uses topn_classic.png as full-bleed art,
 // then overlays ticker label + yesterday's % change in each of 7 cells (8th cell is the mascot).
 function renderTopNClassic(W, H) {
@@ -1651,6 +1802,9 @@ function renderMood(W, H) {
 }
 
 function renderStar(W, H) {
+  // Longbridge style → official "昨日主角股" classic template
+  if (isLb()) return renderStarClassic(W, H);
+
   const s = stocks[0] && isStockShape(stocks[0]) ? stocks[0] : {ticker:'—', changePct:0, price:0};
   const pct = s.changePct || 0;
   const col = resolveColor(pctColor(pct));
