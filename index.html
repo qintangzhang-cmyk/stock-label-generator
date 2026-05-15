@@ -476,6 +476,14 @@ AI 持續強勢</textarea>
         <option value="bottom">仅底部条带</option>
       </select>
 
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:12px; padding:10px 12px; border:1px solid var(--brand); border-radius:6px; background:#fff7ed; font-weight:normal; cursor:pointer; line-height:1.4;">
+        <input type="checkbox" id="hideBgOnExport" checked style="margin-top:3px;">
+        <span style="font-size:12px; color:var(--text);">
+          <strong style="color:var(--brand);">导出/打印仅文字</strong><br>
+          <span style="color:var(--muted); font-size:11px;">预览保留模板做对照；下载 JPG 和打印时只输出文字（适用于已预印模板的定制标签纸，如 DL750W）。</span>
+        </span>
+      </label>
+
       <h3>打印机</h3>
       <div class="row2">
         <div>
@@ -528,6 +536,9 @@ let stocks = [];
 let moodData = null;  // {indexSymbol, changePct, price}
 let bgImg = null;
 let dataTime = '';
+// When true, render skips all decorative template backgrounds — used by download/print
+// when the user is printing onto pre-printed custom label paper (DL750W workflow).
+let exportNoBg = false;
 
 // ============ CONFIG PERSISTENCE ============
 const STORAGE_KEY = 'stockLabelConfig_v2';
@@ -1644,7 +1655,7 @@ function drawBg(ctx, W, H) {
   else if (style === 'longbridge') { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); }
   else { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); }
 
-  if (bgImg && $('tplMode').value === 'full') ctx.drawImage(bgImg, 0, 0, W, H);
+  if (bgImg && $('tplMode').value === 'full' && !exportNoBg) ctx.drawImage(bgImg, 0, 0, W, H);
 }
 function textColor() {
   if (isLed()) return '#ffffff';
@@ -1735,7 +1746,7 @@ function drawFooterText(ctx, W, H, startY) {
     .replace(/\{date\}/g, new Date().toLocaleDateString('zh-CN'));
   const footerH = H - startY;
 
-  if (bgImg && tpl === 'bottom') {
+  if (bgImg && tpl === 'bottom' && !exportNoBg) {
     const ratio = bgImg.height / bgImg.width;
     const imgH = Math.min(W * ratio, footerH);
     ctx.drawImage(bgImg, 0, H - imgH, W, imgH);
@@ -1831,8 +1842,10 @@ function drawTrophyIcon(ctx, cx, cy, size) {
 
 // Longbridge official "昨日主角股" classic template — full-bleed art, ticker / % / price / caption / trophy / footer overlaid
 function renderStarClassic(W, H) {
-  // Background: official template
-  if (tplStarClassic && tplStarClassic.complete && tplStarClassic.naturalWidth) {
+  // Background: official template (skipped on export when printing onto pre-printed paper)
+  if (exportNoBg) {
+    // text-only mode: leave canvas white, only dynamic text below will be drawn
+  } else if (tplStarClassic && tplStarClassic.complete && tplStarClassic.naturalWidth) {
     ctx.drawImage(tplStarClassic, 0, 0, W, H);
   } else {
     // Fallback bg + header so layout reads if asset 404s
@@ -1898,7 +1911,8 @@ function renderStarClassic(W, H) {
   }
 
   // Trophy — bottom-right (centered in the right column trophy zone)
-  drawTrophyIcon(ctx, rightColCx, H * 0.707, H * 0.24);
+  // Skipped on export: the custom label paper has the trophy pre-printed.
+  if (!exportNoBg) drawTrophyIcon(ctx, rightColCx, H * 0.707, H * 0.24);
 
   // Footer band — only the editable disclaimer on the right (timestamp dropped per design).
   const footerY = H * 0.935;
@@ -1918,8 +1932,10 @@ function renderMoodClassic(W, H) {
   const pct = moodData ? moodData.changePct : 0;
   const ticker = (moodData && moodData.ticker) || 'SPY';
 
-  // Background template
-  if (tplMoodClassic && tplMoodClassic.complete && tplMoodClassic.naturalWidth) {
+  // Background template (skipped on export)
+  if (exportNoBg) {
+    // text-only mode — leave canvas white
+  } else if (tplMoodClassic && tplMoodClassic.complete && tplMoodClassic.naturalWidth) {
     ctx.drawImage(tplMoodClassic, 0, 0, W, H);
   } else {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
@@ -1928,9 +1944,12 @@ function renderMoodClassic(W, H) {
 
   // Cover the baked "穩健上行" with the SAME teal as the template (slightly different from LB_BRAND).
   // Then write the dynamic mood label that matches today's pct.
+  // On export: no template = no baked text to cover, so we skip the cover rect.
   const TPL_TEAL = '#47BBAE';
-  ctx.fillStyle = TPL_TEAL;
-  ctx.fillRect(W * 0.04, H * 0.05, W * 0.55, H * 0.18);
+  if (!exportNoBg) {
+    ctx.fillStyle = TPL_TEAL;
+    ctx.fillRect(W * 0.04, H * 0.05, W * 0.55, H * 0.18);
+  }
   ctx.fillStyle = '#000';
   let labelFS = Math.round(H * 0.13);
   ctx.font = `900 ${labelFS}px ${BRAND_FONT}`;
@@ -1957,22 +1976,26 @@ function renderMoodClassic(W, H) {
   ctx.fillText(pctText, W * 0.5, H * 0.482);
 
   // Cover the baked up-arrow box with the template's teal, then draw a fresh arrow matching today's direction
+  // On export: skip the teal cover; switch arrow color to teal so it stays visible on white.
   const boxRight = W * 0.20;
   const boxTop = H * 0.708;
-  ctx.fillStyle = TPL_TEAL;
-  ctx.fillRect(0, boxTop, boxRight, H - boxTop);
-  // Arrow icon (white on teal): up if positive, down if negative, slim → for flat
+  if (!exportNoBg) {
+    ctx.fillStyle = TPL_TEAL;
+    ctx.fillRect(0, boxTop, boxRight, H - boxTop);
+  }
+  const arrowColor = exportNoBg ? LB_BRAND : '#fff';
+  // Arrow icon: up if positive, down if negative, slim → for flat
   const arrowW = W * 0.13, arrowH = H * 0.16;
   const arrowX = (boxRight - arrowW) / 2;
   const arrowY = boxTop + (H - boxTop - arrowH) / 2;
   if (pct >= 0.5) {
-    drawTrendUp(ctx, arrowX, arrowY, arrowW, arrowH, '#fff');
+    drawTrendUp(ctx, arrowX, arrowY, arrowW, arrowH, arrowColor);
   } else if (pct <= -0.5) {
-    drawTrendDown(ctx, arrowX, arrowY, arrowW, arrowH, '#fff');
+    drawTrendDown(ctx, arrowX, arrowY, arrowW, arrowH, arrowColor);
   } else {
     // Flat — small horizontal line with arrowhead
-    ctx.strokeStyle = '#fff';
-    ctx.fillStyle = '#fff';
+    ctx.strokeStyle = arrowColor;
+    ctx.fillStyle = arrowColor;
     ctx.lineWidth = arrowH * 0.18;
     ctx.beginPath();
     ctx.moveTo(arrowX + arrowW * 0.10, arrowY + arrowH * 0.55);
@@ -2028,8 +2051,10 @@ function renderMoodClassic(W, H) {
 
 // Longbridge official "金融史·今日" classic template — full-bleed art with year + date + event description
 function renderHistoryClassic(W, H) {
-  // Background template
-  if (tplHistoryClassic && tplHistoryClassic.complete && tplHistoryClassic.naturalWidth) {
+  // Background template (skipped on export)
+  if (exportNoBg) {
+    // text-only mode — leave canvas white
+  } else if (tplHistoryClassic && tplHistoryClassic.complete && tplHistoryClassic.naturalWidth) {
     ctx.drawImage(tplHistoryClassic, 0, 0, W, H);
   } else {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
@@ -2102,8 +2127,10 @@ function renderHistoryClassic(W, H) {
 // Longbridge official "美股七巨頭" classic template — uses topn_classic.png as full-bleed art,
 // then overlays ticker label + yesterday's % change in each of 7 cells (8th cell is the mascot).
 function renderTopNClassic(W, H) {
-  // Background: official template (stretches slightly to match 58×40mm aspect — imperceptible)
-  if (tplTopnClassic && tplTopnClassic.complete && tplTopnClassic.naturalWidth) {
+  // Background: official template (skipped on export so only the 7 cell texts are printed)
+  if (exportNoBg) {
+    // text-only mode — leave canvas white
+  } else if (tplTopnClassic && tplTopnClassic.complete && tplTopnClassic.naturalWidth) {
     ctx.drawImage(tplTopnClassic, 0, 0, W, H);
   } else {
     // Fallback: solid white + teal header so the layout still reads if the asset 404s
@@ -2641,14 +2668,31 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
 });
 
 $('fetchBtn').addEventListener('click', generate);
+// Wrap a canvas-capture step so the preview shows the template (layout reference)
+// but the captured image only contains the dynamic text. Restores the preview after.
+function withExportRender(fn) {
+  const wantNoBg = $('hideBgOnExport') && $('hideBgOnExport').checked;
+  if (!wantNoBg) return fn();
+  exportNoBg = true;
+  try {
+    render();
+    return fn();
+  } finally {
+    exportNoBg = false;
+    render();
+  }
+}
+
 $('downloadBtn').addEventListener('click', () => {
-  const a = document.createElement('a');
-  const d = new Date();
-  const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
-  a.download = `coffee-sticker-${$('labelMode').value}-${stamp}.jpg`;
-  // 0.95 quality — high fidelity for label print, keeps file small
-  a.href = canvas.toDataURL('image/jpeg', 0.95);
-  a.click();
+  withExportRender(() => {
+    const a = document.createElement('a');
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+    a.download = `coffee-sticker-${$('labelMode').value}-${stamp}.jpg`;
+    // 0.95 quality — high fidelity for label print, keeps file small
+    a.href = canvas.toDataURL('image/jpeg', 0.95);
+    a.click();
+  });
 });
 
 // ============ PRINTER ============
@@ -2673,8 +2717,10 @@ async function printSticker() {
   const proxyUrl = ($('proxyUrl').value.trim() || 'http://localhost:8787').replace(/\/$/, '');
   const widthMm = parseFloat($('widthMm').value) || 58;
   const heightMm = parseFloat($('heightMm').value) || 40;
+  // Capture the text-only image when "导出/打印仅文字" is on (default for pre-printed label paper).
+  const imageDataUrl = withExportRender(() => canvas.toDataURL('image/png'));
   const payload = {
-    image: canvas.toDataURL('image/png'),
+    image: imageDataUrl,
     printer: $('printerName').value || null,
     copies: parseInt($('printCopies').value) || 1,
     media: `${widthMm}x${heightMm}mm`,
