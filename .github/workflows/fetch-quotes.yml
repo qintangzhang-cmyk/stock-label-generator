@@ -68,3 +68,21 @@ jobs:
             git commit -m "chore(data): refresh quotes $(date -u '+%Y-%m-%d %H:%M UTC')"
             git push
           fi
+
+      # Send a Slack alert if any earlier step failed. No-op if SLACK_WEBHOOK_URL
+      # is unset, so this is safe to land before the secret is configured.
+      - name: Notify Slack on failure
+        if: failure()
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REPO: ${{ github.repository }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not set — skipping Slack notification"
+            exit 0
+          fi
+          MSG=$(jq -n --arg url "$RUN_URL" --arg repo "$REPO" '{
+            text: ("🔴 *Stock Label · Fetch Quotes 失敗*\n咖啡店股票標籤的行情數據沒拉到（連續失敗會導致標籤顯示舊數據）。\n• Run: <" + $url + "|查看 GitHub Actions 日志>\n• 最常見原因：長橋 refresh token 過期。修復步驟：\n  1. 本地: `longbridge login`\n  2. `gh secret set LONGBRIDGE_TOKEN_JSON -R " + $repo + " < ~/.longbridge/openapi/tokens/<CLIENT_ID>`\n  3. `gh workflow run \"Fetch Quotes\" -R " + $repo + "`")
+          }')
+          curl -sS -X POST -H 'Content-type: application/json' --data "$MSG" "$SLACK_WEBHOOK_URL"
