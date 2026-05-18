@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  issues: write
 
 jobs:
   fetch:
@@ -69,20 +70,67 @@ jobs:
             git push
           fi
 
-      # Send a Slack alert if any earlier step failed. No-op if SLACK_WEBHOOK_URL
-      # is unset, so this is safe to land before the secret is configured.
-      - name: Notify Slack on failure
+      # Failure alerting via GitHub Issue:
+      # - On failure: open a canonical "Fetch Quotes failing" issue, or add a
+      #   comment if one already exists. Repo owner gets notified via GitHub's
+      #   normal channels (email + mobile push) for free.
+      # - On next success: auto-close the issue so we don't carry old noise.
+      - name: Open or update failure issue
         if: failure()
         env:
-          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          RUN_URL: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
         run: |
-          if [ -z "$SLACK_WEBHOOK_URL" ]; then
-            echo "SLACK_WEBHOOK_URL not set — skipping Slack notification"
-            exit 0
+          TITLE="🔴 Fetch Quotes 工作流失敗（自動告警）"
+          RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
+          BODY=$(cat <<EOF
+          **Run #${RUN_ID} 失敗** — [查看 GitHub Actions 日志](${RUN_URL})
+
+          咖啡店股票標籤的行情數據沒拉到。如果連續失敗，標籤會繼續顯示舊數據。
+
+          ---
+
+          **最常見原因：長橋 refresh token 過期。**
+
+          修復三步：
+
+          \`\`\`bash
+          # 1. 本地重新走 OAuth
+          longbridge login
+
+          # 2. 把新 token 推到 GitHub Secret
+          gh secret set LONGBRIDGE_TOKEN_JSON \\
+            -R ${REPO} \\
+            < ~/.longbridge/openapi/tokens/<CLIENT_ID>
+
+          # 3. 手動觸發一次工作流確認修好
+          gh workflow run "Fetch Quotes" -R ${REPO}
+          \`\`\`
+
+          修好後此 issue 會在下次成功運行時自動關閉。
+          EOF
+          )
+          existing=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
+          if [ -n "$existing" ]; then
+            echo "Updating existing alert issue #$existing"
+            gh issue comment "$existing" -R "$REPO" --body "$BODY"
+          else
+            echo "Creating new alert issue"
+            gh label create "auto-alert" -R "$REPO" --color "d73a4a" --description "Auto-created by workflows" 2>/dev/null || true
+            gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert"
           fi
-          MSG=$(jq -n --arg url "$RUN_URL" --arg repo "$REPO" '{
-            text: ("🔴 *Stock Label · Fetch Quotes 失敗*\n咖啡店股票標籤的行情數據沒拉到（連續失敗會導致標籤顯示舊數據）。\n• Run: <" + $url + "|查看 GitHub Actions 日志>\n• 最常見原因：長橋 refresh token 過期。修復步驟：\n  1. 本地: `longbridge login`\n  2. `gh secret set LONGBRIDGE_TOKEN_JSON -R " + $repo + " < ~/.longbridge/openapi/tokens/<CLIENT_ID>`\n  3. `gh workflow run \"Fetch Quotes\" -R " + $repo + "`")
-          }')
-          curl -sS -X POST -H 'Content-type: application/json' --data "$MSG" "$SLACK_WEBHOOK_URL"
+
+      - name: Close failure issue on success
+        if: success()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          TITLE="🔴 Fetch Quotes 工作流失敗（自動告警）"
+          existing=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
+          if [ -n "$existing" ]; then
+            echo "Closing recovered issue #$existing"
+            gh issue close "$existing" -R "$REPO" --comment "✅ 已自動恢復 — [Run #${RUN_ID}](https://github.com/${REPO}/actions/runs/${RUN_ID})"
+          fi
