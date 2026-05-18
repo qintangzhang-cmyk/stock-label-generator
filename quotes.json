@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-17T01:25:27+00:00",
+  "generatedAt": "2026-05-18T01:29:43+00:00",
   "count": 51,
   "quotes": [
     {
@@ -123,16 +123,6 @@
       "name": ""
     },
     {
-      "symbol": "700.HK",
-      "ticker": "700",
-      "price": 456.4,
-      "prev_close": 454.9,
-      "changePct": 0.3297,
-      "volume": 26449868,
-      "turnover": 12109673878.0,
-      "name": ""
-    },
-    {
       "symbol": "PDD.US",
       "ticker": "PDD",
       "price": 95.83,
@@ -163,6 +153,126 @@
       "name": ""
     },
     {
+      "symbol": "700.HK",
+      "ticker": "700",
+      "price": 456.4,
+      "prev_close": 456.4,
+      "changePct": 0.0,
+      "volume": 138583,
+      "turnover": 63329357.44,
+      "name": ""
+    },
+    {
+      "symbol": "9988.HK",
+      "ticker": "9988",
+      "price": 132.3,
+      "prev_close": 132.3,
+      "changePct": 0.0,
+      "volume": 499254,
+      "turnover": 66042821.34,
+      "name": ""
+    },
+    {
+      "symbol": "3690.HK",
+      "ticker": "3690",
+      "price": 82.7,
+      "prev_close": 82.7,
+      "changePct": 0.0,
+      "volume": 56,
+      "turnover": 4631.2,
+      "name": ""
+    },
+    {
+      "symbol": "1810.HK",
+      "ticker": "1810",
+      "price": 30.7,
+      "prev_close": 30.7,
+      "changePct": 0.0,
+      "volume": 220,
+      "turnover": 6722.0,
+      "name": ""
+    },
+    {
+      "symbol": "9618.HK",
+      "ticker": "9618",
+      "price": 127.9,
+      "prev_close": 127.9,
+      "changePct": 0.0,
+      "volume": 8450,
+      "turnover": 1080755.0,
+      "name": ""
+    },
+    {
+      "symbol": "1299.HK",
+      "ticker": "1299",
+      "price": 87.6,
+      "prev_close": 87.6,
+      "changePct": 0.0,
+      "volume": 708038,
+      "turnover": 62172600.68,
+      "name": ""
+    },
+    {
+      "symbol": "2318.HK",
+      "ticker": "2318",
+      "price": 62.45,
+      "prev_close": 62.45,
+      "changePct": 0.0,
+      "volume": 17562,
+      "turnover": 1096746.9,
+      "name": ""
+    },
+    {
+      "symbol": "1024.HK",
+      "ticker": "1024",
+      "price": 49.34,
+      "prev_close": 49.34,
+      "changePct": 0.0,
+      "volume": 0,
+      "turnover": 0.0,
+      "name": ""
+    },
+    {
+      "symbol": "1211.HK",
+      "ticker": "1211",
+      "price": 96.45,
+      "prev_close": 96.45,
+      "changePct": 0.0,
+      "volume": 13,
+      "turnover": 1253.85,
+      "name": ""
+    },
+    {
+      "symbol": "9866.HK",
+      "ticker": "9866",
+      "price": 49.28,
+      "prev_close": 49.28,
+      "changePct": 0.0,
+      "volume": 0,
+      "turnover": 0.0,
+      "name": ""
+    },
+    {
+      "symbol": "600519.SH",
+      "ticker": "600519",
+      "price": 1332.95,
+      "prev_close": 1332.95,
+      "changePct": 0.0,
+      "volume": 0,
+      "turnover": 0.0,
+      "name": ""
+    },
+    {
+      "symbol": "300750.SZ",
+      "ticker": "300750",
+      "price": 423.6,
+      "prev_close": 423.6,
+      "changePct": 0.0,
+      "volume": 0,
+      "turnover": 0.0,
+      "name": ""
+    },
+    {
       "symbol": "LLY.US",
       "ticker": "LLY",
       "price": 1004.92,
@@ -170,16 +280,6 @@
       "changePct": -0.005,
       "volume": 2820726,
       "turnover": 2834018003.0,
-      "name": ""
-    },
-    {
-      "symbol": "1299.HK",
-      "ticker": "1299",
-      "price": 87.6,
-      "prev_close": 87.7,
-      "changePct": -0.114,
-      "volume": 19768118,
-      "turnover": 1735427462.0,
       "name": ""
     },
     {
@@ -203,16 +303,6 @@
       "name": ""
     },
     {
-      "symbol": "600519.SH",
-      "ticker": "600519",
-      "price": 1332.95,
-      "prev_close": 1342.17,
-      "changePct": -0.6869,
-      "volume": 58183,
-      "turnover": 7749366540.0,
-      "name": ""
-    },
-    {
       "symbol": "JPM.US",
       "ticker": "JPM",
       "price": 297.81,
@@ -230,16 +320,6 @@
       "changePct": -0.7625,
       "volume": 25322971,
       "turnover": 3336245260.0,
-      "name": ""
-    },
-    {
-      "symbol": "300750.SZ",
-      "ticker": "300750",
-      "price": 423.6,
-      "prev_close": 427.0,
-      "changePct": -0.7963,
-      "volume": 297049,
-      "turnover": 12638150861.85,
       "name": ""
     },
     {
@@ -283,16 +363,6 @@
       "name": ""
     },
     {
-      "symbol": "9866.HK",
-      "ticker": "9866",
-      "price": 49.28,
-      "prev_close": 49.96,
-      "changePct": -1.3611,
-      "volume": 3734593,
-      "turnover": 183836445.0,
-      "name": ""
-    },
-    {
       "symbol": "TME.US",
       "ticker": "TME",
       "price": 8.47,
@@ -300,36 +370,6 @@
       "changePct": -1.5116,
       "volume": 9099038,
       "turnover": 77522536.0,
-      "name": ""
-    },
-    {
-      "symbol": "2318.HK",
-      "ticker": "2318",
-      "price": 62.45,
-      "prev_close": 63.5,
-      "changePct": -1.6535,
-      "volume": 36937388,
-      "turnover": 2304594490.0,
-      "name": ""
-    },
-    {
-      "symbol": "9618.HK",
-      "ticker": "9618",
-      "price": 127.9,
-      "prev_close": 130.1,
-      "changePct": -1.691,
-      "volume": 11414370,
-      "turnover": 1463262041.0,
-      "name": ""
-    },
-    {
-      "symbol": "1211.HK",
-      "ticker": "1211",
-      "price": 96.45,
-      "prev_close": 98.15,
-      "changePct": -1.732,
-      "volume": 21951647,
-      "turnover": 2121682056.0,
       "name": ""
     },
     {
@@ -373,16 +413,6 @@
       "name": ""
     },
     {
-      "symbol": "1024.HK",
-      "ticker": "1024",
-      "price": 49.34,
-      "prev_close": 50.85,
-      "changePct": -2.9695,
-      "volume": 50533425,
-      "turnover": 2505114852.0,
-      "name": ""
-    },
-    {
       "symbol": "XPEV.US",
       "ticker": "XPEV",
       "price": 15.62,
@@ -390,16 +420,6 @@
       "changePct": -3.1017,
       "volume": 6580110,
       "turnover": 102633926.0,
-      "name": ""
-    },
-    {
-      "symbol": "1810.HK",
-      "ticker": "1810",
-      "price": 30.7,
-      "prev_close": 31.72,
-      "changePct": -3.2156,
-      "volume": 152641980,
-      "turnover": 4713335288.0,
       "name": ""
     },
     {
@@ -413,16 +433,6 @@
       "name": ""
     },
     {
-      "symbol": "3690.HK",
-      "ticker": "3690",
-      "price": 82.7,
-      "prev_close": 85.7,
-      "changePct": -3.5006,
-      "volume": 41139543,
-      "turnover": 3416709626.0,
-      "name": ""
-    },
-    {
       "symbol": "LI.US",
       "ticker": "LI",
       "price": 18.51,
@@ -430,16 +440,6 @@
       "changePct": -3.944,
       "volume": 5358503,
       "turnover": 99517352.0,
-      "name": ""
-    },
-    {
-      "symbol": "9988.HK",
-      "ticker": "9988",
-      "price": 132.3,
-      "prev_close": 137.9,
-      "changePct": -4.0609,
-      "volume": 90144879,
-      "turnover": 12041180806.0,
       "name": ""
     },
     {
