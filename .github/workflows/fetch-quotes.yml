@@ -1,9 +1,14 @@
 name: Fetch Quotes
 
 on:
-  # HKT 07:30 = UTC 23:30 前一天
+  # GitHub 排程任務無 SLA，實測穩定延遲 ~2 小時（07:30 HKT 計劃 → 09:30 HKT 才跑）。
+  # 為了讓門店 07:30 開門前能拿到當天數據，把計劃時間提前 2 小時：
+  #   主排程 21:30 UTC = 05:30 HKT 計劃 → 實際 ~07:30 HKT 落地
+  #   備援 22:30 UTC = 06:30 HKT 計劃 → 實際 ~08:30 HKT（主排程被跳過時兜底）
+  # 同一份 quotes.json 被多次刷新沒問題：commit step 的 git diff 自動 no-op。
   schedule:
-    - cron: '30 23 * * *'
+    - cron: '30 21 * * *'
+    - cron: '30 22 * * *'
   # Actions 页面支持手动点 "Run workflow"
   workflow_dispatch:
 
