@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-05-24T23:33:29+00:00",
+  "generatedAt": "2026-05-25T22:34:06+00:00",
   "count": 51,
   "quotes": [
     {
@@ -213,16 +213,6 @@
       "name": ""
     },
     {
-      "symbol": "300750.SZ",
-      "ticker": "300750",
-      "price": 411.16,
-      "prev_close": 411.63,
-      "changePct": -0.1142,
-      "volume": 277884,
-      "turnover": 11472585703.44,
-      "name": ""
-    },
-    {
       "symbol": "MSFT.US",
       "ticker": "MSFT",
       "price": 418.57,
@@ -260,6 +250,16 @@
       "changePct": -0.2559,
       "volume": 8785653,
       "turnover": 135780523.0,
+      "name": ""
+    },
+    {
+      "symbol": "600519.SH",
+      "ticker": "600519",
+      "price": 1285.88,
+      "prev_close": 1290.2,
+      "changePct": -0.3348,
+      "volume": 46352,
+      "turnover": 5978725158.0,
       "name": ""
     },
     {
@@ -393,16 +393,6 @@
       "name": ""
     },
     {
-      "symbol": "600519.SH",
-      "ticker": "600519",
-      "price": 1290.2,
-      "prev_close": 1311.0,
-      "changePct": -1.5866,
-      "volume": 49157,
-      "turnover": 6372389482.0,
-      "name": ""
-    },
-    {
       "symbol": "NVDA.US",
       "ticker": "NVDA",
       "price": 215.33,
@@ -430,6 +420,16 @@
       "changePct": -1.9909,
       "volume": 4715027,
       "turnover": 81000130.0,
+      "name": ""
+    },
+    {
+      "symbol": "300750.SZ",
+      "ticker": "300750",
+      "price": 402.88,
+      "prev_close": 411.16,
+      "changePct": -2.0138,
+      "volume": 381977,
+      "turnover": 15479408961.51,
       "name": ""
     },
     {
