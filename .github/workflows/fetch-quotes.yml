@@ -44,8 +44,13 @@ jobs:
             echo "::error::Missing LONGBRIDGE_CLIENT_ID or LONGBRIDGE_TOKEN_JSON secret"
             exit 1
           fi
+          # CLI 0.23+ stores at ~/.longbridge/openapi/cli-auth (single file, new schema)
+          # Older CLI uses ~/.longbridge/openapi/tokens/<client_id>
+          # Write to BOTH — CLI picks whichever it recognizes. Same content works for
+          # both paths because the secret stores raw JSON the CLI itself produced.
           mkdir -p ~/.longbridge/openapi/tokens
           printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
+          printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/cli-auth"
 
       - name: Build quotes.json
         run: |
@@ -69,24 +74,23 @@ jobs:
             echo "::warning::ROTATE_PAT not configured — skipping token rotation. Manual re-auth needed when token expires (~10-90 days)."
             exit 0
           fi
-          # Debug: where did longbridge CLI actually store the token?
-          echo "--- DEBUG: token search ---"
-          echo "HOME=$HOME"
-          echo "LB_CLIENT_ID length: ${#LB_CLIENT_ID}"
-          echo "Files under ~/.longbridge:"
-          find "$HOME/.longbridge" -type f 2>/dev/null | head -20 || echo "  (~/.longbridge missing)"
-          echo "Files under ~/.config (longbridge*):"
-          find "$HOME/.config" -type d -name "*longbridge*" 2>/dev/null | head -5
-          echo "Token-shaped JSON files under HOME:"
-          find "$HOME" -maxdepth 6 -type f -name "$LB_CLIENT_ID" 2>/dev/null | head -5
-          echo "--- end debug ---"
-
-          TOKEN_FILE="$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
-          if [ ! -f "$TOKEN_FILE" ]; then
-            echo "::warning::Token file missing at $TOKEN_FILE — nothing to rotate"
+          # CLI version differs between local and runner — pick whichever path actually exists.
+          # 0.23+ writes to cli-auth (preferred), older writes to tokens/<client_id>.
+          TOKEN_FILE=""
+          for candidate in \
+            "$HOME/.longbridge/openapi/cli-auth" \
+            "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"; do
+            if [ -f "$candidate" ]; then
+              TOKEN_FILE="$candidate"
+              break
+            fi
+          done
+          if [ -z "$TOKEN_FILE" ]; then
+            echo "::warning::No CLI token file found at either path — nothing to rotate"
+            find "$HOME/.longbridge" -type f 2>/dev/null | head -10
             exit 0
           fi
-          echo "Pushing refreshed token ($(wc -c < "$TOKEN_FILE") bytes) back to GitHub Secret"
+          echo "Pushing $TOKEN_FILE ($(wc -c < "$TOKEN_FILE") bytes) back to GitHub Secret"
           gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$TOKEN_FILE"
           echo "✓ LONGBRIDGE_TOKEN_JSON secret updated"
 
