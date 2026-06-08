@@ -50,18 +50,35 @@ jobs:
       - name: Build quotes.json
         run: |
           python3 scripts/build_quotes.py > quotes.json
-          echo "::notice::Fetched $(python3 -c 'import json; print(json.load(open(\"quotes.json\"))[\"count\"])') symbols"
+          COUNT=$(python3 -c 'import json; print(json.load(open("quotes.json"))["count"])')
+          echo "::notice::Fetched $COUNT symbols"
 
-      - name: Persist refreshed token (in case CLI refreshed it)
+      # Push the rotated refresh token back to GitHub Secret. Longbridge rotates
+      # the refresh token on every use; without this step we'd be using a stale
+      # token after the first run, leading to "Refresh token has expired" ~10 days later.
+      # No-op (with a warning) if ROTATE_PAT isn't set, so this is safe to land before
+      # the PAT is configured.
+      - name: Rotate LONGBRIDGE_TOKEN_JSON secret
+        if: success()
         env:
+          GH_TOKEN: ${{ secrets.ROTATE_PAT }}
           LB_CLIENT_ID: ${{ secrets.LONGBRIDGE_CLIENT_ID }}
+          REPO: ${{ github.repository }}
         run: |
-          # After CLI usage, token file may have been auto-refreshed.
-          # We DO NOT commit it to the repo. Instead we echo a hint if it changed
-          # (manual Secret update will be needed ~every 90 days).
-          if [ -f "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID" ]; then
-            echo "Token file size: $(wc -c < "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID") bytes"
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::warning::ROTATE_PAT not configured — skipping token rotation. Manual re-auth needed when token expires (~10-90 days)."
+            exit 0
           fi
+          TOKEN_FILE="$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
+          if [ ! -f "$TOKEN_FILE" ]; then
+            echo "::warning::Token file missing — nothing to rotate"
+            exit 0
+          fi
+          # Only rotate if the file actually changed during this run (mtime > 1 min ago means CLI didn't touch it).
+          # We push unconditionally if it exists — even an unchanged push is safe and keeps the secret fresh.
+          echo "Pushing refreshed token ($(wc -c < "$TOKEN_FILE") bytes) back to GitHub Secret"
+          gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$TOKEN_FILE"
+          echo "✓ LONGBRIDGE_TOKEN_JSON secret updated"
 
       - name: Commit quotes.json
         run: |
@@ -123,7 +140,9 @@ jobs:
           else
             echo "Creating new alert issue"
             gh label create "auto-alert" -R "$REPO" --color "d73a4a" --description "Auto-created by workflows" 2>/dev/null || true
-            gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert"
+            # --assignee 觸發單獨的 "@you was assigned" 通知，比 ci_activity 等級高，
+            # GitHub 默認會發郵件，不會被 Watching 設置吞掉
+            gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert" --assignee qintangzhang-cmyk
           fi
 
       - name: Close failure issue on success
