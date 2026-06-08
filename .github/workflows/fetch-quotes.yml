@@ -69,13 +69,23 @@ jobs:
             echo "::warning::ROTATE_PAT not configured — skipping token rotation. Manual re-auth needed when token expires (~10-90 days)."
             exit 0
           fi
+          # Debug: where did longbridge CLI actually store the token?
+          echo "--- DEBUG: token search ---"
+          echo "HOME=$HOME"
+          echo "LB_CLIENT_ID length: ${#LB_CLIENT_ID}"
+          echo "Files under ~/.longbridge:"
+          find "$HOME/.longbridge" -type f 2>/dev/null | head -20 || echo "  (~/.longbridge missing)"
+          echo "Files under ~/.config (longbridge*):"
+          find "$HOME/.config" -type d -name "*longbridge*" 2>/dev/null | head -5
+          echo "Token-shaped JSON files under HOME:"
+          find "$HOME" -maxdepth 6 -type f -name "$LB_CLIENT_ID" 2>/dev/null | head -5
+          echo "--- end debug ---"
+
           TOKEN_FILE="$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
           if [ ! -f "$TOKEN_FILE" ]; then
-            echo "::warning::Token file missing — nothing to rotate"
+            echo "::warning::Token file missing at $TOKEN_FILE — nothing to rotate"
             exit 0
           fi
-          # Only rotate if the file actually changed during this run (mtime > 1 min ago means CLI didn't touch it).
-          # We push unconditionally if it exists — even an unchanged push is safe and keeps the secret fresh.
           echo "Pushing refreshed token ($(wc -c < "$TOKEN_FILE") bytes) back to GitHub Secret"
           gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$TOKEN_FILE"
           echo "✓ LONGBRIDGE_TOKEN_JSON secret updated"
