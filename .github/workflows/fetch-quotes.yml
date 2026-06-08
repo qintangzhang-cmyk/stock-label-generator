@@ -44,13 +44,11 @@ jobs:
             echo "::error::Missing LONGBRIDGE_CLIENT_ID or LONGBRIDGE_TOKEN_JSON secret"
             exit 1
           fi
-          # CLI 0.23+ stores at ~/.longbridge/openapi/cli-auth (single file, new schema)
-          # Older CLI uses ~/.longbridge/openapi/tokens/<client_id>
-          # Write to BOTH — CLI picks whichever it recognizes. Same content works for
-          # both paths because the secret stores raw JSON the CLI itself produced.
+          # Secret stores raw JSON (old CLI format). New CLI (0.23+) auto-migrates
+          # from this legacy path to ~/.longbridge/openapi/cli-auth (binary format)
+          # on first read, so this single write works for any CLI version.
           mkdir -p ~/.longbridge/openapi/tokens
           printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
-          printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/cli-auth"
 
       - name: Build quotes.json
         run: |
@@ -58,12 +56,13 @@ jobs:
           COUNT=$(python3 -c 'import json; print(json.load(open("quotes.json"))["count"])')
           echo "::notice::Fetched $COUNT symbols"
 
-      # Push the rotated refresh token back to GitHub Secret. Longbridge rotates
-      # the refresh token on every use; without this step we'd be using a stale
-      # token after the first run, leading to "Refresh token has expired" ~10 days later.
-      # No-op (with a warning) if ROTATE_PAT isn't set, so this is safe to land before
-      # the PAT is configured.
-      - name: Rotate LONGBRIDGE_TOKEN_JSON secret
+      # Token rotation: only rotate if a CLI version that uses JSON file format is in use.
+      # Newer CLI (0.23+) uses a BINARY cli-auth file that cannot survive being stored
+      # in a GitHub Secret (binary content breaks env var interpolation at job startup).
+      # We only push back if we find a valid JSON-shaped token file at the legacy path.
+      # If only cli-auth exists, we skip rotation — user does manual `longbridge login`
+      # when the alert issue fires.
+      - name: Rotate LONGBRIDGE_TOKEN_JSON secret (JSON tokens only)
         if: success()
         env:
           GH_TOKEN: ${{ secrets.ROTATE_PAT }}
@@ -71,28 +70,28 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::ROTATE_PAT not configured — skipping token rotation. Manual re-auth needed when token expires (~10-90 days)."
+            echo "ROTATE_PAT not configured — skipping rotation"
             exit 0
           fi
-          # CLI version differs between local and runner — pick whichever path actually exists.
-          # 0.23+ writes to cli-auth (preferred), older writes to tokens/<client_id>.
-          TOKEN_FILE=""
-          for candidate in \
-            "$HOME/.longbridge/openapi/cli-auth" \
-            "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"; do
-            if [ -f "$candidate" ]; then
-              TOKEN_FILE="$candidate"
-              break
+          LEGACY="$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
+          CLI_AUTH="$HOME/.longbridge/openapi/cli-auth"
+          if [ -f "$LEGACY" ]; then
+            # Sanity check: file must start with '{' (JSON object) and contain no null bytes
+            FIRST_CHAR=$(head -c 1 "$LEGACY")
+            if [ "$FIRST_CHAR" = "{" ] && ! grep -q $'\0' "$LEGACY" 2>/dev/null; then
+              echo "Rotating LONGBRIDGE_TOKEN_JSON from $LEGACY ($(wc -c < "$LEGACY") bytes)"
+              gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$LEGACY"
+              echo "✓ Secret updated"
+              exit 0
+            else
+              echo "::warning::Legacy token file exists but isn't valid JSON — skipping rotation"
             fi
-          done
-          if [ -z "$TOKEN_FILE" ]; then
-            echo "::warning::No CLI token file found at either path — nothing to rotate"
-            find "$HOME/.longbridge" -type f 2>/dev/null | head -10
+          fi
+          if [ -f "$CLI_AUTH" ]; then
+            echo "::notice::CLI is using binary cli-auth format ($(wc -c < "$CLI_AUTH") bytes), which cannot be safely stored as a GitHub Secret (binary breaks env-var interpolation at job startup). Skipping auto-rotation. When refresh token expires, run \`longbridge login\` locally and \`gh secret set LONGBRIDGE_TOKEN_JSON -R $REPO < ~/.longbridge/openapi/tokens/$LB_CLIENT_ID\`."
             exit 0
           fi
-          echo "Pushing $TOKEN_FILE ($(wc -c < "$TOKEN_FILE") bytes) back to GitHub Secret"
-          gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$TOKEN_FILE"
-          echo "✓ LONGBRIDGE_TOKEN_JSON secret updated"
+          echo "::warning::No token file found at either path — nothing to rotate"
 
       - name: Commit quotes.json
         run: |
