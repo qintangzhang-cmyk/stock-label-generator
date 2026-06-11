@@ -21,11 +21,13 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
+      # v5/v6 run on Node 24 — GitHub force-switches runners to Node 24 on
+      # 2026-06-16; older majors (checkout@v4 etc.) may break that day.
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: '3.11'
 
@@ -46,6 +48,13 @@ jobs:
           echo "$HOME/.local/bin" >> $GITHUB_PATH
           "$HOME/.local/bin/longbridge" --version
 
+      # The secret is self-describing:
+      #   starts with '{'  → raw legacy JSON (what `longbridge login` writes locally;
+      #                      used for manual recovery) → write to legacy tokens/ path,
+      #                      CLI v0.23.0 auto-migrates it to cli-auth on first use
+      #   anything else    → base64 of the CLI's cli-auth file (what the rotation
+      #                      step below pushes back) → decode straight to cli-auth
+      # base64 never starts with '{', so the two formats can't be confused.
       - name: Restore OAuth token
         env:
           LB_CLIENT_ID: ${{ secrets.LONGBRIDGE_CLIENT_ID }}
@@ -55,11 +64,17 @@ jobs:
             echo "::error::Missing LONGBRIDGE_CLIENT_ID or LONGBRIDGE_TOKEN_JSON secret"
             exit 1
           fi
-          # Secret stores raw JSON (old CLI format). New CLI (0.23+) auto-migrates
-          # from this legacy path to ~/.longbridge/openapi/cli-auth (binary format)
-          # on first read, so this single write works for any CLI version.
           mkdir -p ~/.longbridge/openapi/tokens
-          printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
+          case "$LB_TOKEN_JSON" in
+            "{"*)
+              echo "Secret is raw JSON (manual login format) — writing legacy path"
+              printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
+              ;;
+            *)
+              echo "Secret is base64 cli-auth (auto-rotated format) — decoding"
+              printf '%s' "$LB_TOKEN_JSON" | base64 -d > "$HOME/.longbridge/openapi/cli-auth"
+              ;;
+          esac
 
       - name: Build quotes.json
         run: |
@@ -67,13 +82,13 @@ jobs:
           COUNT=$(python3 -c 'import json; print(json.load(open("quotes.json"))["count"])')
           echo "::notice::Fetched $COUNT symbols"
 
-      # Token rotation: only rotate if a CLI version that uses JSON file format is in use.
-      # Newer CLI (0.23+) uses a BINARY cli-auth file that cannot survive being stored
-      # in a GitHub Secret (binary content breaks env var interpolation at job startup).
-      # We only push back if we find a valid JSON-shaped token file at the legacy path.
-      # If only cli-auth exists, we skip rotation — user does manual `longbridge login`
-      # when the alert issue fires.
-      - name: Rotate LONGBRIDGE_TOKEN_JSON secret (JSON tokens only)
+      # Push the CLI's current auth state back to the secret so the NEXT run uses
+      # the freshest refresh token. Longbridge rotates refresh tokens on use; without
+      # this push-back the secret goes stale and dies ~10-14 days after each manual
+      # login. cli-auth is binary, so we store it base64-encoded (raw binary in a
+      # secret breaks env-var interpolation at job startup — learned the hard way).
+      # The Restore step above auto-detects which format the secret holds.
+      - name: Rotate token secret (base64 cli-auth)
         if: success()
         env:
           GH_TOKEN: ${{ secrets.ROTATE_PAT }}
@@ -81,28 +96,21 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "ROTATE_PAT not configured — skipping rotation"
+            echo "::warning::ROTATE_PAT not configured — skipping rotation; token will go stale in ~2 weeks"
             exit 0
           fi
-          LEGACY="$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
           CLI_AUTH="$HOME/.longbridge/openapi/cli-auth"
-          if [ -f "$LEGACY" ]; then
-            # Sanity check: file must start with '{' (JSON object) and contain no null bytes
-            FIRST_CHAR=$(head -c 1 "$LEGACY")
-            if [ "$FIRST_CHAR" = "{" ] && ! grep -q $'\0' "$LEGACY" 2>/dev/null; then
-              echo "Rotating LONGBRIDGE_TOKEN_JSON from $LEGACY ($(wc -c < "$LEGACY") bytes)"
-              gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$LEGACY"
-              echo "✓ Secret updated"
-              exit 0
-            else
-              echo "::warning::Legacy token file exists but isn't valid JSON — skipping rotation"
-            fi
-          fi
+          LEGACY="$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
           if [ -f "$CLI_AUTH" ]; then
-            echo "::notice::CLI is using binary cli-auth format ($(wc -c < "$CLI_AUTH") bytes), which cannot be safely stored as a GitHub Secret (binary breaks env-var interpolation at job startup). Skipping auto-rotation. When refresh token expires, run \`longbridge login\` locally and \`gh secret set LONGBRIDGE_TOKEN_JSON -R $REPO < ~/.longbridge/openapi/tokens/$LB_CLIENT_ID\`."
-            exit 0
+            base64 -w0 < "$CLI_AUTH" | gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO"
+            echo "✓ Secret rotated (base64 of cli-auth, $(wc -c < "$CLI_AUTH") bytes raw)"
+          elif [ -f "$LEGACY" ]; then
+            # CLI didn't migrate (unexpected for v0.23.0) — push the JSON unchanged
+            gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$LEGACY"
+            echo "✓ Secret rotated (legacy JSON, $(wc -c < "$LEGACY") bytes)"
+          else
+            echo "::warning::No token file found — nothing to rotate"
           fi
-          echo "::warning::No token file found at either path — nothing to rotate"
 
       - name: Commit quotes.json
         run: |
