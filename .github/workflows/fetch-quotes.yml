@@ -29,11 +29,22 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Install Longbridge CLI
+      # PIN the CLI version. The official install script always pulls latest,
+      # which bit us twice: v0.23.1 (2026-06-10) dropped legacy JSON token-path
+      # support and every scheduled run broke overnight. v0.23.0 is the last
+      # version that auto-migrates ~/.longbridge/openapi/tokens/<client_id>.
+      # To upgrade deliberately: bump LB_VERSION, run workflow_dispatch, watch it.
+      - name: Install Longbridge CLI (pinned)
+        env:
+          LB_VERSION: v0.23.0
         run: |
-          curl -sSL https://github.com/longbridge/longbridge-terminal/raw/main/install | sh
+          curl -sSL -o /tmp/lb.tar.gz \
+            "https://github.com/longbridge/longbridge-terminal/releases/download/${LB_VERSION}/longbridge-terminal-linux-musl-amd64.tar.gz"
+          mkdir -p "$HOME/.local/bin"
+          tar -xzf /tmp/lb.tar.gz -C "$HOME/.local/bin"
+          chmod +x "$HOME/.local/bin/longbridge"
           echo "$HOME/.local/bin" >> $GITHUB_PATH
-          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+          "$HOME/.local/bin/longbridge" --version
 
       - name: Restore OAuth token
         env:
