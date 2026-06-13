@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-06-13T00:00:52+00:00",
+  "generatedAt": "2026-06-13T22:36:11+00:00",
   "count": 51,
   "quotes": [
     {
@@ -9,7 +9,7 @@
       "prev_close": 488.45,
       "changePct": 4.7333,
       "volume": 31618462,
-      "turnover": 16172556552.452,
+      "turnover": 16171016256.0,
       "name": ""
     },
     {
@@ -19,7 +19,7 @@
       "prev_close": 13.78,
       "changePct": 3.7736,
       "volume": 4452890,
-      "turnover": 64005176.744,
+      "turnover": 63983970.0,
       "name": ""
     },
     {
@@ -59,7 +59,7 @@
       "prev_close": 313.49,
       "changePct": 2.3063,
       "volume": 7426164,
-      "turnover": 2374906579.625,
+      "turnover": 2374913358.0,
       "name": ""
     },
     {
@@ -78,8 +78,8 @@
       "price": 406.43,
       "prev_close": 399.15,
       "changePct": 1.8239,
-      "volume": 63652264,
-      "turnover": 25395472685.022,
+      "volume": 63652286,
+      "turnover": 25396808250.0,
       "name": ""
     },
     {
@@ -88,8 +88,8 @@
       "price": 28.56,
       "prev_close": 28.06,
       "changePct": 1.7819,
-      "volume": 7700478,
-      "turnover": 220000806.073,
+      "volume": 7700484,
+      "turnover": 219993999.0,
       "name": ""
     },
     {
@@ -129,7 +129,7 @@
       "prev_close": 319.05,
       "changePct": 1.0469,
       "volume": 5543517,
-      "turnover": 1788099315.12,
+      "turnover": 1788029209.0,
       "name": ""
     },
     {
@@ -159,7 +159,7 @@
       "prev_close": 102.28,
       "changePct": 0.7431,
       "volume": 5307213,
-      "turnover": 545909320.048,
+      "turnover": 545911398.0,
       "name": ""
     },
     {
@@ -169,7 +169,7 @@
       "prev_close": 405.55,
       "changePct": 0.7323,
       "volume": 7269619,
-      "turnover": 2963417270.356,
+      "turnover": 2963166931.0,
       "name": ""
     },
     {
@@ -178,8 +178,8 @@
       "price": 489.98,
       "prev_close": 486.51,
       "changePct": 0.7132,
-      "volume": 3984403,
-      "turnover": 1948957787.706,
+      "volume": 3984503,
+      "turnover": 1949004719.0,
       "name": ""
     },
     {
@@ -189,7 +189,7 @@
       "prev_close": 975.69,
       "changePct": 0.6826,
       "volume": 1737681,
-      "turnover": 1700870858.235,
+      "turnover": 1700859312.0,
       "name": ""
     },
     {
@@ -199,7 +199,7 @@
       "prev_close": 357.77,
       "changePct": 0.5339,
       "volume": 24731019,
-      "turnover": 8925670079.485,
+      "turnover": 8925375807.0,
       "name": ""
     },
     {
@@ -229,7 +229,7 @@
       "prev_close": 120.5,
       "changePct": 0.4481,
       "volume": 14770841,
-      "turnover": 1780778344.343,
+      "turnover": 1780710755.0,
       "name": ""
     },
     {
@@ -239,7 +239,7 @@
       "prev_close": 81.3,
       "changePct": 0.3198,
       "volume": 6126232,
-      "turnover": 498324226.443,
+      "turnover": 498287004.0,
       "name": ""
     },
     {
@@ -249,7 +249,7 @@
       "prev_close": 146.6,
       "changePct": 0.2797,
       "volume": 17713141,
-      "turnover": 2611312941.323,
+      "turnover": 2611309391.0,
       "name": ""
     },
     {
@@ -258,8 +258,8 @@
       "price": 14.49,
       "prev_close": 14.46,
       "changePct": 0.2075,
-      "volume": 5872017,
-      "turnover": 85345762.197,
+      "volume": 5872593,
+      "turnover": 85350161.0,
       "name": ""
     },
     {
@@ -269,7 +269,7 @@
       "prev_close": 125.61,
       "changePct": 0.1672,
       "volume": 520435,
-      "turnover": 65693116.641,
+      "turnover": 65693236.0,
       "name": ""
     },
     {
@@ -279,7 +279,7 @@
       "prev_close": 204.87,
       "changePct": 0.1562,
       "volume": 112345314,
-      "turnover": 23042579761.016,
+      "turnover": 23043493719.0,
       "name": ""
     },
     {
@@ -288,8 +288,8 @@
       "price": 112.82,
       "prev_close": 112.69,
       "changePct": 0.1154,
-      "volume": 8157871,
-      "turnover": 914133687.863,
+      "volume": 8157874,
+      "turnover": 914101344.0,
       "name": ""
     },
     {
@@ -299,7 +299,7 @@
       "prev_close": 82.53,
       "changePct": 0.1091,
       "volume": 11757678,
-      "turnover": 969022312.435,
+      "turnover": 969024251.0,
       "name": ""
     },
     {
@@ -309,7 +309,7 @@
       "prev_close": 390.34,
       "changePct": 0.1025,
       "volume": 34922036,
-      "turnover": 13530943671.405,
+      "turnover": 13531622502.0,
       "name": ""
     },
     {
@@ -319,7 +319,7 @@
       "prev_close": 184.1,
       "changePct": 0.0163,
       "volume": 29562284,
-      "turnover": 5395545264.649,
+      "turnover": 5394232030.0,
       "name": ""
     },
     {
@@ -328,8 +328,8 @@
       "price": 284.81,
       "prev_close": 284.77,
       "changePct": 0.014,
-      "volume": 4028818,
-      "turnover": 1151248270.147,
+      "volume": 4028820,
+      "turnover": 1151243172.0,
       "name": ""
     },
     {
@@ -339,7 +339,7 @@
       "prev_close": 568.43,
       "changePct": -0.2551,
       "volume": 14347769,
-      "turnover": 8147380579.512,
+      "turnover": 8148694478.0,
       "name": ""
     },
     {
@@ -359,7 +359,7 @@
       "prev_close": 116.11,
       "changePct": -0.2928,
       "volume": 1581483,
-      "turnover": 183530128.412,
+      "turnover": 183550848.0,
       "name": ""
     },
     {
@@ -369,7 +369,7 @@
       "prev_close": 100.34,
       "changePct": -0.299,
       "volume": 8257240,
-      "turnover": 827315091.294,
+      "turnover": 827435529.0,
       "name": ""
     },
     {
@@ -379,7 +379,7 @@
       "prev_close": 166.45,
       "changePct": -0.3364,
       "volume": 13589398,
-      "turnover": 2240483771.349,
+      "turnover": 2240850422.0,
       "name": ""
     },
     {
@@ -389,7 +389,7 @@
       "prev_close": 5.23,
       "changePct": -0.3824,
       "volume": 23566725,
-      "turnover": 122804459.551,
+      "turnover": 122806003.0,
       "name": ""
     },
     {
@@ -398,8 +398,8 @@
       "price": 159.78,
       "prev_close": 160.43,
       "changePct": -0.4052,
-      "volume": 6508231,
-      "turnover": 1046146022.969,
+      "volume": 6508340,
+      "turnover": 1046126338.0,
       "name": ""
     },
     {
@@ -408,8 +408,8 @@
       "price": 9.22,
       "prev_close": 9.26,
       "changePct": -0.432,
-      "volume": 20017080,
-      "turnover": 185403286.655,
+      "volume": 20017256,
+      "turnover": 185405233.0,
       "name": ""
     },
     {
@@ -419,7 +419,7 @@
       "prev_close": 385.57,
       "changePct": -0.9077,
       "volume": 27630074,
-      "turnover": 10538284318.961,
+      "turnover": 10538880791.0,
       "name": ""
     },
     {
@@ -428,8 +428,8 @@
       "price": 68.85,
       "prev_close": 69.55,
       "changePct": -1.0065,
-      "volume": 19678054,
-      "turnover": 1344896297.103,
+      "volume": 19678070,
+      "turnover": 1344884631.0,
       "name": ""
     },
     {
@@ -438,8 +438,8 @@
       "price": 80.34,
       "prev_close": 81.27,
       "changePct": -1.1443,
-      "volume": 35344144,
-      "turnover": 2839748507.368,
+      "volume": 35344169,
+      "turnover": 2839777133.0,
       "name": ""
     },
     {
@@ -448,8 +448,8 @@
       "price": 238.55,
       "prev_close": 241.51,
       "changePct": -1.2256,
-      "volume": 51251091,
-      "turnover": 12158888652.399,
+      "volume": 51251141,
+      "turnover": 12159029349.0,
       "name": ""
     },
     {
@@ -459,7 +459,7 @@
       "prev_close": 295.63,
       "changePct": -1.5222,
       "volume": 38784789,
-      "turnover": 11309532665.56,
+      "turnover": 11309703956.0,
       "name": ""
     },
     {
@@ -469,7 +469,7 @@
       "prev_close": 45.96,
       "changePct": -2.2411,
       "volume": 16524258,
-      "turnover": 748355348.532,
+      "turnover": 748323528.0,
       "name": ""
     },
     {
@@ -479,7 +479,7 @@
       "prev_close": 131.08,
       "changePct": -2.3573,
       "volume": 35473588,
-      "turnover": 4551070467.82,
+      "turnover": 4551664759.0,
       "name": ""
     },
     {
@@ -489,7 +489,7 @@
       "prev_close": 1160.95,
       "changePct": -2.4075,
       "volume": 2438390,
-      "turnover": 2786948272.735,
+      "turnover": 2786877964.0,
       "name": ""
     },
     {
@@ -499,7 +499,7 @@
       "prev_close": 18.36,
       "changePct": -2.7233,
       "volume": 2032980,
-      "turnover": 36537963.944,
+      "turnover": 36533367.0,
       "name": ""
     },
     {
@@ -508,8 +508,8 @@
       "price": 204.02,
       "prev_close": 218.8,
       "changePct": -6.755,
-      "volume": 25063643,
-      "turnover": 5074152088.431,
+      "volume": 25063668,
+      "turnover": 5073945218.0,
       "name": ""
     }
   ]
