@@ -1,515 +1,515 @@
 {
-  "generatedAt": "2026-06-16T23:56:43+00:00",
+  "generatedAt": "2026-06-17T22:57:10+00:00",
   "count": 51,
   "quotes": [
     {
-      "symbol": "JPM.US",
-      "ticker": "JPM",
-      "price": 331.14,
-      "prev_close": 319.4,
-      "changePct": 3.6756,
-      "volume": 11094777,
-      "turnover": 3658448599.737,
-      "name": ""
-    },
-    {
-      "symbol": "V.US",
-      "ticker": "V",
-      "price": 333.12,
-      "prev_close": 323.82,
-      "changePct": 2.872,
-      "volume": 9248390,
-      "turnover": 3066628441.089,
-      "name": ""
-    },
-    {
-      "symbol": "MA.US",
-      "ticker": "MA",
-      "price": 501.33,
-      "prev_close": 490.64,
-      "changePct": 2.1788,
-      "volume": 4005969,
-      "turnover": 1994492648.721,
-      "name": ""
-    },
-    {
-      "symbol": "300750.SZ",
-      "ticker": "300750",
-      "price": 403.53,
-      "prev_close": 398.1,
-      "changePct": 1.364,
-      "volume": 348393,
-      "turnover": 14107808734.81,
-      "name": ""
-    },
-    {
-      "symbol": "META.US",
-      "ticker": "META",
-      "price": 600.21,
-      "prev_close": 593.48,
-      "changePct": 1.134,
-      "volume": 11344119,
-      "turnover": 6788975056.076,
-      "name": ""
-    },
-    {
-      "symbol": "GOOGL.US",
-      "ticker": "GOOGL",
-      "price": 373.25,
-      "prev_close": 369.35,
-      "changePct": 1.0559,
-      "volume": 24875790,
-      "turnover": 9258910989.092,
-      "name": ""
-    },
-    {
-      "symbol": "AAPL.US",
-      "ticker": "AAPL",
-      "price": 299.24,
-      "prev_close": 296.42,
-      "changePct": 0.9514,
-      "volume": 39873464,
-      "turnover": 11903618361.78,
-      "name": ""
-    },
-    {
-      "symbol": "COST.US",
-      "ticker": "COST",
-      "price": 986.68,
-      "prev_close": 979.45,
-      "changePct": 0.7382,
-      "volume": 1523419,
-      "turnover": 1501624503.509,
-      "name": ""
-    },
-    {
-      "symbol": "XOM.US",
-      "ticker": "XOM",
-      "price": 141.86,
-      "prev_close": 140.92,
-      "changePct": 0.667,
-      "volume": 18925104,
-      "turnover": 2673929143.402,
-      "name": ""
-    },
-    {
-      "symbol": "MCD.US",
-      "ticker": "MCD",
-      "price": 287.93,
-      "prev_close": 286.12,
-      "changePct": 0.6326,
-      "volume": 3874260,
-      "turnover": 1113443765.521,
-      "name": ""
-    },
-    {
-      "symbol": "UBER.US",
-      "ticker": "UBER",
-      "price": 73.25,
-      "prev_close": 72.85,
-      "changePct": 0.5491,
-      "volume": 17514439,
-      "turnover": 1289529626.285,
-      "name": ""
-    },
-    {
-      "symbol": "ADBE.US",
-      "ticker": "ADBE",
-      "price": 207.32,
-      "prev_close": 206.36,
-      "changePct": 0.4652,
-      "volume": 7214391,
-      "turnover": 1497825408.198,
-      "name": ""
-    },
-    {
-      "symbol": "WMT.US",
-      "ticker": "WMT",
-      "price": 121.03,
-      "prev_close": 120.82,
-      "changePct": 0.1738,
-      "volume": 23060688,
-      "turnover": 2795344039.077,
-      "name": ""
-    },
-    {
-      "symbol": "SBUX.US",
-      "ticker": "SBUX",
-      "price": 101.68,
-      "prev_close": 101.59,
-      "changePct": 0.0886,
-      "volume": 6646441,
-      "turnover": 674476578.008,
-      "name": ""
-    },
-    {
-      "symbol": "AMZN.US",
-      "ticker": "AMZN",
-      "price": 246.0,
-      "prev_close": 246.02,
-      "changePct": -0.0081,
-      "volume": 35185993,
-      "turnover": 8682129755.313,
-      "name": ""
-    },
-    {
-      "symbol": "COIN.US",
-      "ticker": "COIN",
-      "price": 169.27,
-      "prev_close": 169.62,
-      "changePct": -0.2063,
-      "volume": 6410839,
-      "turnover": 1091526732.233,
-      "name": ""
-    },
-    {
-      "symbol": "NKE.US",
-      "ticker": "NKE",
-      "price": 45.04,
-      "prev_close": 45.2,
-      "changePct": -0.354,
-      "volume": 19586748,
-      "turnover": 888432146.547,
-      "name": ""
-    },
-    {
-      "symbol": "DIS.US",
-      "ticker": "DIS",
-      "price": 101.28,
-      "prev_close": 101.69,
-      "changePct": -0.4032,
-      "volume": 10694210,
-      "turnover": 1080925191.34,
-      "name": ""
-    },
-    {
-      "symbol": "LLY.US",
-      "ticker": "LLY",
-      "price": 1122.5,
-      "prev_close": 1129.35,
-      "changePct": -0.6065,
-      "volume": 2260707,
-      "turnover": 2545237532.983,
-      "name": ""
-    },
-    {
-      "symbol": "KO.US",
-      "ticker": "KO",
-      "price": 80.28,
-      "prev_close": 80.91,
-      "changePct": -0.7786,
-      "volume": 17565115,
-      "turnover": 1412554075.663,
-      "name": ""
-    },
-    {
-      "symbol": "9618.HK",
-      "ticker": "9618",
-      "price": 111.6,
-      "prev_close": 112.5,
-      "changePct": -0.8,
-      "volume": 7094792,
-      "turnover": 791488312.0,
-      "name": ""
-    },
-    {
-      "symbol": "UNH.US",
-      "ticker": "UNH",
-      "price": 407.65,
-      "prev_close": 411.04,
-      "changePct": -0.8247,
-      "volume": 4814994,
-      "turnover": 1967695996.948,
-      "name": ""
-    },
-    {
-      "symbol": "JD.US",
-      "ticker": "JD",
-      "price": 28.38,
-      "prev_close": 28.68,
-      "changePct": -1.046,
-      "volume": 10461313,
-      "turnover": 296084238.686,
-      "name": ""
-    },
-    {
-      "symbol": "PLTR.US",
-      "ticker": "PLTR",
-      "price": 133.25,
-      "prev_close": 134.71,
-      "changePct": -1.0838,
-      "volume": 30407652,
-      "turnover": 4013166408.712,
-      "name": ""
-    },
-    {
-      "symbol": "600519.SH",
-      "ticker": "600519",
-      "price": 1255.67,
-      "prev_close": 1271.1,
-      "changePct": -1.2139,
-      "volume": 34969,
-      "turnover": 4399957625.0,
-      "name": ""
-    },
-    {
-      "symbol": "BABA.US",
-      "ticker": "BABA",
-      "price": 110.97,
-      "prev_close": 112.55,
-      "changePct": -1.4038,
-      "volume": 14125574,
-      "turnover": 1556955608.687,
-      "name": ""
-    },
-    {
-      "symbol": "MSFT.US",
-      "ticker": "MSFT",
-      "price": 393.83,
-      "prev_close": 399.76,
-      "changePct": -1.4834,
-      "volume": 31505073,
-      "turnover": 12394073320.97,
-      "name": ""
-    },
-    {
-      "symbol": "TSLA.US",
-      "ticker": "TSLA",
-      "price": 404.66,
-      "prev_close": 411.15,
-      "changePct": -1.5785,
-      "volume": 40249477,
-      "turnover": 16332803628.121,
-      "name": ""
-    },
-    {
-      "symbol": "1299.HK",
-      "ticker": "1299",
-      "price": 75.2,
-      "prev_close": 76.5,
-      "changePct": -1.6993,
-      "volume": 24023417,
-      "turnover": 1812968821.0,
-      "name": ""
-    },
-    {
-      "symbol": "CRM.US",
-      "ticker": "CRM",
-      "price": 161.71,
-      "prev_close": 164.55,
-      "changePct": -1.7259,
-      "volume": 16384963,
-      "turnover": 2657824189.659,
-      "name": ""
-    },
-    {
-      "symbol": "1211.HK",
-      "ticker": "1211",
-      "price": 84.05,
-      "prev_close": 85.6,
-      "changePct": -1.8107,
-      "volume": 17289596,
-      "turnover": 1453609086.0,
-      "name": ""
-    },
-    {
-      "symbol": "9988.HK",
-      "ticker": "9988",
-      "price": 107.0,
-      "prev_close": 109.3,
-      "changePct": -2.1043,
-      "volume": 69138026,
-      "turnover": 7418751148.0,
-      "name": ""
-    },
-    {
-      "symbol": "ORCL.US",
-      "ticker": "ORCL",
-      "price": 188.33,
-      "prev_close": 192.64,
-      "changePct": -2.2373,
-      "volume": 16982180,
-      "turnover": 3221142463.142,
-      "name": ""
-    },
-    {
-      "symbol": "1810.HK",
-      "ticker": "1810",
-      "price": 25.66,
-      "prev_close": 26.26,
-      "changePct": -2.2848,
-      "volume": 113820644,
-      "turnover": 2931634142.0,
-      "name": ""
-    },
-    {
-      "symbol": "9866.HK",
-      "ticker": "9866",
-      "price": 40.74,
-      "prev_close": 41.7,
-      "changePct": -2.3022,
-      "volume": 5499932,
-      "turnover": 224157143.0,
-      "name": ""
-    },
-    {
-      "symbol": "2318.HK",
-      "ticker": "2318",
-      "price": 56.35,
-      "prev_close": 57.7,
-      "changePct": -2.3397,
-      "volume": 52963084,
-      "turnover": 2983587140.0,
-      "name": ""
-    },
-    {
-      "symbol": "PDD.US",
-      "ticker": "PDD",
-      "price": 81.59,
-      "prev_close": 83.55,
-      "changePct": -2.3459,
-      "volume": 7922715,
-      "turnover": 645851625.701,
-      "name": ""
-    },
-    {
-      "symbol": "LI.US",
-      "ticker": "LI",
-      "price": 14.04,
-      "prev_close": 14.38,
-      "changePct": -2.3644,
-      "volume": 2840629,
-      "turnover": 40132045.607,
-      "name": ""
-    },
-    {
-      "symbol": "NVDA.US",
-      "ticker": "NVDA",
-      "price": 207.41,
-      "prev_close": 212.45,
-      "changePct": -2.3723,
-      "volume": 125676297,
-      "turnover": 26235337863.003,
-      "name": ""
-    },
-    {
-      "symbol": "700.HK",
-      "ticker": "700",
-      "price": 447.4,
-      "prev_close": 459.6,
-      "changePct": -2.6545,
-      "volume": 24323142,
-      "turnover": 10927700960.0,
-      "name": ""
-    },
-    {
-      "symbol": "BILI.US",
-      "ticker": "BILI",
-      "price": 17.3,
-      "prev_close": 17.85,
-      "changePct": -3.0812,
-      "volume": 2075861,
-      "turnover": 35917029.456,
-      "name": ""
-    },
-    {
-      "symbol": "NTES.US",
-      "ticker": "NTES",
-      "price": 121.81,
-      "prev_close": 125.93,
-      "changePct": -3.2717,
-      "volume": 1718126,
-      "turnover": 210100464.93,
-      "name": ""
-    },
-    {
-      "symbol": "BIDU.US",
-      "ticker": "BIDU",
-      "price": 112.72,
-      "prev_close": 116.75,
-      "changePct": -3.4518,
-      "volume": 2276559,
-      "turnover": 256677387.868,
-      "name": ""
-    },
-    {
-      "symbol": "TME.US",
-      "ticker": "TME",
-      "price": 8.91,
-      "prev_close": 9.23,
-      "changePct": -3.467,
-      "volume": 16331440,
-      "turnover": 146767390.718,
-      "name": ""
-    },
-    {
-      "symbol": "NFLX.US",
-      "ticker": "NFLX",
-      "price": 78.72,
-      "prev_close": 81.67,
-      "changePct": -3.6121,
-      "volume": 65048774,
-      "turnover": 5133267221.134,
-      "name": ""
-    },
-    {
-      "symbol": "NIO.US",
-      "ticker": "NIO",
-      "price": 5.01,
-      "prev_close": 5.2,
-      "changePct": -3.6538,
-      "volume": 43624295,
-      "turnover": 218906350.172,
-      "name": ""
-    },
-    {
-      "symbol": "3690.HK",
-      "ticker": "3690",
-      "price": 75.3,
-      "prev_close": 78.25,
-      "changePct": -3.77,
-      "volume": 40104507,
-      "turnover": 3023165789.0,
-      "name": ""
-    },
-    {
       "symbol": "1024.HK",
       "ticker": "1024",
-      "price": 44.44,
-      "prev_close": 46.24,
-      "changePct": -3.8927,
-      "volume": 35741225,
-      "turnover": 1591893336.0,
+      "price": 47.7,
+      "prev_close": 44.44,
+      "changePct": 7.3357,
+      "volume": 76851194,
+      "turnover": 3611261315.0,
       "name": ""
     },
     {
       "symbol": "AVGO.US",
       "ticker": "AVGO",
-      "price": 376.71,
-      "prev_close": 393.94,
-      "changePct": -4.3738,
-      "volume": 31572266,
-      "turnover": 11999502287.274,
-      "name": ""
-    },
-    {
-      "symbol": "XPEV.US",
-      "ticker": "XPEV",
-      "price": 13.84,
-      "prev_close": 14.49,
-      "changePct": -4.4859,
-      "volume": 9199430,
-      "turnover": 127745922.879,
+      "price": 392.9,
+      "prev_close": 376.71,
+      "changePct": 4.2977,
+      "volume": 39957319,
+      "turnover": 15701713221.33,
       "name": ""
     },
     {
       "symbol": "AMD.US",
       "ticker": "AMD",
-      "price": 507.29,
-      "prev_close": 547.26,
-      "changePct": -7.3037,
-      "volume": 28409997,
-      "turnover": 14817385647.181,
+      "price": 512.48,
+      "prev_close": 507.29,
+      "changePct": 1.0231,
+      "volume": 27029130,
+      "turnover": 14022640017.766,
+      "name": ""
+    },
+    {
+      "symbol": "NIO.US",
+      "ticker": "NIO",
+      "price": 5.05,
+      "prev_close": 5.01,
+      "changePct": 0.7984,
+      "volume": 26123246,
+      "turnover": 132649684.338,
+      "name": ""
+    },
+    {
+      "symbol": "JPM.US",
+      "ticker": "JPM",
+      "price": 333.46,
+      "prev_close": 331.14,
+      "changePct": 0.7006,
+      "volume": 12243346,
+      "turnover": 4100079944.929,
+      "name": ""
+    },
+    {
+      "symbol": "9988.HK",
+      "ticker": "9988",
+      "price": 106.9,
+      "prev_close": 107.0,
+      "changePct": -0.0935,
+      "volume": 71467113,
+      "turnover": 7642795081.0,
+      "name": ""
+    },
+    {
+      "symbol": "1299.HK",
+      "ticker": "1299",
+      "price": 75.05,
+      "prev_close": 75.2,
+      "changePct": -0.1995,
+      "volume": 26637552,
+      "turnover": 1999224130.0,
+      "name": ""
+    },
+    {
+      "symbol": "DIS.US",
+      "ticker": "DIS",
+      "price": 100.86,
+      "prev_close": 101.28,
+      "changePct": -0.4147,
+      "volume": 11167779,
+      "turnover": 1130956446.187,
+      "name": ""
+    },
+    {
+      "symbol": "KO.US",
+      "ticker": "KO",
+      "price": 79.93,
+      "prev_close": 80.28,
+      "changePct": -0.436,
+      "volume": 17053017,
+      "turnover": 1361580669.652,
+      "name": ""
+    },
+    {
+      "symbol": "2318.HK",
+      "ticker": "2318",
+      "price": 56.1,
+      "prev_close": 56.35,
+      "changePct": -0.4437,
+      "volume": 38345516,
+      "turnover": 2140365521.0,
+      "name": ""
+    },
+    {
+      "symbol": "700.HK",
+      "ticker": "700",
+      "price": 445.4,
+      "prev_close": 447.4,
+      "changePct": -0.447,
+      "volume": 16962334,
+      "turnover": 7594397837.0,
+      "name": ""
+    },
+    {
+      "symbol": "9618.HK",
+      "ticker": "9618",
+      "price": 111.1,
+      "prev_close": 111.6,
+      "changePct": -0.448,
+      "volume": 4990660,
+      "turnover": 554139430.0,
+      "name": ""
+    },
+    {
+      "symbol": "BILI.US",
+      "ticker": "BILI",
+      "price": 17.18,
+      "prev_close": 17.3,
+      "changePct": -0.6936,
+      "volume": 2448289,
+      "turnover": 42511224.418,
+      "name": ""
+    },
+    {
+      "symbol": "NTES.US",
+      "ticker": "NTES",
+      "price": 120.9,
+      "prev_close": 121.81,
+      "changePct": -0.7471,
+      "volume": 2681661,
+      "turnover": 328143128.783,
+      "name": ""
+    },
+    {
+      "symbol": "XOM.US",
+      "ticker": "XOM",
+      "price": 140.74,
+      "prev_close": 141.86,
+      "changePct": -0.7895,
+      "volume": 16662229,
+      "turnover": 2349733401.993,
+      "name": ""
+    },
+    {
+      "symbol": "V.US",
+      "ticker": "V",
+      "price": 330.38,
+      "prev_close": 333.12,
+      "changePct": -0.8225,
+      "volume": 6894189,
+      "turnover": 2291201852.15,
+      "name": ""
+    },
+    {
+      "symbol": "1810.HK",
+      "ticker": "1810",
+      "price": 25.42,
+      "prev_close": 25.66,
+      "changePct": -0.9353,
+      "volume": 109311095,
+      "turnover": 2774666482.0,
+      "name": ""
+    },
+    {
+      "symbol": "LLY.US",
+      "ticker": "LLY",
+      "price": 1112.0,
+      "prev_close": 1122.5,
+      "changePct": -0.9354,
+      "volume": 2382482,
+      "turnover": 2653218742.021,
+      "name": ""
+    },
+    {
+      "symbol": "BIDU.US",
+      "ticker": "BIDU",
+      "price": 111.61,
+      "prev_close": 112.72,
+      "changePct": -0.9847,
+      "volume": 1585198,
+      "turnover": 178554782.824,
+      "name": ""
+    },
+    {
+      "symbol": "AAPL.US",
+      "ticker": "AAPL",
+      "price": 295.95,
+      "prev_close": 299.24,
+      "changePct": -1.0995,
+      "volume": 42715896,
+      "turnover": 12691014939.231,
+      "name": ""
+    },
+    {
+      "symbol": "300750.SZ",
+      "ticker": "300750",
+      "price": 399.0,
+      "prev_close": 403.53,
+      "changePct": -1.1226,
+      "volume": 250093,
+      "turnover": 9965557905.66,
+      "name": ""
+    },
+    {
+      "symbol": "3690.HK",
+      "ticker": "3690",
+      "price": 74.4,
+      "prev_close": 75.3,
+      "changePct": -1.1952,
+      "volume": 22507016,
+      "turnover": 1680019988.0,
+      "name": ""
+    },
+    {
+      "symbol": "600519.SH",
+      "ticker": "600519",
+      "price": 1240.0,
+      "prev_close": 1255.67,
+      "changePct": -1.2479,
+      "volume": 44803,
+      "turnover": 5581256291.0,
+      "name": ""
+    },
+    {
+      "symbol": "NVDA.US",
+      "ticker": "NVDA",
+      "price": 204.65,
+      "prev_close": 207.41,
+      "changePct": -1.3307,
+      "volume": 128006900,
+      "turnover": 26386389377.445,
+      "name": ""
+    },
+    {
+      "symbol": "MCD.US",
+      "ticker": "MCD",
+      "price": 283.82,
+      "prev_close": 287.93,
+      "changePct": -1.4274,
+      "volume": 3590129,
+      "turnover": 1021048036.585,
+      "name": ""
+    },
+    {
+      "symbol": "JD.US",
+      "ticker": "JD",
+      "price": 27.91,
+      "prev_close": 28.38,
+      "changePct": -1.6561,
+      "volume": 6395986,
+      "turnover": 179853416.649,
+      "name": ""
+    },
+    {
+      "symbol": "MA.US",
+      "ticker": "MA",
+      "price": 492.99,
+      "prev_close": 501.33,
+      "changePct": -1.6636,
+      "volume": 2926611,
+      "turnover": 1452963638.813,
+      "name": ""
+    },
+    {
+      "symbol": "SBUX.US",
+      "ticker": "SBUX",
+      "price": 99.82,
+      "prev_close": 101.68,
+      "changePct": -1.8293,
+      "volume": 6931235,
+      "turnover": 693618024.893,
+      "name": ""
+    },
+    {
+      "symbol": "NKE.US",
+      "ticker": "NKE",
+      "price": 44.19,
+      "prev_close": 45.04,
+      "changePct": -1.8872,
+      "volume": 20837484,
+      "turnover": 935130569.669,
+      "name": ""
+    },
+    {
+      "symbol": "PLTR.US",
+      "ticker": "PLTR",
+      "price": 130.63,
+      "prev_close": 133.25,
+      "changePct": -1.9662,
+      "volume": 32214764,
+      "turnover": 4295875363.42,
+      "name": ""
+    },
+    {
+      "symbol": "UNH.US",
+      "ticker": "UNH",
+      "price": 399.53,
+      "prev_close": 407.65,
+      "changePct": -1.9919,
+      "volume": 5835415,
+      "turnover": 2355798835.769,
+      "name": ""
+    },
+    {
+      "symbol": "TSLA.US",
+      "ticker": "TSLA",
+      "price": 396.38,
+      "prev_close": 404.66,
+      "changePct": -2.0462,
+      "volume": 43442590,
+      "turnover": 17377712470.776,
+      "name": ""
+    },
+    {
+      "symbol": "PDD.US",
+      "ticker": "PDD",
+      "price": 79.86,
+      "prev_close": 81.59,
+      "changePct": -2.1204,
+      "volume": 5449404,
+      "turnover": 437766284.226,
+      "name": ""
+    },
+    {
+      "symbol": "COST.US",
+      "ticker": "COST",
+      "price": 965.59,
+      "prev_close": 986.68,
+      "changePct": -2.1375,
+      "volume": 1926435,
+      "turnover": 1866367081.995,
+      "name": ""
+    },
+    {
+      "symbol": "NFLX.US",
+      "ticker": "NFLX",
+      "price": 76.96,
+      "prev_close": 78.72,
+      "changePct": -2.2358,
+      "volume": 50290279,
+      "turnover": 3897980883.38,
+      "name": ""
+    },
+    {
+      "symbol": "WMT.US",
+      "ticker": "WMT",
+      "price": 118.13,
+      "prev_close": 121.03,
+      "changePct": -2.3961,
+      "volume": 21700539,
+      "turnover": 2571805789.666,
+      "name": ""
+    },
+    {
+      "symbol": "TME.US",
+      "ticker": "TME",
+      "price": 8.69,
+      "prev_close": 8.91,
+      "changePct": -2.4691,
+      "volume": 9916432,
+      "turnover": 87076322.077,
+      "name": ""
+    },
+    {
+      "symbol": "GOOGL.US",
+      "ticker": "GOOGL",
+      "price": 363.79,
+      "prev_close": 373.25,
+      "changePct": -2.5345,
+      "volume": 24518842,
+      "turnover": 8949616262.141,
+      "name": ""
+    },
+    {
+      "symbol": "ORCL.US",
+      "ticker": "ORCL",
+      "price": 183.53,
+      "prev_close": 188.33,
+      "changePct": -2.5487,
+      "volume": 16581829,
+      "turnover": 3089644620.159,
+      "name": ""
+    },
+    {
+      "symbol": "1211.HK",
+      "ticker": "1211",
+      "price": 81.9,
+      "prev_close": 84.05,
+      "changePct": -2.558,
+      "volume": 26615014,
+      "turnover": 2184177171.0,
+      "name": ""
+    },
+    {
+      "symbol": "COIN.US",
+      "ticker": "COIN",
+      "price": 164.915,
+      "prev_close": 169.27,
+      "changePct": -2.5728,
+      "volume": 8123047,
+      "turnover": 1375623838.543,
+      "name": ""
+    },
+    {
+      "symbol": "9866.HK",
+      "ticker": "9866",
+      "price": 39.6,
+      "prev_close": 40.74,
+      "changePct": -2.7982,
+      "volume": 5465849,
+      "turnover": 217346483.0,
+      "name": ""
+    },
+    {
+      "symbol": "XPEV.US",
+      "ticker": "XPEV",
+      "price": 13.44,
+      "prev_close": 13.84,
+      "changePct": -2.8902,
+      "volume": 6574937,
+      "turnover": 89108281.654,
+      "name": ""
+    },
+    {
+      "symbol": "BABA.US",
+      "ticker": "BABA",
+      "price": 107.44,
+      "prev_close": 110.97,
+      "changePct": -3.181,
+      "volume": 13246586,
+      "turnover": 1443035791.063,
+      "name": ""
+    },
+    {
+      "symbol": "UBER.US",
+      "ticker": "UBER",
+      "price": 70.91,
+      "prev_close": 73.25,
+      "changePct": -3.1945,
+      "volume": 16134660,
+      "turnover": 1161038565.363,
+      "name": ""
+    },
+    {
+      "symbol": "LI.US",
+      "ticker": "LI",
+      "price": 13.58,
+      "prev_close": 14.04,
+      "changePct": -3.2764,
+      "volume": 2849311,
+      "turnover": 38994147.556,
+      "name": ""
+    },
+    {
+      "symbol": "AMZN.US",
+      "ticker": "AMZN",
+      "price": 237.5,
+      "prev_close": 246.0,
+      "changePct": -3.4553,
+      "volume": 44685886,
+      "turnover": 10704608986.567,
+      "name": ""
+    },
+    {
+      "symbol": "MSFT.US",
+      "ticker": "MSFT",
+      "price": 378.91,
+      "prev_close": 393.83,
+      "changePct": -3.7884,
+      "volume": 41914955,
+      "turnover": 16054880554.913,
+      "name": ""
+    },
+    {
+      "symbol": "CRM.US",
+      "ticker": "CRM",
+      "price": 155.02,
+      "prev_close": 161.71,
+      "changePct": -4.137,
+      "volume": 19965210,
+      "turnover": 3130692574.747,
+      "name": ""
+    },
+    {
+      "symbol": "ADBE.US",
+      "ticker": "ADBE",
+      "price": 196.28,
+      "prev_close": 207.32,
+      "changePct": -5.3251,
+      "volume": 10716698,
+      "turnover": 2147689767.033,
+      "name": ""
+    },
+    {
+      "symbol": "META.US",
+      "ticker": "META",
+      "price": 567.58,
+      "prev_close": 600.21,
+      "changePct": -5.4364,
+      "volume": 20429268,
+      "turnover": 11787348558.016,
       "name": ""
     }
   ]
