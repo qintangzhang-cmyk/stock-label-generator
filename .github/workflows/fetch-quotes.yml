@@ -119,6 +119,26 @@ jobs:
             gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert" --assignee qintangzhang-cmyk
           fi
 
+      # 同時發郵件到外部相關人（GitHub 內建通知到不了外部郵箱，靠 Gmail SMTP）。
+      # MAIL_* 未配時 send_alert_email.py 靜默跳過，不影響上面的 issue 告警。
+      - name: Email alert on failure
+        if: failure()
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          ALERT_EMAILS: 'cody.fung@longbridge.hk,timmy@chcatcreative.com'
+          ALERT_SUBJECT: '🔴 咖啡店股票標籤：行情數據抓取失敗'
+          ALERT_BODY: |
+            Fetch Quotes 工作流失敗，咖啡店股票標籤的行情數據沒拉到。
+            連續失敗會導致 cafe 標籤頁顯示舊數據。
+
+            日志: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            最可能原因：長橋 access token 過期且自動續期未成功，或長橋 API 故障。
+            處理：去用戶中心重新生成 Access Token，更新 GitHub Secret 後重觸發工作流。
+            （此郵件由 GitHub Actions 自動發送）
+        run: python3 scripts/send_alert_email.py
+
       - name: Close failure issue on success
         if: success()
         env:

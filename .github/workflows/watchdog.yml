@@ -100,3 +100,21 @@ jobs:
             gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "watchdog" --assignee qintangzhang-cmyk
           fi
           exit 1
+
+      # 看門狗判定數據過期且重試無效時（上一步 exit 1 → failure），同步發郵件給外部相關人。
+      - name: Email alert when data stays stale
+        if: failure()
+        env:
+          MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
+          MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
+          ALERT_EMAILS: 'cody.fung@longbridge.hk,timmy@chcatcreative.com'
+          ALERT_SUBJECT: '🔴 咖啡店股票標籤：數據過期未恢復（看門狗）'
+          ALERT_BODY: |
+            數據看門狗檢測到 quotes.json 已過期，自動重觸發 Fetch Quotes 後仍未恢復。
+            cafe 標籤頁可能在顯示舊數據。
+
+            日志: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+            處理：去長橋用戶中心重新生成 Access Token，更新 GitHub Secret 後重觸發工作流。
+            （此郵件由 GitHub Actions 自動發送）
+        run: python3 scripts/send_alert_email.py
