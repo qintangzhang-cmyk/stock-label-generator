@@ -1,0 +1,102 @@
+name: Data Watchdog
+
+# 看門狗：定時檢查 quotes.json 是否新鮮。過期就自動重觸發 Fetch Quotes、
+# 等它跑完再復查；若仍過期則開/更新告警 issue（@清汤）。
+# 全程跑在 GitHub 雲端，不需要任何人的電腦開機。
+#
+# 能自動修：GitHub 排隊延遲、偶發失敗、main 跑了但數據沒更新。
+# 不能自動修：長橋 token 死掉（需瀏覽器 longbridge login）—— 這種只能告警。
+
+on:
+  schedule:
+    # 主 fetch 計劃 21:30/22:30 UTC（+~2h 排隊 → 實際 ~07:30-08:30 HKT 落地）。
+    # 看門狗在那之後查：01:00 UTC = 09:00 HKT（第一道），04:00 UTC = 12:00 HKT（兜底）。
+    - cron: '0 1 * * *'
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: write   # 觸發 Fetch Quotes workflow
+  issues: write    # 開告警 issue
+
+jobs:
+  watchdog:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      # 數據超過這個小時數就算過期。正常每天更新一次；留足排隊 drift 餘量。
+      STALE_HOURS: '26'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Check freshness, retry, and alert
+        run: |
+          set -uo pipefail
+
+          close_open_issue() {
+            local n
+            n=$(gh issue list -R "$REPO" --state open --label "watchdog" --json number --jq '.[0].number // empty')
+            [ -n "$n" ] && gh issue close "$n" -R "$REPO" --comment "$1" || true
+          }
+
+          AGE=$(python3 scripts/check_freshness.py "$REPO")
+          echo "quotes.json age: ${AGE}h (threshold ${STALE_HOURS}h)"
+
+          if [ "$AGE" -lt "$STALE_HOURS" ]; then
+            echo "✓ 數據新鮮，無需動作"
+            close_open_issue "✅ 數據已恢復新鮮（${AGE}h）— 看門狗自動關閉。"
+            exit 0
+          fi
+
+          echo "⚠ 數據過期，重新觸發 Fetch Quotes..."
+          gh workflow run "Fetch Quotes" -R "$REPO"
+          sleep 20
+          RID=$(gh run list -R "$REPO" --workflow="fetch-quotes.yml" --limit 1 --json databaseId --jq '.[0].databaseId')
+          echo "觸發的 run: $RID"
+          for i in $(seq 1 24); do
+            STATUS=$(gh run view "$RID" -R "$REPO" --json status --jq '.status')
+            echo "  [$i] $STATUS"
+            [ "$STATUS" = "completed" ] && break
+            sleep 30
+          done
+
+          AGE2=$(python3 scripts/check_freshness.py "$REPO")
+          echo "重試後 age: ${AGE2}h"
+          if [ "$AGE2" -lt "$STALE_HOURS" ]; then
+            echo "✓ 重觸發成功，數據已刷新"
+            close_open_issue "✅ 看門狗重觸發後數據已恢復（${AGE2}h）。"
+            exit 0
+          fi
+
+          echo "::error::重觸發後數據仍過期（${AGE2}h）"
+          CONCLUSION=$(gh run view "$RID" -R "$REPO" --json conclusion --jq '.conclusion // "unknown"')
+          RUN_URL="https://github.com/${REPO}/actions/runs/${RID}"
+          TITLE="🔴 數據看門狗：quotes.json 過期未恢復"
+          BODY="看門狗檢測到 quotes.json 已過期（約 ${AGE2} 小時未更新），自動重觸發 Fetch Quotes 後**仍未恢復**。
+
+          - 重試的 run: [#${RID}](${RUN_URL}) — 結果：\`${CONCLUSION}\`
+
+          ---
+
+          **最可能原因：長橋 token 死掉**（refresh 過期或 cli-auth 解密失敗）。這種**自動修不了**，需要人工：
+
+          \`\`\`bash
+          longbridge login
+          gh secret set LONGBRIDGE_TOKEN_JSON -R ${REPO} < ~/.longbridge/openapi/tokens/fd52fbc5-02a9-47f5-ad30-0842c841aae9
+          gh workflow run \"Fetch Quotes\" -R ${REPO}
+          \`\`\`
+
+          > 想讓這一步也自動化，需改用 App 憑證方案（90 天 token + 程序自動續期）。數據恢復後此 issue 會自動關閉。"
+
+          EXISTING=$(gh issue list -R "$REPO" --state open --label "watchdog" --json number --jq '.[0].number // empty')
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" -R "$REPO" --body "$BODY"
+          else
+            gh label create "watchdog" -R "$REPO" --color "b60205" --description "Data freshness watchdog" 2>/dev/null || true
+            gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "watchdog" --assignee qintangzhang-cmyk
+          fi
+          exit 1
