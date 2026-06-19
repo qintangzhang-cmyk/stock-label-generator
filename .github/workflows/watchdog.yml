@@ -82,15 +82,15 @@ jobs:
 
           ---
 
-          **最可能原因：長橋 token 死掉**（refresh 過期或 cli-auth 解密失敗）。這種**自動修不了**，需要人工：
+          **最可能原因：API Key access token 過期且自動續期沒跑成功**，或長橋 API 故障。人工恢復：
 
           \`\`\`bash
-          longbridge login
-          gh secret set LONGBRIDGE_TOKEN_JSON -R ${REPO} < ~/.longbridge/openapi/tokens/fd52fbc5-02a9-47f5-ad30-0842c841aae9
+          # 去用戶中心(open.longbridge.com)重新生成 Access Token，然後：
+          gh secret set LONGBRIDGE_ACCESS_TOKEN -R ${REPO} --body '<新 Access Token>'
           gh workflow run \"Fetch Quotes\" -R ${REPO}
           \`\`\`
 
-          > 想讓這一步也自動化，需改用 App 憑證方案（90 天 token + 程序自動續期）。數據恢復後此 issue 會自動關閉。"
+          > 正常情況下 token 90 天有效、工作流剩 <30 天時自動續期，不該走到這步。數據恢復後此 issue 自動關閉。"
 
           EXISTING=$(gh issue list -R "$REPO" --state open --label "watchdog" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then

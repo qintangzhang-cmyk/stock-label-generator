@@ -9,7 +9,6 @@ on:
   schedule:
     - cron: '30 21 * * *'
     - cron: '30 22 * * *'
-  # Actions 页面支持手动点 "Run workflow"
   workflow_dispatch:
 
 permissions:
@@ -20,9 +19,16 @@ jobs:
   fetch:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      # API Key 認證（用戶中心的 App Key / App Secret / Access Token，純字符串，
+      # 90 天有效）。取代舊的 longbridge CLI + 瀏覽器 OAuth + 加密 token 輪換 ——
+      # 那套每 ~2 週就因 token 解密/刷新失敗而掛。
+      LONGBRIDGE_APP_KEY: ${{ secrets.LONGBRIDGE_APP_KEY }}
+      LONGBRIDGE_APP_SECRET: ${{ secrets.LONGBRIDGE_APP_SECRET }}
+      LONGBRIDGE_ACCESS_TOKEN: ${{ secrets.LONGBRIDGE_ACCESS_TOKEN }}
+      # 關掉 SDK 啟動時打印的行情包橫幅，否則會污染 quotes.json（stdout 重定向）
+      LONGBRIDGE_PRINT_QUOTE_PACKAGES: 'false'
     steps:
-      # v5/v6 run on Node 24 — GitHub force-switches runners to Node 24 on
-      # 2026-06-16; older majors (checkout@v4 etc.) may break that day.
       - name: Checkout
         uses: actions/checkout@v5
 
@@ -31,85 +37,39 @@ jobs:
         with:
           python-version: '3.11'
 
-      # PIN the CLI version. The official install script always pulls latest,
-      # which bit us twice: v0.23.1 (2026-06-10) dropped legacy JSON token-path
-      # support and every scheduled run broke overnight. v0.23.0 is the last
-      # version that auto-migrates ~/.longbridge/openapi/tokens/<client_id>.
-      # To upgrade deliberately: bump LB_VERSION, run workflow_dispatch, watch it.
-      - name: Install Longbridge CLI (pinned)
-        env:
-          LB_VERSION: v0.23.0
-        run: |
-          curl -sSL -o /tmp/lb.tar.gz \
-            "https://github.com/longbridge/longbridge-terminal/releases/download/${LB_VERSION}/longbridge-terminal-linux-musl-amd64.tar.gz"
-          mkdir -p "$HOME/.local/bin"
-          tar -xzf /tmp/lb.tar.gz -C "$HOME/.local/bin"
-          chmod +x "$HOME/.local/bin/longbridge"
-          echo "$HOME/.local/bin" >> $GITHUB_PATH
-          "$HOME/.local/bin/longbridge" --version
-
-      # The secret is self-describing:
-      #   starts with '{'  → raw legacy JSON (what `longbridge login` writes locally;
-      #                      used for manual recovery) → write to legacy tokens/ path,
-      #                      CLI v0.23.0 auto-migrates it to cli-auth on first use
-      #   anything else    → base64 of the CLI's cli-auth file (what the rotation
-      #                      step below pushes back) → decode straight to cli-auth
-      # base64 never starts with '{', so the two formats can't be confused.
-      - name: Restore OAuth token
-        env:
-          LB_CLIENT_ID: ${{ secrets.LONGBRIDGE_CLIENT_ID }}
-          LB_TOKEN_JSON: ${{ secrets.LONGBRIDGE_TOKEN_JSON }}
-        run: |
-          if [ -z "$LB_CLIENT_ID" ] || [ -z "$LB_TOKEN_JSON" ]; then
-            echo "::error::Missing LONGBRIDGE_CLIENT_ID or LONGBRIDGE_TOKEN_JSON secret"
-            exit 1
-          fi
-          mkdir -p ~/.longbridge/openapi/tokens
-          case "$LB_TOKEN_JSON" in
-            "{"*)
-              echo "Secret is raw JSON (manual login format) — writing legacy path"
-              printf '%s' "$LB_TOKEN_JSON" > "$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
-              ;;
-            *)
-              echo "Secret is base64 cli-auth (auto-rotated format) — decoding"
-              printf '%s' "$LB_TOKEN_JSON" | base64 -d > "$HOME/.longbridge/openapi/cli-auth"
-              ;;
-          esac
+      - name: Install Longbridge SDK
+        run: pip install --quiet longbridge
 
       - name: Build quotes.json
         run: |
+          if [ -z "$LONGBRIDGE_APP_KEY" ] || [ -z "$LONGBRIDGE_ACCESS_TOKEN" ]; then
+            echo "::error::Missing LONGBRIDGE_APP_KEY / LONGBRIDGE_APP_SECRET / LONGBRIDGE_ACCESS_TOKEN secret"
+            exit 1
+          fi
           python3 scripts/build_quotes.py > quotes.json
-          COUNT=$(python3 -c 'import json; print(json.load(open("quotes.json"))["count"])')
+          COUNT=$(python3 -c 'import json,sys; print(json.load(open("quotes.json"))["count"])')
           echo "::notice::Fetched $COUNT symbols"
 
-      # Push the CLI's current auth state back to the secret so the NEXT run uses
-      # the freshest refresh token. Longbridge rotates refresh tokens on use; without
-      # this push-back the secret goes stale and dies ~10-14 days after each manual
-      # login. cli-auth is binary, so we store it base64-encoded (raw binary in a
-      # secret breaks env-var interpolation at job startup — learned the hard way).
-      # The Restore step above auto-detects which format the secret holds.
-      - name: Rotate token secret (base64 cli-auth)
+      # 自動續期：access token 是 90 天 JWT。剩餘 <30 天時自動換新（再 90 天），
+      # 新 token 直接寫回 Secret（純字符串、無損，舊機制的二進制/解密問題不復存在）。
+      # ROTATE_PAT 未配時只是不續期；token 還有幾十天，到期會由告警提醒人工更新。
+      - name: Refresh access token if near expiry
         if: success()
         env:
           GH_TOKEN: ${{ secrets.ROTATE_PAT }}
-          LB_CLIENT_ID: ${{ secrets.LONGBRIDGE_CLIENT_ID }}
           REPO: ${{ github.repository }}
+          REFRESH_THRESHOLD_DAYS: '30'
         run: |
           if [ -z "$GH_TOKEN" ]; then
-            echo "::warning::ROTATE_PAT not configured — skipping rotation; token will go stale in ~2 weeks"
+            echo "ROTATE_PAT 未配置 — 跳過自動續期"
             exit 0
           fi
-          CLI_AUTH="$HOME/.longbridge/openapi/cli-auth"
-          LEGACY="$HOME/.longbridge/openapi/tokens/$LB_CLIENT_ID"
-          if [ -f "$CLI_AUTH" ]; then
-            base64 -w0 < "$CLI_AUTH" | gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO"
-            echo "✓ Secret rotated (base64 of cli-auth, $(wc -c < "$CLI_AUTH") bytes raw)"
-          elif [ -f "$LEGACY" ]; then
-            # CLI didn't migrate (unexpected for v0.23.0) — push the JSON unchanged
-            gh secret set LONGBRIDGE_TOKEN_JSON -R "$REPO" < "$LEGACY"
-            echo "✓ Secret rotated (legacy JSON, $(wc -c < "$LEGACY") bytes)"
-          else
-            echo "::warning::No token file found — nothing to rotate"
+          STATUS=$(python3 scripts/refresh_token_if_needed.py /tmp/new_token)
+          echo "refresh status: $STATUS"
+          if [ "$STATUS" = "REFRESHED" ]; then
+            gh secret set LONGBRIDGE_ACCESS_TOKEN -R "$REPO" < /tmp/new_token
+            rm -f /tmp/new_token
+            echo "✓ Access token 已續期並寫回 Secret（再 90 天）"
           fi
 
       - name: Commit quotes.json
@@ -124,11 +84,7 @@ jobs:
             git push
           fi
 
-      # Failure alerting via GitHub Issue:
-      # - On failure: open a canonical "Fetch Quotes failing" issue, or add a
-      #   comment if one already exists. Repo owner gets notified via GitHub's
-      #   normal channels (email + mobile push) for free.
-      # - On next success: auto-close the issue so we don't carry old noise.
+      # 失敗告警：開/更新一個 auto-alert issue（@清汤，觸發郵件），成功時自動關閉。
       - name: Open or update failure issue
         if: failure()
         env:
@@ -138,42 +94,28 @@ jobs:
         run: |
           TITLE="🔴 Fetch Quotes 工作流失敗（自動告警）"
           RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
-          BODY=$(cat <<EOF
-          **Run #${RUN_ID} 失敗** — [查看 GitHub Actions 日志](${RUN_URL})
+          BODY="**Run #${RUN_ID} 失敗** — [查看日志](${RUN_URL})
 
-          咖啡店股票標籤的行情數據沒拉到。如果連續失敗，標籤會繼續顯示舊數據。
+          咖啡店股票標籤的行情數據沒拉到。連續失敗會導致標籤顯示舊數據。
 
           ---
 
-          **最常見原因：長橋 refresh token 過期。**
+          現在用 **API Key 認證**（90 天 token + 自動續期）。可能原因：
+          - Access token 已過期且自動續期沒跑成功 → 去用戶中心重新生成 Access Token，更新 \`LONGBRIDGE_ACCESS_TOKEN\` secret
+          - 長橋 API 故障 / 行情權限變動
 
-          修復三步：
-
+          手動更新 token：
           \`\`\`bash
-          # 1. 本地重新走 OAuth
-          longbridge login
-
-          # 2. 把新 token 推到 GitHub Secret
-          gh secret set LONGBRIDGE_TOKEN_JSON \\
-            -R ${REPO} \\
-            < ~/.longbridge/openapi/tokens/<CLIENT_ID>
-
-          # 3. 手動觸發一次工作流確認修好
-          gh workflow run "Fetch Quotes" -R ${REPO}
+          gh secret set LONGBRIDGE_ACCESS_TOKEN -R ${REPO} --body '<用戶中心的新 Access Token>'
+          gh workflow run \"Fetch Quotes\" -R ${REPO}
           \`\`\`
 
-          修好後此 issue 會在下次成功運行時自動關閉。
-          EOF
-          )
-          existing=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
-          if [ -n "$existing" ]; then
-            echo "Updating existing alert issue #$existing"
-            gh issue comment "$existing" -R "$REPO" --body "$BODY"
+          修好後此 issue 會在下次成功運行時自動關閉。"
+          EXISTING=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" -R "$REPO" --body "$BODY"
           else
-            echo "Creating new alert issue"
             gh label create "auto-alert" -R "$REPO" --color "d73a4a" --description "Auto-created by workflows" 2>/dev/null || true
-            # --assignee 觸發單獨的 "@you was assigned" 通知，比 ci_activity 等級高，
-            # GitHub 默認會發郵件，不會被 Watching 設置吞掉
             gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert" --assignee qintangzhang-cmyk
           fi
 
@@ -185,8 +127,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
         run: |
           TITLE="🔴 Fetch Quotes 工作流失敗（自動告警）"
-          existing=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
-          if [ -n "$existing" ]; then
-            echo "Closing recovered issue #$existing"
-            gh issue close "$existing" -R "$REPO" --comment "✅ 已自動恢復 — [Run #${RUN_ID}](https://github.com/${REPO}/actions/runs/${RUN_ID})"
+          EXISTING=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
+          if [ -n "$EXISTING" ]; then
+            gh issue close "$EXISTING" -R "$REPO" --comment "✅ 已自動恢復 — [Run #${RUN_ID}](https://github.com/${REPO}/actions/runs/${RUN_ID})"
           fi

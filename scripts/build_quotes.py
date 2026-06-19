@@ -1,15 +1,28 @@
 #!/usr/bin/env python3
 """
 Build quotes.json for the stock label generator frontend.
-Shells out to `longbridge quote ... --format json` (CLI must be installed and authed).
+
+Uses the Longbridge Python SDK with **API Key** auth (App Key / App Secret /
+Access Token from env). This replaces the old `longbridge` CLI + browser-OAuth
+flow, which broke roughly every ~2 weeks (token decrypt/refresh failures).
+The API-Key access token is valid 90 days and is auto-refreshed by the
+workflow's refresh step.
+
+Required env vars (read by Config.from_apikey_env):
+    LONGBRIDGE_APP_KEY
+    LONGBRIDGE_APP_SECRET
+    LONGBRIDGE_ACCESS_TOKEN
+Set LONGBRIDGE_PRINT_QUOTE_PACKAGES=false so the SDK's quote-package banner
+does NOT pollute stdout (stdout is redirected into quotes.json).
 
 Usage:
     python3 scripts/build_quotes.py > quotes.json
 """
 import json
-import subprocess
 import sys
 from datetime import datetime, timezone
+
+from longbridge.openapi import Config, QuoteContext
 
 SYMBOLS = [
     # US tech
@@ -38,25 +51,23 @@ def num(v):
 
 
 def main():
-    r = subprocess.run(
-        ["longbridge", "quote", *SYMBOLS, "--format", "json"],
-        capture_output=True, text=True, timeout=60,
-    )
-    if r.returncode != 0:
-        sys.stderr.write(f"longbridge CLI failed: {r.stderr}\n")
-        sys.exit(1)
+    ctx = QuoteContext(Config.from_apikey_env())
 
-    raw = json.loads(r.stdout)
-    if not isinstance(raw, list):
-        raw = [raw]
+    quotes = ctx.quote(SYMBOLS)
+
+    # Names are best-effort: a static_info failure must not break the price feed.
+    names = {}
+    try:
+        for s in ctx.static_info(SYMBOLS):
+            names[s.symbol] = s.name_cn or s.name_hk or s.name_en or ""
+    except Exception as e:  # noqa: BLE001
+        sys.stderr.write("static_info failed (names omitted): %s\n" % e)
 
     out = []
-    for q in raw:
-        if not isinstance(q, dict):
-            continue
-        sym = q.get("symbol", "")
-        last = num(q.get("last"))
-        prev = num(q.get("prev_close"))
+    for q in quotes:
+        sym = q.symbol or ""
+        last = num(q.last_done)
+        prev = num(q.prev_close)
         change_pct = ((last - prev) / prev * 100) if prev else 0.0
         out.append({
             "symbol": sym,
@@ -64,10 +75,14 @@ def main():
             "price": round(last, 4),
             "prev_close": round(prev, 4),
             "changePct": round(change_pct, 4),
-            "volume": int(num(q.get("volume"))),
-            "turnover": num(q.get("turnover")),
-            "name": q.get("name_hk") or q.get("name_cn") or q.get("name_en") or "",
+            "volume": int(num(q.volume)),
+            "turnover": num(q.turnover),
+            "name": names.get(sym, ""),
         })
+
+    if not out:
+        sys.stderr.write("no quotes returned — aborting so we don't overwrite good data\n")
+        sys.exit(1)
 
     out.sort(key=lambda x: -x["changePct"])
 
