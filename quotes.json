@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-08-12T22:09:53+00:00",
+  "generatedAt": "2026-08-12T23:11:10+00:00",
   "count": 51,
   "quotes": [
     {
@@ -8,8 +8,8 @@
       "price": 153.28,
       "prev_close": 145.48,
       "changePct": 5.3616,
-      "volume": 43489400,
-      "turnover": 6595120781.915,
+      "volume": 43521555,
+      "turnover": 6600026897.888,
       "name": "甲骨文"
     },
     {
@@ -18,8 +18,8 @@
       "price": 224.09,
       "prev_close": 217.5,
       "changePct": 3.0299,
-      "volume": 108536858,
-      "turnover": 24244568647.901,
+      "volume": 108661129,
+      "turnover": 24272345922.596,
       "name": "英伟达"
     },
     {
@@ -28,8 +28,8 @@
       "price": 116.01,
       "prev_close": 113.26,
       "changePct": 2.428,
-      "volume": 22037370,
-      "turnover": 2538793822.837,
+      "volume": 22044160,
+      "turnover": 2539573646.348,
       "name": "沃尔玛"
     },
     {
@@ -38,8 +38,8 @@
       "price": 482.93,
       "prev_close": 474.32,
       "changePct": 1.8152,
-      "volume": 18582865,
-      "turnover": 9031884947.924,
+      "volume": 18604531,
+      "turnover": 9042468393.824,
       "name": "AMD"
     },
     {
@@ -48,8 +48,8 @@
       "price": 108.49,
       "prev_close": 106.66,
       "changePct": 1.7157,
-      "volume": 3916706,
-      "turnover": 422582579.479,
+      "volume": 3920947,
+      "turnover": 423042669.804,
       "name": "星巴克"
     },
     {
@@ -68,8 +68,8 @@
       "price": 365.18,
       "prev_close": 362.04,
       "changePct": 0.8673,
-      "volume": 4365423,
-      "turnover": 1592963247.092,
+      "volume": 4365754,
+      "turnover": 1593083455.964,
       "name": "摩根大通"
     },
     {
@@ -78,8 +78,8 @@
       "price": 405.59,
       "prev_close": 402.19,
       "changePct": 0.8454,
-      "volume": 3315940,
-      "turnover": 1343112192.959,
+      "volume": 3316478,
+      "turnover": 1343330818.074,
       "name": "联合健康"
     },
     {
@@ -88,8 +88,8 @@
       "price": 275.7,
       "prev_close": 274.15,
       "changePct": 0.5654,
-      "volume": 4348736,
-      "turnover": 1192012280.878,
+      "volume": 4350460,
+      "turnover": 1192490385.993,
       "name": "麦当劳"
     },
     {
@@ -98,8 +98,8 @@
       "price": 949.575,
       "prev_close": 944.32,
       "changePct": 0.5565,
-      "volume": 1311844,
-      "turnover": 1242870568.078,
+      "volume": 1312094,
+      "turnover": 1243112381.777,
       "name": "开市客"
     },
     {
@@ -108,8 +108,8 @@
       "price": 1220.28,
       "prev_close": 1215.02,
       "changePct": 0.4329,
-      "volume": 1939874,
-      "turnover": 2361279272.428,
+      "volume": 1941055,
+      "turnover": 2362713961.283,
       "name": "礼来"
     },
     {
@@ -118,8 +118,8 @@
       "price": 149.04,
       "prev_close": 148.58,
       "changePct": 0.3096,
-      "volume": 5918110,
-      "turnover": 881754098.776,
+      "volume": 5923138,
+      "turnover": 882511531.451,
       "name": "Coinbase"
     },
     {
@@ -128,8 +128,8 @@
       "price": 86.71,
       "prev_close": 86.48,
       "changePct": 0.266,
-      "volume": 12647364,
-      "turnover": 1096634478.898,
+      "volume": 12649112,
+      "turnover": 1096785734.259,
       "name": "可口可乐"
     },
     {
@@ -138,8 +138,8 @@
       "price": 416.05,
       "prev_close": 416.08,
       "changePct": -0.0072,
-      "volume": 15837928,
-      "turnover": 6617084726.001,
+      "volume": 15848424,
+      "turnover": 6621444146.356,
       "name": "博通"
     },
     {
@@ -148,8 +148,8 @@
       "price": 159.75,
       "prev_close": 159.8,
       "changePct": -0.0313,
-      "volume": 13215953,
-      "turnover": 2107285259.139,
+      "volume": 13218290,
+      "turnover": 2107658412.35,
       "name": "埃克森美孚"
     },
     {
@@ -158,8 +158,8 @@
       "price": 343.54,
       "prev_close": 343.8,
       "changePct": -0.0756,
-      "volume": 24969489,
-      "turnover": 8569255770.767,
+      "volume": 24989605,
+      "turnover": 8576171142.69,
       "name": "谷歌-A"
     },
     {
@@ -198,8 +198,8 @@
       "price": 103.22,
       "prev_close": 103.53,
       "changePct": -0.2994,
-      "volume": 6712749,
-      "turnover": 691935940.411,
+      "volume": 6716722,
+      "turnover": 692343091.147,
       "name": "迪士尼"
     },
     {
@@ -208,8 +208,8 @@
       "price": 559.73,
       "prev_close": 561.44,
       "changePct": -0.3046,
-      "volume": 3095147,
-      "turnover": 1729835343.004,
+      "volume": 3095239,
+      "turnover": 1729888142.079,
       "name": "万事达"
     },
     {
@@ -228,8 +228,8 @@
       "price": 74.21,
       "prev_close": 74.79,
       "changePct": -0.7755,
-      "volume": 20668295,
-      "turnover": 1531432904.427,
+      "volume": 20725627,
+      "turnover": 1535740966.807,
       "name": "奈飞"
     },
     {
@@ -238,8 +238,8 @@
       "price": 302.25,
       "prev_close": 304.91,
       "changePct": -0.8724,
-      "volume": 40588105,
-      "turnover": 12266814468.511,
+      "volume": 41612878,
+      "turnover": 12576535435.19,
       "name": "苹果"
     },
     {
@@ -248,8 +248,8 @@
       "price": 359.42,
       "prev_close": 362.82,
       "changePct": -0.9371,
-      "volume": 3792401,
-      "turnover": 1364114312.336,
+      "volume": 3793402,
+      "turnover": 1364474573.289,
       "name": "Visa"
     },
     {
@@ -258,8 +258,8 @@
       "price": 31.61,
       "prev_close": 31.92,
       "changePct": -0.9712,
-      "volume": 13557100,
-      "turnover": 425326415.541,
+      "volume": 13581701,
+      "turnover": 426104210.053,
       "name": "京东"
     },
     {
@@ -268,8 +268,8 @@
       "price": 104.84,
       "prev_close": 105.94,
       "changePct": -1.0383,
-      "volume": 1938269,
-      "turnover": 202292480.991,
+      "volume": 1939921,
+      "turnover": 202467418.456,
       "name": "百度"
     },
     {
@@ -278,8 +278,8 @@
       "price": 11.75,
       "prev_close": 11.88,
       "changePct": -1.0943,
-      "volume": 5297167,
-      "turnover": 62302314.347,
+      "volume": 5314901,
+      "turnover": 62511150.001,
       "name": "小鹏汽车"
     },
     {
@@ -308,8 +308,8 @@
       "price": 327.51,
       "prev_close": 332.81,
       "changePct": -1.5925,
-      "volume": 28619709,
-      "turnover": 9361372316.145,
+      "volume": 28650704,
+      "turnover": 9371498544.383,
       "name": "特斯拉"
     },
     {
@@ -318,8 +318,8 @@
       "price": 89.035,
       "prev_close": 90.5,
       "changePct": -1.6188,
-      "volume": 6948983,
-      "turnover": 617601103.479,
+      "volume": 6949212,
+      "turnover": 617618700.899,
       "name": "拼多多"
     },
     {
@@ -328,8 +328,8 @@
       "price": 12.47,
       "prev_close": 12.68,
       "changePct": -1.6562,
-      "volume": 2633081,
-      "turnover": 32988235.447,
+      "volume": 2633481,
+      "turnover": 32992893.332,
       "name": "理想汽车"
     },
     {
@@ -348,8 +348,8 @@
       "price": 4.54,
       "prev_close": 4.62,
       "changePct": -1.7316,
-      "volume": 20878562,
-      "turnover": 95124730.028,
+      "volume": 20929174,
+      "turnover": 95355126.73,
       "name": "蔚来"
     },
     {
@@ -358,8 +358,8 @@
       "price": 267.28,
       "prev_close": 272.27,
       "changePct": -1.8327,
-      "volume": 29881944,
-      "turnover": 8036667477.414,
+      "volume": 29915523,
+      "turnover": 8045647905.465,
       "name": "亚马逊"
     },
     {
@@ -368,8 +368,8 @@
       "price": 258.75,
       "prev_close": 263.71,
       "changePct": -1.8809,
-      "volume": 4145943,
-      "turnover": 1068605623.794,
+      "volume": 4190832,
+      "turnover": 1080201404.836,
       "name": "Adobe"
     },
     {
@@ -388,8 +388,8 @@
       "price": 40.51,
       "prev_close": 41.32,
       "changePct": -1.9603,
-      "volume": 28357859,
-      "turnover": 1153229113.999,
+      "volume": 28712265,
+      "turnover": 1167588959.857,
       "name": "耐克"
     },
     {
@@ -398,8 +398,8 @@
       "price": 125.22,
       "prev_close": 127.85,
       "changePct": -2.0571,
-      "volume": 9122310,
-      "turnover": 1138587884.6,
+      "volume": 9227793,
+      "turnover": 1151794020.817,
       "name": "阿里巴巴"
     },
     {
@@ -408,8 +408,8 @@
       "price": 193.32,
       "prev_close": 197.47,
       "changePct": -2.1016,
-      "volume": 12193583,
-      "turnover": 2354190669.163,
+      "volume": 12786653,
+      "turnover": 2468839222.924,
       "name": "赛富时"
     },
     {
@@ -418,8 +418,8 @@
       "price": 17.61,
       "prev_close": 17.99,
       "changePct": -2.1123,
-      "volume": 3266785,
-      "turnover": 57099077.542,
+      "volume": 3268691,
+      "turnover": 57133112.046,
       "name": "哔哩哔哩"
     },
     {
@@ -428,8 +428,8 @@
       "price": 171.04,
       "prev_close": 174.94,
       "changePct": -2.2293,
-      "volume": 35107869,
-      "turnover": 6002217425.681,
+      "volume": 35181552,
+      "turnover": 6014783814.775,
       "name": "Palantir Tech"
     },
     {
@@ -438,8 +438,8 @@
       "price": 492.43,
       "prev_close": 503.81,
       "changePct": -2.2588,
-      "volume": 28556147,
-      "turnover": 14102199052.431,
+      "volume": 28942528,
+      "turnover": 14292418377.906,
       "name": "微软"
     },
     {
@@ -468,8 +468,8 @@
       "price": 124.11,
       "prev_close": 127.89,
       "changePct": -2.9557,
-      "volume": 1340236,
-      "turnover": 166272314.403,
+      "volume": 1373000,
+      "turnover": 170338705.83,
       "name": "网易"
     },
     {
@@ -478,8 +478,8 @@
       "price": 8.46,
       "prev_close": 8.72,
       "changePct": -2.9817,
-      "volume": 11898524,
-      "turnover": 100240995.242,
+      "volume": 11905914,
+      "turnover": 100303457.949,
       "name": "腾讯音乐"
     },
     {
@@ -498,8 +498,8 @@
       "price": 578.85,
       "prev_close": 599.12,
       "changePct": -3.3833,
-      "volume": 16127304,
-      "turnover": 9410337297.53,
+      "volume": 16156332,
+      "turnover": 9427136084.5,
       "name": "Meta"
     },
     {
@@ -508,8 +508,8 @@
       "price": 75.36,
       "prev_close": 78.54,
       "changePct": -4.0489,
-      "volume": 19158705,
-      "turnover": 1455044414.95,
+      "volume": 19186032,
+      "turnover": 1457104424.159,
       "name": "优步"
     }
   ]
