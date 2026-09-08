@@ -46,9 +46,19 @@ jobs:
             echo "::error::Missing LONGBRIDGE_APP_KEY / LONGBRIDGE_APP_SECRET / LONGBRIDGE_ACCESS_TOKEN secret"
             exit 1
           fi
-          python3 scripts/build_quotes.py > quotes.json
+          # stderr 同时留一份到文件:失败时把真实报错(含長橋 error code)写进告警,
+          # 别再让人对着"可能原因"猜。
+          set +e
+          python3 scripts/build_quotes.py > quotes.json 2>/tmp/build_err.txt
+          RC=$?
+          set -e
+          cat /tmp/build_err.txt >&2 || true
+          if [ $RC -ne 0 ]; then exit $RC; fi
           COUNT=$(python3 -c 'import json,sys; print(json.load(open("quotes.json"))["count"])')
           echo "::notice::Fetched $COUNT symbols"
+          # 留个标记:抓取这步是过了的。失败若发生在后面的续期/提交步骤,
+          # 诊断就不该再往 token 上引(2026-09-07 那次的教训是别给错方向)。
+          touch /tmp/build_ok
 
       # 自動續期：access token 是 90 天 JWT。剩餘 <30 天時自動換新（再 90 天），
       # 新 token 直接寫回 Secret（純字符串、無損，舊機制的二進制/解密問題不復存在）。
@@ -85,26 +95,86 @@ jobs:
           fi
 
       # 失敗告警：開/更新一個 auto-alert issue（@清汤，觸發郵件），成功時自動關閉。
+      # 失敗時先判斷 token 是"過期"還是"被吊銷"——兩者處理方式不同,而續期步驟
+      # 只在成功路徑跑(if: success()),失敗時拿不到這個數,2026-09-07 就因此誤判了一輪。
+      - name: Diagnose token state
+        if: failure()
+        id: diag
+        continue-on-error: true      # 诊断步骤自己挂掉不该连累后面的告警
+        run: |
+          if [ -f scripts/token_days_left.py ]; then
+            DAYS=$(python3 scripts/token_days_left.py || echo "unknown")
+          else
+            DAYS="script-missing"
+          fi
+          echo "access token days left: $DAYS"
+          echo "days=$DAYS" >> "$GITHUB_OUTPUT"
+
+          if [ -f /tmp/build_ok ]; then
+            STAGE="行情抓取已成功，失败发生在之后的步骤（续期 / 提交），与 token 无关"
+            ERR_TXT="(抓取步骤本身没有报错，请直接看 run 日志定位失败的步骤)"
+          elif [ -s /tmp/build_err.txt ]; then
+            STAGE="行情抓取步骤失败"
+            ERR_TXT=$(tail -n 6 /tmp/build_err.txt | tr -d '\r')
+          else
+            STAGE="失败发生在行情抓取之前（依赖安装 / checkout / secret 缺失）"
+            ERR_TXT="(没有捕获到 stderr)"
+          fi
+          echo "stage=$STAGE" >> "$GITHUB_OUTPUT"
+
+          # 仓库是 public，issue 正文走 API、不受 Actions 的 secret 打码保护，
+          # 所以第三方 stderr 写出去之前自己擦一遍。
+          for S in "$LONGBRIDGE_ACCESS_TOKEN" "$LONGBRIDGE_APP_SECRET" "$LONGBRIDGE_APP_KEY"; do
+            [ -n "$S" ] && ERR_TXT=${ERR_TXT//"$S"/'***'}
+          done
+          # 随机分隔符 + printf 补尾换行:内容不带换行或恰好含分隔符时都不会写坏
+          D="ERR_$(openssl rand -hex 8)"
+          {
+            echo "err<<$D"
+            printf '%s\n' "$ERR_TXT"
+            echo "$D"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Open or update failure issue
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
+          DAYS: ${{ steps.diag.outputs.days }}
+          ERR: ${{ steps.diag.outputs.err }}
+          STAGE: ${{ steps.diag.outputs.stage }}
         run: |
           TITLE="🔴 Fetch Quotes 工作流失敗（自動告警）"
           RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
           BODY="**Run #${RUN_ID} 失敗** — [查看日志](${RUN_URL})
 
-          咖啡店股票標籤的行情數據沒拉到。連續失敗會導致標籤顯示舊數據。
+          咖啡店股票標籤的行情數據沒拉到，標籤頁會停在上一次成功的數據。
 
           ---
 
-          現在用 **API Key 認證**（90 天 token + 自動續期）。可能原因：
-          - Access token 已過期且自動續期沒跑成功 → 去用戶中心重新生成 Access Token，更新 \`LONGBRIDGE_ACCESS_TOKEN\` secret
-          - 長橋 API 故障 / 行情權限變動
+          **失敗環節**：${STAGE}
 
-          手動更新 token：
+          ### 實際報錯
+
+          \`\`\`
+          ${ERR}
+          \`\`\`
+
+          ### Access token 剩餘有效期：**${DAYS} 天**
+
+          照這個數字判斷，別再猜：
+
+          | 剩餘天數 | 說明 | 怎麼處理 |
+          |---|---|---|
+          | **> 0，但報 401004 / token invalid** | token 沒過期，是被**服務端吊銷**了（多半是有人在用戶中心重新生成過 token、改過密碼，或帳戶權限變動）。自動續期沒有問題，不用查它 | 去用戶中心重新生成 Access Token，更新 secret（見下） |
+          | **<= 0** | token 真的過期了，自動續期沒跑成功 | 同樣重新生成 token；另外查 \`ROTATE_PAT\` 是否還有效、續期步驟近幾次的 log |
+          | **unknown** | token 為空或 JWT 解不開，secret 可能被寫壞 | 重新寫一次 secret |
+          | **script-missing** | 診斷腳本沒進倉庫（不是 token 的問題） | 補上 \`scripts/token_days_left.py\` |
+          | 報錯不含 token 字樣 | 多半是長橋 API 故障或行情權限變動，與 token 無關 | 先確認長橋行情服務是否正常，再看帳戶的行情權限 |
+
+          ### 重新生成後
+
           \`\`\`bash
           gh secret set LONGBRIDGE_ACCESS_TOKEN -R ${REPO} --body '<用戶中心的新 Access Token>'
           gh workflow run \"Fetch Quotes\" -R ${REPO}
@@ -134,8 +204,12 @@ jobs:
 
             日志: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            最可能原因：長橋 access token 過期且自動續期未成功，或長橋 API 故障。
-            處理：去用戶中心重新生成 Access Token，更新 GitHub Secret 後重觸發工作流。
+            失敗環節：${{ steps.diag.outputs.stage }}
+            Access token 剩餘有效期：${{ steps.diag.outputs.days }} 天
+
+            具體原因和處理步驟見倉庫 issue（裡面有真實報錯和判斷表），
+            不要直接假設是 token 過期 —— 剩餘天數大於 0 卻報 token invalid，
+            說明是被吊銷而不是到期。
             （此郵件由 GitHub Actions 自動發送）
         run: python3 scripts/send_alert_email.py
 
