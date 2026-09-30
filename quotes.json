@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2026-09-30T00:39:31+00:00",
+  "generatedAt": "2026-09-30T01:25:58+00:00",
   "count": 51,
   "quotes": [
     {
@@ -53,6 +53,16 @@
       "name": "奈飞"
     },
     {
+      "symbol": "300750.SZ",
+      "ticker": "300750",
+      "price": 290.0,
+      "prev_close": 286.8,
+      "changePct": 1.1158,
+      "volume": 4964,
+      "turnover": 143956000.0,
+      "name": "宁德时代"
+    },
+    {
       "symbol": "ADBE.US",
       "ticker": "ADBE",
       "price": 233.17,
@@ -73,14 +83,14 @@
       "name": "网易"
     },
     {
-      "symbol": "2318.HK",
-      "ticker": "2318",
-      "price": 52.9,
-      "prev_close": 52.6,
-      "changePct": 0.5703,
-      "volume": 28688474,
-      "turnover": 1517961371.0,
-      "name": "中国平安"
+      "symbol": "600519.SH",
+      "ticker": "600519",
+      "price": 1239.53,
+      "prev_close": 1235.58,
+      "changePct": 0.3197,
+      "volume": 161,
+      "turnover": 19956433.0,
+      "name": "贵州茅台"
     },
     {
       "symbol": "AMZN.US",
@@ -123,6 +133,36 @@
       "name": "麦当劳"
     },
     {
+      "symbol": "2318.HK",
+      "ticker": "2318",
+      "price": 52.95,
+      "prev_close": 52.9,
+      "changePct": 0.0945,
+      "volume": 625119,
+      "turnover": 33099995.1,
+      "name": "中国平安"
+    },
+    {
+      "symbol": "1810.HK",
+      "ticker": "1810",
+      "price": 25.2,
+      "prev_close": 25.2,
+      "changePct": 0.0,
+      "volume": 681325,
+      "turnover": 17169365.0,
+      "name": "小米集团-W"
+    },
+    {
+      "symbol": "9618.HK",
+      "ticker": "9618",
+      "price": 103.1,
+      "prev_close": 103.1,
+      "changePct": 0.0,
+      "volume": 47950,
+      "turnover": 4943645.0,
+      "name": "京东-SW"
+    },
+    {
       "symbol": "LLY.US",
       "ticker": "LLY",
       "price": 1184.63,
@@ -163,14 +203,14 @@
       "name": "迪士尼"
     },
     {
-      "symbol": "1299.HK",
-      "ticker": "1299",
-      "price": 73.9,
-      "prev_close": 74.05,
-      "changePct": -0.2026,
-      "volume": 39605950,
-      "turnover": 2924263637.0,
-      "name": "友邦保险"
+      "symbol": "1024.HK",
+      "ticker": "1024",
+      "price": 30.18,
+      "prev_close": 30.24,
+      "changePct": -0.1984,
+      "volume": 83200,
+      "turnover": 2510976.0,
+      "name": "快手-W"
     },
     {
       "symbol": "PLTR.US",
@@ -203,6 +243,16 @@
       "name": "可口可乐"
     },
     {
+      "symbol": "700.HK",
+      "ticker": "700",
+      "price": 430.0,
+      "prev_close": 432.0,
+      "changePct": -0.463,
+      "volume": 793248,
+      "turnover": 341693242.0,
+      "name": "腾讯控股"
+    },
+    {
       "symbol": "JPM.US",
       "ticker": "JPM",
       "price": 334.98,
@@ -233,14 +283,24 @@
       "name": "谷歌-A"
     },
     {
-      "symbol": "600519.SH",
-      "ticker": "600519",
-      "price": 1235.58,
-      "prev_close": 1243.88,
-      "changePct": -0.6673,
-      "volume": 26366,
-      "turnover": 3260057865.0,
-      "name": "贵州茅台"
+      "symbol": "3690.HK",
+      "ticker": "3690",
+      "price": 70.0,
+      "prev_close": 70.45,
+      "changePct": -0.6388,
+      "volume": 273400,
+      "turnover": 19138000.0,
+      "name": "美团-W"
+    },
+    {
+      "symbol": "1299.HK",
+      "ticker": "1299",
+      "price": 73.4,
+      "prev_close": 73.9,
+      "changePct": -0.6766,
+      "volume": 2308600,
+      "turnover": 169258342.2,
+      "name": "友邦保险"
     },
     {
       "symbol": "XOM.US",
@@ -281,6 +341,16 @@
       "volume": 2901498,
       "turnover": 1636244491.656,
       "name": "万事达"
+    },
+    {
+      "symbol": "9988.HK",
+      "ticker": "9988",
+      "price": 105.3,
+      "prev_close": 106.2,
+      "changePct": -0.8475,
+      "volume": 1152278,
+      "turnover": 121335573.6,
+      "name": "阿里巴巴-W"
     },
     {
       "symbol": "CRM.US",
@@ -343,34 +413,24 @@
       "name": "特斯拉"
     },
     {
-      "symbol": "9618.HK",
-      "ticker": "9618",
-      "price": 103.1,
-      "prev_close": 104.5,
-      "changePct": -1.3397,
-      "volume": 6280581,
-      "turnover": 646874677.0,
-      "name": "京东-SW"
+      "symbol": "9866.HK",
+      "ticker": "9866",
+      "price": 26.64,
+      "prev_close": 27.0,
+      "changePct": -1.3333,
+      "volume": 3100,
+      "turnover": 82584.0,
+      "name": "蔚来-SW"
     },
     {
-      "symbol": "9988.HK",
-      "ticker": "9988",
-      "price": 106.2,
-      "prev_close": 107.7,
-      "changePct": -1.3928,
-      "volume": 57027476,
-      "turnover": 6052038370.0,
-      "name": "阿里巴巴-W"
-    },
-    {
-      "symbol": "1024.HK",
-      "ticker": "1024",
-      "price": 30.24,
-      "prev_close": 30.7,
-      "changePct": -1.4984,
-      "volume": 38516894,
-      "turnover": 1167099399.0,
-      "name": "快手-W"
+      "symbol": "1211.HK",
+      "ticker": "1211",
+      "price": 74.7,
+      "prev_close": 75.75,
+      "changePct": -1.3861,
+      "volume": 899113,
+      "turnover": 67761424.75,
+      "name": "比亚迪股份"
     },
     {
       "symbol": "NKE.US",
@@ -383,16 +443,6 @@
       "name": "耐克"
     },
     {
-      "symbol": "700.HK",
-      "ticker": "700",
-      "price": 432.0,
-      "prev_close": 439.8,
-      "changePct": -1.7735,
-      "volume": 18015236,
-      "turnover": 7808702026.0,
-      "name": "腾讯控股"
-    },
-    {
       "symbol": "WMT.US",
       "ticker": "WMT",
       "price": 106.8,
@@ -403,16 +453,6 @@
       "name": "沃尔玛"
     },
     {
-      "symbol": "300750.SZ",
-      "ticker": "300750",
-      "price": 286.8,
-      "prev_close": 291.99,
-      "changePct": -1.7775,
-      "volume": 298757,
-      "turnover": 8608636254.1,
-      "name": "宁德时代"
-    },
-    {
       "symbol": "BILI.US",
       "ticker": "BILI",
       "price": 14.84,
@@ -421,36 +461,6 @@
       "volume": 2188185,
       "turnover": 32424822.981,
       "name": "哔哩哔哩"
-    },
-    {
-      "symbol": "3690.HK",
-      "ticker": "3690",
-      "price": 70.45,
-      "prev_close": 71.9,
-      "changePct": -2.0167,
-      "volume": 33621755,
-      "turnover": 2381007018.0,
-      "name": "美团-W"
-    },
-    {
-      "symbol": "1211.HK",
-      "ticker": "1211",
-      "price": 75.75,
-      "prev_close": 77.7,
-      "changePct": -2.5097,
-      "volume": 28706871,
-      "turnover": 2166679544.0,
-      "name": "比亚迪股份"
-    },
-    {
-      "symbol": "1810.HK",
-      "ticker": "1810",
-      "price": 25.2,
-      "prev_close": 25.86,
-      "changePct": -2.5522,
-      "volume": 146204949,
-      "turnover": 3689621375.0,
-      "name": "小米集团-W"
     },
     {
       "symbol": "AAPL.US",
@@ -491,16 +501,6 @@
       "volume": 8131384,
       "turnover": 64679871.747,
       "name": "腾讯音乐"
-    },
-    {
-      "symbol": "9866.HK",
-      "ticker": "9866",
-      "price": 27.0,
-      "prev_close": 28.44,
-      "changePct": -5.0633,
-      "volume": 6676185,
-      "turnover": 180191058.0,
-      "name": "蔚来-SW"
     },
     {
       "symbol": "NIO.US",
