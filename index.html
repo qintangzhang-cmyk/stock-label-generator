@@ -1177,11 +1177,55 @@ function computeMood(changePct) {
 
 // ============ DATA FETCH ============
 let staticCache = null;
+
+// 行情每天早上由 GitHub Actions 刷新。抓取管線掛掉時 quotes.json 會停在上一次
+// 成功的數據，標籤照印不誤 —— 店員只有留意標籤上的小字時間才看得出來。
+// 超過一個交易日沒更新就掛一條常駐橫幅，別讓舊價格悄悄印出去。
+//
+// 閾值取 32 小時而不是 24：工作流每天跑兩次、週末照跑，但 GitHub 排程抖動很大
+// （實測落地時間比計劃晚過 5 小時，連續兩次成功的最大間隔到過 23小時57分）。
+// 訂太緊會在管線其實健康時誤報，而這條橫幅的作用就是建立信任，誤報比漏報更傷。
+const STALE_HOURS = 32;
+
+function setStaleBanner(text) {
+  let el = document.getElementById('staleBanner');
+  if (!text) { el?.remove(); return; }
+  if (!el) {
+    el = document.createElement('div');
+    el.id = 'staleBanner';
+    el.style.cssText = 'position:sticky;top:0;z-index:9999;background:#b91c1c;'
+      + 'color:#fff;padding:10px 14px;font-size:14px;line-height:1.5;text-align:center';
+    document.body.prepend(el);
+  }
+  el.textContent = text;
+}
+
+// 只負責掛/撤橫幅，絕不拋異常 —— 一個純診斷功能不該有讓打印流程崩掉的權力。
+function warnIfStale(cache) {
+  try {
+    const raw = cache?.generatedAt;
+    if (!raw) return;
+    const t = new Date(raw);
+    if (Number.isNaN(t.getTime())) return;      // 時間戳壞掉就當沒有，別炸
+    const ageH = (Date.now() - t) / 3600000;
+    if (!Number.isFinite(ageH) || ageH < STALE_HOURS) { setStaleBanner(''); return; }
+    const when = new Intl.DateTimeFormat('zh-HK', {
+      timeZone: 'Asia/Hong_Kong', month: 'long', day: 'numeric',
+      hour: '2-digit', minute: '2-digit', hour12: false
+    }).format(t);
+    setStaleBanner(`⚠️ 行情數據停在 ${when} HKT（約 ${Math.floor(ageH)} 小時前），`
+      + `不是今天的價格。抓取可能掛了，請先確認再印。`);
+  } catch (e) {
+    console.warn('warnIfStale skipped:', e);
+  }
+}
+
 async function fetchFromStatic(tickers) {
   if (!staticCache) {
     const res = await fetch('./quotes.json?t=' + Date.now());
     if (!res.ok) throw new Error(`quotes.json HTTP ${res.status}`);
     staticCache = await res.json();
+    warnIfStale(staticCache);
   }
   const want = new Set(tickers.map(t => t.toUpperCase()));
   return (staticCache.quotes || [])
