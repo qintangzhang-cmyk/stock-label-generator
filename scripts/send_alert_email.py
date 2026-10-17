@@ -47,7 +47,13 @@ def main():
             s.send_message(msg)
         print("alert email sent to: %s" % ", ".join(recipients))
     except Exception as e:  # noqa: BLE001 — email is best-effort; issue is the source of truth
+        # 这条以前只写 stderr,埋在几百行 log 里没人看得到 —— 结果邮件通道
+        # 静默坏掉时,外部收件人(Cody / Timmy)什么都收不到,却没人知道。
+        # 用 ::warning:: 让它出现在 run summary 顶部。
         sys.stderr.write("email send failed (issue alert still fired): %s\n" % e)
+        print("::warning title=告警邮件发送失败::外部收件人没收到邮件，"
+              "只有 GitHub issue 生效。多半是 MAIL_PASSWORD 这个 Gmail "
+              "应用专用密码已失效，需要重新生成并更新 secret。原因: %s" % e)
 
 
 if __name__ == "__main__":
