@@ -463,6 +463,14 @@ Closed +4.20%</textarea>
         </span>
       </label>
 
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:8px; padding:10px 12px; border:1px solid #111; border-radius:6px; background:#f4f4f5; font-weight:normal; cursor:pointer; line-height:1.4;">
+        <input type="checkbox" id="oldPaperMode" checked style="margin-top:3px;">
+        <span style="font-size:12px; color:var(--text);">
+          <strong data-en="Old Chinese label paper" data-zh="旧中文标签纸模式">Old Chinese label paper</strong><br>
+          <span style="color:var(--muted); font-size:11px;" data-en="Prints a black block over the Chinese title on the paper and the English title next to it (Magnificent 7, Yesterday's Star, This Day in Finance). Turn this off when the English label paper arrives." data-zh="打印时用黑块盖住纸上的中文标题，并在旁边打上英文标题（美股七巨头、昨日主角股、金融史今日）。英文标签纸到了以后关掉。">Prints a black block over the Chinese title on the paper and the English title next to it (Magnificent 7, Yesterday's Star, This Day in Finance). Turn this off when the English label paper arrives.</span>
+        </span>
+      </label>
+
       <h3 data-en="Printer" data-zh="打印机">Printer</h3>
       <div class="row2">
         <div>
@@ -1523,6 +1531,9 @@ const LB_TPL_TOPN_CLASSIC    = '../assets/templates/sg/topn_classic.png';
 const LB_TPL_STAR_CLASSIC    = '../assets/templates/sg/star_classic.png';
 const LB_TPL_HISTORY_CLASSIC = '../assets/templates/sg/history_classic.png';
 const LB_TPL_MOOD_CLASSIC    = '../assets/templates/sg/mood_classic.png';
+// Hong Kong (Chinese) templates — previewed when "Old Chinese label paper" is on, so the preview matches the paper
+const LB_TPL_OLD = {topn: '../assets/templates/topn_classic.png', star: '../assets/templates/star_classic.png', history: '../assets/templates/history_classic.png'};
+const tplOld = {topn: null, star: null, history: null};
 let tplTopnClassic = null;
 let tplStarClassic = null;
 let tplHistoryClassic = null;
@@ -1537,7 +1548,41 @@ let tplMoodClassic = null;
   loadOne(LB_TPL_STAR_CLASSIC,    t => tplStarClassic    = t);
   loadOne(LB_TPL_HISTORY_CLASSIC, t => tplHistoryClassic = t);
   loadOne(LB_TPL_MOOD_CLASSIC,    t => tplMoodClassic    = t);
+  Object.entries(LB_TPL_OLD).forEach(([k, url]) => loadOne(url, t => tplOld[k] = t));
 })();
+
+// ======== Old Chinese label paper ========
+// Black block over the Chinese title that is pre-printed on the old rolls, English title beside it in black.
+// Fractions of W/H, measured on the template art (the block has ~1 mm extra margin for paper registration).
+const OLD_PAPER_COVER = {
+  topn:    {bar: [0.3077, 0.0708, 0.6761, 0.2167], text: [0.0600, 0.2877], cy: 0.1438, capH: 0.072, label: 'Magnificent 7'},
+  star:    {bar: [0.0537, 0.0713, 0.4189, 0.2157], text: [0.4389, 0.9500], cy: 0.1435, capH: 0.071, label: "Yesterday's Star"},
+  history: {bar: [0.0518, 0.0676, 0.4793, 0.2185], text: [0.4993, 0.9500], cy: 0.1431, capH: 0.076, label: 'This Day in Finance'},
+};
+function oldPaperOn() { return !!($('oldPaperMode') && $('oldPaperMode').checked); }
+function tplReady(t) { return !!(t && t.complete && t.naturalWidth); }
+function tplPick(kind, sgTpl) { return oldPaperOn() && tplReady(tplOld[kind]) ? tplOld[kind] : sgTpl; }
+function drawOldPaperCover(kind, W, H) {
+  if (!oldPaperOn()) return;
+  const c = OLD_PAPER_COVER[kind];
+  if (!c) return;
+  const [bx0, by0, bx1, by1] = c.bar;
+  ctx.save();
+  ctx.fillStyle = '#000';
+  ctx.beginPath();
+  if (ctx.roundRect) ctx.roundRect(bx0 * W, by0 * H, (bx1 - bx0) * W, (by1 - by0) * H, H * 0.02);
+  else ctx.rect(bx0 * W, by0 * H, (bx1 - bx0) * W, (by1 - by0) * H);
+  ctx.fill();
+  const maxW = (c.text[1] - c.text[0]) * W;
+  let px = Math.round(c.capH * H * 1.35);          // cap height is ~0.72 em
+  const font = p => `900 ${p}px ${BRAND_FONT}`;
+  ctx.font = font(px);
+  while (ctx.measureText(c.label).width > maxW && px > 8) { px -= 1; ctx.font = font(px); }
+  ctx.textAlign = 'left';
+  ctx.textBaseline = 'middle';
+  ctx.fillText(c.label, c.text[0] * W, c.cy * H);
+  ctx.restore();
+}
 
 // "Magnificent 7" — fixed roster + fixed cell positions for the topn-classic template
 // label = what we draw on the sticker (matches official design),
@@ -1873,8 +1918,8 @@ function renderStarClassic(W, H) {
   // Background: official template (skipped on export when printing onto pre-printed paper)
   if (exportNoBg) {
     // text-only mode: leave canvas white, only dynamic text below will be drawn
-  } else if (tplStarClassic && tplStarClassic.complete && tplStarClassic.naturalWidth) {
-    ctx.drawImage(tplStarClassic, 0, 0, W, H);
+  } else if (tplReady(tplPick('star', tplStarClassic))) {
+    ctx.drawImage(tplPick('star', tplStarClassic), 0, 0, W, H);
   } else {
     // Fallback bg + header so layout reads if asset 404s
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
@@ -1884,6 +1929,7 @@ function renderStarClassic(W, H) {
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     ctx.fillText("Yesterday's Star", W * 0.04, H * 0.12);
   }
+  drawOldPaperCover('star', W, H);
 
   // Pull current data — generate() puts the top mover at stocks[0]
   const s = stocks[0] && isStockShape(stocks[0]) ? stocks[0] : { ticker: '—', changePct: 0, price: 0 };
@@ -2088,8 +2134,8 @@ function renderHistoryClassic(W, H) {
   // Background template (skipped on export)
   if (exportNoBg) {
     // text-only mode — leave canvas white
-  } else if (tplHistoryClassic && tplHistoryClassic.complete && tplHistoryClassic.naturalWidth) {
-    ctx.drawImage(tplHistoryClassic, 0, 0, W, H);
+  } else if (tplReady(tplPick('history', tplHistoryClassic))) {
+    ctx.drawImage(tplPick('history', tplHistoryClassic), 0, 0, W, H);
   } else {
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = LB_BRAND; ctx.fillRect(0, 0, W, H * 0.256);
@@ -2098,6 +2144,7 @@ function renderHistoryClassic(W, H) {
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     ctx.fillText('This Day in Finance', W * 0.04, H * 0.13);
   }
+  drawOldPaperCover('history', W, H);
 
   // Pull the event from stocks[0] (set by generate() via pickHistoryEvent)
   const ev = stocks[0] && 'year' in stocks[0] ? stocks[0] : pickHistoryEvent();
@@ -2170,8 +2217,8 @@ function renderTopNClassic(W, H) {
   // Background: official template (skipped on export so only the 7 cell texts are printed)
   if (exportNoBg) {
     // text-only mode — leave canvas white
-  } else if (tplTopnClassic && tplTopnClassic.complete && tplTopnClassic.naturalWidth) {
-    ctx.drawImage(tplTopnClassic, 0, 0, W, H);
+  } else if (tplReady(tplPick('topn', tplTopnClassic))) {
+    ctx.drawImage(tplPick('topn', tplTopnClassic), 0, 0, W, H);
   } else {
     // Fallback: solid white + teal header so the layout still reads if the asset 404s
     ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
@@ -2181,6 +2228,7 @@ function renderTopNClassic(W, H) {
     ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     ctx.fillText('Magnificent 7', W / 2, H * 0.125);
   }
+  drawOldPaperCover('topn', W, H);
 
   // Editable corner note in the bottom-right white margin strip (default "*僅供參考"). Empty → hidden.
   // The template has a ~3% white strip at the very bottom outside the rounded teal border.
@@ -2860,7 +2908,7 @@ function refreshHolidayBanner() {
 
 ['themeColor','widthMm','heightMm','dpi','colorConv','tplMode','topN',
  'moodIndex','starCaption','uiStyle','printerName','printCopies',
- 'showTicker','showChange','showPrice','showArrow','topnClassicNote'].forEach(id => {
+ 'showTicker','showChange','showPrice','showArrow','topnClassicNote','oldPaperMode','hideBgOnExport'].forEach(id => {
   const el = $(id);
   if (!el) return;
   el.addEventListener('input', () => { saveConfig(); render(); });
