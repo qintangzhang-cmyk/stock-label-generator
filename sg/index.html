@@ -470,6 +470,19 @@ Closed +4.20%</textarea>
           <span style="color:var(--muted); font-size:11px;" data-en="Prints a black block over the Chinese title on the paper and the English title next to it (Magnificent 7, Yesterday's Star, This Day in Finance). Turn this off when the English label paper arrives." data-zh="打印时用黑块盖住纸上的中文标题，并在旁边打上英文标题（美股七巨头、昨日主角股、金融史今日）。英文标签纸到了以后关掉。">Prints a black block over the Chinese title on the paper and the English title next to it (Magnificent 7, Yesterday's Star, This Day in Finance). Turn this off when the English label paper arrives.</span>
         </span>
       </label>
+      <div class="row2" style="margin-top:6px">
+        <div><label data-en="Title block fill" data-zh="黑块填充方式">Title block fill</label>
+          <select id="oldPaperFill">
+            <option value="hatch" selected data-en="Cross-hatch (recommended)" data-zh="交叉网格（推荐）">Cross-hatch (recommended)</option>
+            <option value="stripes" data-en="Dense stripes" data-zh="密集斜线">Dense stripes</option>
+            <option value="solid" data-en="Solid black" data-zh="纯黑">Solid black</option>
+          </select>
+        </div>
+        <div><label data-en="Title position (mm, + = down)" data-zh="标题位置微调（毫米，正数往下）">Title position (mm, + = down)</label>
+          <input type="number" id="oldPaperShiftMm" value="2.5" step="0.5" min="-6" max="6">
+        </div>
+      </div>
+      <div class="hint" data-en="If the black block does not cover the Chinese title, print a test and nudge the position by 0.5 mm at a time." data-zh="如果黑块没有完全盖住中文，先打一张测试，再按 0.5 毫米一次微调位置。">If the black block does not cover the Chinese title, print a test and nudge the position by 0.5 mm at a time.</div>
 
       <h3 data-en="Printer" data-zh="打印机">Printer</h3>
       <div class="row2">
@@ -1562,25 +1575,66 @@ const OLD_PAPER_COVER = {
 function oldPaperOn() { return !!($('oldPaperMode') && $('oldPaperMode').checked); }
 function tplReady(t) { return !!(t && t.complete && t.naturalWidth); }
 function tplPick(kind, sgTpl) { return oldPaperOn() && tplReady(tplOld[kind]) ? tplOld[kind] : sgTpl; }
+// Thermal label printers print thin lines solid but large black areas come out grey,
+// so the block is filled with dense lines by default.
 function drawOldPaperCover(kind, W, H) {
   if (!oldPaperOn()) return;
   const c = OLD_PAPER_COVER[kind];
   if (!c) return;
-  const [bx0, by0, bx1, by1] = c.bar;
+  const pxPerMm = W / (parseFloat($('widthMm').value) || 58);
+  // The nudge compensates the printer's paper feed, so it only applies to the printed/downloaded image
+  const dy = exportNoBg ? (parseFloat(($('oldPaperShiftMm') || {}).value) || 0) * pxPerMm : 0;   // + = down
+  const pad = 0.6 * pxPerMm;                                                      // extra cover for paper drift
+  const x = c.bar[0] * W, y = c.bar[1] * H - pad + dy;
+  const w = (c.bar[2] - c.bar[0]) * W, h = (c.bar[3] - c.bar[1]) * H + pad * 2;
+  const r = Math.min(H * 0.02, h / 2);
+  const fill = ($('oldPaperFill') || {}).value || 'hatch';
   ctx.save();
-  ctx.fillStyle = '#000';
   ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(bx0 * W, by0 * H, (bx1 - bx0) * W, (by1 - by0) * H, H * 0.02);
-  else ctx.rect(bx0 * W, by0 * H, (bx1 - bx0) * W, (by1 - by0) * H);
-  ctx.fill();
+  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
+  ctx.fillStyle = '#000';
+  ctx.strokeStyle = '#000';
+  if (fill === 'solid') {
+    ctx.fill();
+  } else {
+    ctx.save();
+    ctx.clip();
+    ctx.lineCap = 'butt';
+    const lines = (angleDeg, lw, gap) => {
+      ctx.lineWidth = lw;
+      const step = lw + gap, a = angleDeg * Math.PI / 180, len = w + h;
+      ctx.save();
+      ctx.translate(x + w / 2, y + h / 2);
+      ctx.rotate(a);
+      ctx.beginPath();
+      for (let t = -len; t <= len; t += step) { ctx.moveTo(t, -len); ctx.lineTo(t, len); }
+      ctx.stroke();
+      ctx.restore();
+    };
+    if (fill === 'hatch') {
+      lines(45, 0.5 * pxPerMm, 0.18 * pxPerMm);
+      lines(-45, 0.5 * pxPerMm, 0.18 * pxPerMm);
+    } else {
+      lines(45, 0.6 * pxPerMm, 0.14 * pxPerMm);
+    }
+    ctx.restore();
+    // solid outline so the block reads as one shape
+    ctx.lineWidth = 0.6 * pxPerMm;
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth, r);
+    else ctx.rect(x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth);
+    ctx.stroke();
+  }
+  // English title beside the block, moved by the same nudge
   const maxW = (c.text[1] - c.text[0]) * W;
   let px = Math.round(c.capH * H * 1.35);          // cap height is ~0.72 em
   const font = p => `900 ${p}px ${BRAND_FONT}`;
   ctx.font = font(px);
   while (ctx.measureText(c.label).width > maxW && px > 8) { px -= 1; ctx.font = font(px); }
+  ctx.fillStyle = '#000';
   ctx.textAlign = 'left';
   ctx.textBaseline = 'middle';
-  ctx.fillText(c.label, c.text[0] * W, c.cy * H);
+  ctx.fillText(c.label, c.text[0] * W, c.cy * H + dy);
   ctx.restore();
 }
 
@@ -2908,7 +2962,7 @@ function refreshHolidayBanner() {
 
 ['themeColor','widthMm','heightMm','dpi','colorConv','tplMode','topN',
  'moodIndex','starCaption','uiStyle','printerName','printCopies',
- 'showTicker','showChange','showPrice','showArrow','topnClassicNote','oldPaperMode','hideBgOnExport'].forEach(id => {
+ 'showTicker','showChange','showPrice','showArrow','topnClassicNote','oldPaperMode','hideBgOnExport','oldPaperFill','oldPaperShiftMm'].forEach(id => {
   const el = $(id);
   if (!el) return;
   el.addEventListener('input', () => { saveConfig(); render(); });
