@@ -1,0 +1,2912 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coffee Sticker Studio · Singapore | 咖啡贴纸生成器（新加坡）</title>
+<style>
+  /* Longbridge brand font, served by their public CDN */
+  @font-face {
+    font-family: 'Cera Pro';
+    src: url('https://assets.lbkrs.com/uploads/1da143cd-071d-4e4c-a10f-37b14ba48c10/cera-pro-regular.otf');
+    font-weight: 400;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Cera Pro';
+    src: url('https://assets.lbkrs.com/pkg/annual-2023/Cera-Pro-Bold.otf');
+    font-weight: 700;
+    font-display: swap;
+  }
+  @font-face {
+    font-family: 'Cera Pro';
+    src: url('https://assets.lbkrs.com/pkg/annual-2023/Cera-Pro-Black.otf');
+    font-weight: 900;
+    font-display: swap;
+  }
+  :root {
+    --brand: #00B8B8;        /* Longbridge teal */
+    --brand-dark: #008C91;
+    --brand-tint: #DFF7F3;
+    --text: #0A0E19;
+    --muted: #82888D;
+    --bg: #F8F9FA;
+    --panel: #ffffff;
+    --border: #E6E7E8;
+    --up: #F7415F;           /* HK/CN convention: red = up */
+    --down: #2AD390;
+    --mono: ui-monospace, "SF Mono", "Menlo", "Consolas", monospace;
+    --brand-font: 'Cera Pro', "PingFang HK", "PingFang TC", "Source Han Sans CN", "Microsoft JhengHei", -apple-system, sans-serif;
+    --body-font: -apple-system, BlinkMacSystemFont, "PingFang HK", "PingFang TC", "Source Han Sans CN", "Microsoft JhengHei", sans-serif;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  .wrap {
+    display: grid;
+    grid-template-columns: 440px 1fr;
+    gap: 20px;
+    padding: 24px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  .panel {
+    background: var(--panel);
+    border-radius: 14px;
+    padding: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.02);
+    border: 1px solid var(--border);
+    overflow: hidden;
+  }
+  .panel-body { padding: 20px; }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    background: #fafafa;
+  }
+  .tab-btn {
+    flex: 1;
+    padding: 14px 10px;
+    background: transparent;
+    border: none;
+    border-bottom: 2px solid transparent;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+    font-family: inherit;
+  }
+  .tab-btn:hover { color: var(--text); background: rgba(0,0,0,0.02); }
+  .tab-btn.active { color: var(--brand); border-bottom-color: var(--brand); background: #fff; }
+  .tab-body { display: none; padding: 20px; }
+  .tab-body.active { display: block; }
+
+  h3 { margin: 0 0 10px; font-size: 13px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.03em; font-weight: 600; }
+  h3:not(:first-child) { margin-top: 24px; }
+
+  label {
+    display: block;
+    font-size: 12px;
+    color: #374151;
+    margin: 12px 0 6px;
+    font-weight: 500;
+  }
+  label:first-child { margin-top: 0; }
+
+  input[type=text], input[type=password], input[type=number], textarea, select {
+    width: 100%;
+    padding: 9px 11px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--brand);
+    box-shadow: 0 0 0 3px rgba(255, 106, 0, 0.12);
+  }
+  textarea { resize: vertical; min-height: 64px; font-family: var(--mono); font-size: 12px; }
+  input[type=color] { width: 44px; height: 36px; padding: 2px; cursor: pointer; border-radius: 8px; }
+  input[type=file] { font-size: 12px; padding: 6px; }
+
+  .checks { display: flex; flex-wrap: wrap; gap: 10px; }
+  .checks label { display: inline-flex; align-items: center; gap: 5px; margin: 0; font-weight: normal; cursor: pointer; padding: 6px 10px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  .checks label:has(input:checked) { background: #fff7ed; border-color: var(--brand); color: var(--brand); }
+  .checks input { width: auto; margin: 0; }
+
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+
+  button {
+    width: 100%;
+    padding: 11px;
+    background: var(--brand);
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    transition: background 0.15s, transform 0.05s;
+  }
+  button:hover { background: var(--brand-dark); }
+  button:active { transform: translateY(1px); }
+  button.secondary { background: #1f2937; }
+  button.secondary:hover { background: #111827; }
+
+  .status {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    margin-top: 12px;
+    display: none;
+  }
+  .status.show { display: block; }
+  .status.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
+  .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+
+  .hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
+  .hint code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px; }
+
+  .mode-hint {
+    margin: 10px 0 0;
+    padding: 10px 12px;
+    background: #fff7ed;
+    border-left: 3px solid var(--brand);
+    border-radius: 4px;
+    font-size: 12px;
+    color: #7c2d12;
+    line-height: 1.5;
+  }
+
+  .tag { display: inline-block; padding: 1px 6px; background: #f3f4f6; border-radius: 3px; font-size: 10px; color: var(--muted); margin-left: 4px; }
+
+  .mode-field { display: none; }
+  .mode-field.show { display: block; }
+
+  /* Preview panel */
+  .preview-area {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+  }
+  .canvas-wrap {
+    background: #f9fafb;
+    padding: 20px;
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    width: 100%;
+  }
+  canvas {
+    background: #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    border-radius: 2px;
+    image-rendering: auto;
+  }
+  .size-info {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 10px;
+    font-family: var(--mono);
+  }
+
+  details { width: 100%; margin-top: 20px; }
+  summary { cursor: pointer; font-size: 12px; font-weight: 600; color: var(--muted); padding: 8px 0; user-select: none; }
+  summary:hover { color: var(--text); }
+  table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 8px; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid #f3f4f6; text-align: left; }
+  th { background: #f9fafb; font-weight: 600; color: var(--muted); font-size: 11px; }
+  td input { width: 100%; padding: 4px 6px; font-size: 12px; border: 1px solid transparent; border-radius: 4px; background: transparent; }
+  td input:hover { background: #f9fafb; }
+  td input:focus { border-color: var(--brand); background: #fff; }
+
+  .app-title {
+    padding: 20px 20px 0;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text);
+  }
+  .app-title .sub { font-size: 11px; color: var(--muted); font-weight: normal; margin-left: 8px; }
+  /* Language switch (EN / 中文) */
+  .lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
+  .lang-switch .lang-btn { width: auto; margin: 0; padding: 4px 10px; border: 0; border-radius: 0; background: #fff; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
+  .lang-switch .lang-btn.active { background: var(--brand); color: #fff; }
+</style>
+</head>
+<body>
+
+<!-- ============ PASSWORD GATE ============ -->
+<div id="gate" style="position:fixed;inset:0;background:linear-gradient(180deg,#00B8B8 0%,#008C91 100%);display:flex;align-items:center;justify-content:center;flex-direction:column;z-index:99999;font-family:'Cera Pro',-apple-system,'PingFang SC','PingFang HK',sans-serif;">
+  <div style="font-size:72px;margin-bottom:8px;">☕</div>
+  <h1 style="color:white;font-size:26px;margin:0 0 4px;font-weight:900;letter-spacing:0.5px;">Coffee Sticker Studio</h1>
+  <p style="color:white;opacity:0.9;margin:0 0 4px;font-size:15px;font-weight:700;">咖啡贴纸生成器 · 新加坡</p>
+  <p style="color:white;opacity:0.85;margin:0 0 28px;font-size:12px;letter-spacing:2.5px;font-weight:700;">LONGBRIDGE CAFÉ · SINGAPORE</p>
+  <form id="gateForm" style="display:flex;gap:8px;flex-wrap:wrap;justify-content:center;max-width:90vw;">
+    <input type="password" id="gatePwd" placeholder="Password · 密码" autofocus
+      style="padding:12px 16px;border-radius:4px;border:0;font-size:16px;width:240px;box-shadow:0 2px 8px rgba(0,0,0,0.1);">
+    <button type="submit"
+      style="padding:12px 24px;background:#0A0E19;color:white;border:0;border-radius:4px;font-size:16px;font-weight:700;cursor:pointer;letter-spacing:1px;">Enter · 进入</button>
+  </form>
+  <div id="gateMsg" style="color:white;min-height:20px;margin-top:14px;font-size:14px;"></div>
+</div>
+<script>
+(async () => {
+  // Same password as the Hong Kong page. 密码与香港版相同。
+  const HASH = '05e1d1ef9ff7562ae720f5fbb06f6456559ffb9e0dcd17092451698768fc867b';
+  const sha256 = async s => {
+    const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(s));
+    return [...new Uint8Array(b)].map(x => x.toString(16).padStart(2,'0')).join('');
+  };
+  const gate = document.getElementById('gate');
+  try { if (localStorage.getItem('cafe_gate_v1') === HASH) { gate.remove(); return; } } catch (e) {}
+  document.getElementById('gateForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const pwd = document.getElementById('gatePwd').value;
+    const h = await sha256(pwd);
+    if (h === HASH) {
+      try { localStorage.setItem('cafe_gate_v1', HASH); } catch (e) {}
+      gate.remove();
+    } else {
+      document.getElementById('gateMsg').textContent = '✗ Wrong password · 密码错误';
+      document.getElementById('gatePwd').select();
+    }
+  });
+})();
+</script>
+
+<div class="wrap">
+
+  <!-- LEFT: CONFIG -->
+  <div class="panel">
+    <div class="app-title" style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <span>☕ <span data-en="Coffee Sticker Studio" data-zh="咖啡贴纸生成器">Coffee Sticker Studio</span><span class="sub">Singapore · 新加坡</span></span>
+      <span class="lang-switch">
+        <button type="button" class="lang-btn" data-lang="en">EN</button><button type="button" class="lang-btn" data-lang="zh">中文</button>
+      </span>
+    </div>
+
+    <nav class="tabs">
+      <button class="tab-btn active" data-tab="data">📊 <span data-en="Data" data-zh="数据">Data</span></button>
+      <button class="tab-btn" data-tab="content">📝 <span data-en="Text" data-zh="内容">Text</span></button>
+      <button class="tab-btn" data-tab="style">🎨 <span data-en="Style" data-zh="样式">Style</span></button>
+    </nav>
+
+    <!-- Tab: Data -->
+    <section class="tab-body active" data-tab="data">
+      <h3 data-en="Sticker type" data-zh="贴纸模式">Sticker type</h3>
+      <select id="labelMode">
+        <option value="topn" data-en="Magnificent 7 / Top movers" data-zh="美股七巨头 / 涨幅榜">Magnificent 7 / Top movers</option>
+        <option value="mood" data-en="Market mood" data-zh="市场情绪">Market mood</option>
+        <option value="star" data-en="Yesterday's star" data-zh="昨日主角股">Yesterday's star</option>
+        <option value="earnings" data-en="Earnings week" data-zh="财报周提醒">Earnings week</option>
+        <option value="history" data-en="This day in finance" data-zh="金融史今日">This day in finance</option>
+        <option value="holiday" data-en="Holidays 🎉" data-zh="节日彩蛋 🎉">Holidays 🎉</option>
+      </select>
+      <div class="mode-hint" id="modeHint"></div>
+      <div id="holidayBanner" style="display:none;margin-top:8px;padding:8px 10px;border-radius:8px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;font-size:13px;cursor:pointer;"></div>
+
+      <div class="mode-field" data-needs="holiday">
+        <label data-en="Holiday" data-zh="节日选择">Holiday</label>
+        <select id="holidayPick"></select>
+        <div class="hint" data-en="Preview any holiday. “Auto” only triggers on the actual day." data-zh="可以预览任何节日效果；设为「自动」时只在真的是节日当天触发。">Preview any holiday. “Auto” only triggers on the actual day.</div>
+      </div>
+
+      <h3 data-en="Data source" data-zh="数据源">Data source</h3>
+      <select id="dataSource">
+        <option value="static" data-en="Daily auto-update (cloud)" data-zh="每日自动更新（云端）">Daily auto-update (cloud)</option>
+        <option value="longbridge" data-en="Longbridge (local proxy)" data-zh="Longbridge（本地代理）">Longbridge (local proxy)</option>
+        <option value="finnhub">Finnhub</option>
+        <option value="manual" data-en="Manual input" data-zh="手动输入">Manual input</option>
+      </select>
+
+      <div id="staticFields" class="mode-field show">
+        <div class="hint" data-en="Prices refresh automatically every morning before opening — no computer needed." data-zh="每天开店前云端自动更新行情，无需开电脑。">Prices refresh automatically every morning before opening — no computer needed.</div>
+      </div>
+
+      <div id="lbFields" class="mode-field">
+        <label data-en="Proxy address" data-zh="代理地址">Proxy address</label>
+        <input type="text" id="proxyUrl" value="http://localhost:8787">
+        <div class="hint"><span data-en="Start it first:" data-zh="先启动：">Start it first:</span> <code>python3 longbridge_proxy.py</code></div>
+      </div>
+
+      <div id="finnhubFields" class="mode-field">
+        <label>Finnhub API Key</label>
+        <input type="password" id="apiKey" placeholder="finnhub.io/register">
+      </div>
+
+      <div class="mode-field" data-needs="topn mood star">
+        <label data-en="Watchlist (comma or new line; US tickers need no suffix, HK add .HK)" data-zh="观察池（逗号/换行分隔，美股不必加 .US，港股加 .HK）">Watchlist (comma or new line; US tickers need no suffix, HK add .HK)</label>
+        <textarea id="tickers" rows="8">SE,GRAB
+AAPL,MSFT,NVDA,GOOGL,AMZN,META,TSLA,NFLX,AMD,AVGO,ORCL,CRM,ADBE,PLTR,COIN,UBER
+JPM,V,MA,WMT,COST,DIS,KO,MCD,SBUX,NKE,UNH,LLY,XOM
+BABA,PDD,JD,BIDU,NIO,LI,XPEV,TME,BILI,NTES
+700.HK,9988.HK,3690.HK,1810.HK,9618.HK,1299.HK,2318.HK,1024.HK,1211.HK,9866.HK</textarea>
+        <div class="hint" data-en="Groups: Singapore names listed in the US (Sea, Grab) / US tech / US consumer &amp; finance / China ADRs / Hong Kong blue chips." data-zh="分组：在美国上市的新加坡公司（Sea、Grab）/ 美国科技 / 美国消费金融 / 中概股 / 港股蓝筹。">Groups: Singapore names listed in the US (Sea, Grab) / US tech / US consumer &amp; finance / China ADRs / Hong Kong blue chips.</div>
+      </div>
+
+      <div class="mode-field" data-needs="topn">
+        <div class="row2">
+          <div><label data-en="How many" data-zh="显示数量">How many</label><input type="number" id="topN" value="3" min="1" max="10"></div>
+          <div><label data-en="Up/down colours" data-zh="涨跌着色">Up/down colours</label>
+            <select id="colorConv">
+              <option value="us" selected data-en="Green up, red down" data-zh="绿涨红跌">Green up, red down</option>
+              <option value="cn" data-en="Red up, green down" data-zh="红涨绿跌">Red up, green down</option>
+              <option value="mono" data-en="Single colour" data-zh="单色">Single colour</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <div class="mode-field" data-needs="mood">
+        <label data-en="Market index symbol" data-zh="大盘指数代码">Market index symbol</label>
+        <input type="text" id="moodIndex" value="SPY.US">
+        <div class="hint" data-en="SPY.US tracks the S&amp;P 500." data-zh="SPY.US 跟踪标普 500 指数。">SPY.US tracks the S&amp;P 500.</div>
+      </div>
+
+      <div class="mode-field" data-needs="earnings">
+        <label data-en="This week's earnings (one per line: TICKER M/D [Mon] [EPS est.]; the weekday is optional)" data-zh="本周财报（每行：代码 M/D [Mon] [EPS 预期]；星期可省略，会自动推导）">This week's earnings (one per line: TICKER M/D [Mon] [EPS est.]; the weekday is optional)</label>
+        <textarea id="earningsList" rows="6">NVDA 11/19
+WMT 11/20</textarea>
+        <div class="hint" data-en="Check this week's dates before printing." data-zh="打印前请核对本周的实际日期。">Check this week's dates before printing.</div>
+      </div>
+
+      <div class="mode-field" data-needs="history">
+        <div class="hint" data-en="Picks today's event from the built-in library (one for every day of the year)." data-zh="按今天日期从内置事件库里选一条（全年每天都有）。">Picks today's event from the built-in library (one for every day of the year).</div>
+      </div>
+
+      <button id="fetchBtn" style="margin-top:20px">🔄 <span data-en="Generate sticker" data-zh="生成贴纸">Generate sticker</span></button>
+      <div id="status" class="status"></div>
+    </section>
+
+    <!-- Tab: Content -->
+    <section class="tab-body" data-tab="content">
+      <h3 data-en="Sticker text (printed in English)" data-zh="贴纸文字（打印出来是英文）">Sticker text (printed in English)</h3>
+      <label data-en="Title" data-zh="标题">Title</label>
+      <input type="text" id="title" value="Top 3 Gainers">
+
+      <div class="mode-field" data-needs="topn">
+        <label data-en="Fields to show" data-zh="显示字段">Fields to show</label>
+        <div class="checks">
+          <label><input type="checkbox" id="showTicker" checked><span data-en="Ticker" data-zh="代码">Ticker</span></label>
+          <label><input type="checkbox" id="showChange" checked><span data-en="Change %" data-zh="涨跌幅">Change %</span></label>
+          <label><input type="checkbox" id="showPrice"><span data-en="Price" data-zh="现价">Price</span></label>
+          <label><input type="checkbox" id="showArrow" checked><span data-en="Trend arrow" data-zh="趋势箭头">Trend arrow</span></label>
+        </div>
+      </div>
+
+      <label data-en="Corner note (Longbridge templates; leave empty to hide)" data-zh="角标文字（长桥模板使用，留空则隐藏）">Corner note (Longbridge templates; leave empty to hide)</label>
+      <input type="text" id="topnClassicNote" value="*For reference only" placeholder="*For reference only">
+
+      <label data-en="Footer text (supports {time} and {date})" data-zh="底部提醒文字（支持 {time} {date} 占位符）">Footer text (supports {time} and {date})</label>
+      <textarea id="footer" rows="3">Data as of {time}. For reference only. Not investment advice.</textarea>
+
+      <div class="mode-field" data-needs="star">
+        <label data-en="Star caption (auto-written from the top mover on each generate; you can edit it)" data-zh="主角副标题（每次生成时按涨幅自动改写；可手动修改）">Star caption (auto-written from the top mover on each generate; you can edit it)</label>
+        <textarea id="starCaption" rows="2">NVDA led yesterday's gainers
+Closed +4.20%</textarea>
+      </div>
+    </section>
+
+    <!-- Tab: Style -->
+    <section class="tab-body" data-tab="style">
+      <h3 data-en="Size (mm)" data-zh="尺寸（毫米）">Size (mm)</h3>
+      <label data-en="Preset (Brother QL-820NWB / DK-22205)" data-zh="预设（Brother QL-820NWB / DK-22205）">Preset (Brother QL-820NWB / DK-22205)</label>
+      <select id="sizePreset">
+        <option value="58x30" data-en="58×30 mm · extra short" data-zh="58×30 mm · 超短">58×30 mm · extra short</option>
+        <option value="58x40" selected data-en="58×40 mm · cup sticker ⭐" data-zh="58×40 mm · 杯贴 ⭐">58×40 mm · cup sticker ⭐</option>
+        <option value="58x50" data-en="58×50 mm · taller" data-zh="58×50 mm · 加高">58×50 mm · taller</option>
+        <option value="58x60" data-en="58×60 mm · square" data-zh="58×60 mm · 方型">58×60 mm · square</option>
+        <option value="58x80" data-en="58×80 mm · long" data-zh="58×80 mm · 长型">58×80 mm · long</option>
+        <option value="58x100" data-en="58×100 mm · extra long" data-zh="58×100 mm · 超长">58×100 mm · extra long</option>
+        <option value="custom" data-en="Custom" data-zh="自定义">Custom</option>
+      </select>
+      <div class="hint" data-en="DK-22205 is a 62 mm roll; printable width is 58 mm (2 mm margin each side)." data-zh="DK-22205 物理 62mm 卷，可打印区域 58mm（左右各留 2mm 边距）。">DK-22205 is a 62 mm roll; printable width is 58 mm (2 mm margin each side).</div>
+
+      <div class="row2" style="margin-top: 10px">
+        <div><label data-en="Width (mm)" data-zh="宽 (mm)">Width (mm)</label><input type="number" id="widthMm" value="58"></div>
+        <div><label data-en="Height (mm)" data-zh="高 (mm)">Height (mm)</label><input type="number" id="heightMm" value="40"></div>
+      </div>
+
+      <label data-en="Print DPI" data-zh="打印 DPI">Print DPI</label>
+      <select id="dpi">
+        <option value="203" data-en="203 dpi · thermal standard" data-zh="203 dpi · 热敏标准">203 dpi · thermal standard</option>
+        <option value="300" selected data-en="300 dpi · sharp (recommended)" data-zh="300 dpi · 高清（推荐）">300 dpi · sharp (recommended)</option>
+        <option value="600" data-en="600 dpi · extra sharp" data-zh="600 dpi · 超清">600 dpi · extra sharp</option>
+      </select>
+
+      <h3 data-en="Colours &amp; template" data-zh="配色 &amp; 模板">Colours &amp; template</h3>
+      <div class="row2">
+        <div><label data-en="Theme colour" data-zh="主题色">Theme colour</label><input type="color" id="themeColor" value="#00B8B8"></div>
+        <div><label data-en="Style" data-zh="风格">Style</label>
+          <select id="uiStyle">
+            <option value="longbridge" selected data-en="Longbridge (default)" data-zh="长桥品牌（默认）">Longbridge (default)</option>
+            <option value="classic" data-en="Classic orange" data-zh="经典橙">Classic orange</option>
+            <option value="mono" data-en="Minimal black &amp; white" data-zh="极简黑白">Minimal black &amp; white</option>
+            <option value="led" data-en="LED screen (café look)" data-zh="LED 屏（咖啡厅同款）">LED screen (café look)</option>
+          </select>
+        </div>
+      </div>
+
+      <label data-en="Background image (optional)" data-zh="背景模板图（可选）">Background image (optional)</label>
+      <input type="file" id="bgImage" accept="image/*">
+
+      <label data-en="Background mode" data-zh="模板模式">Background mode</label>
+      <select id="tplMode">
+        <option value="none" data-en="No background" data-zh="不使用模板">No background</option>
+        <option value="full" data-en="Full background" data-zh="整张铺底">Full background</option>
+        <option value="bottom" data-en="Bottom strip only" data-zh="仅底部条带">Bottom strip only</option>
+      </select>
+
+      <label style="display:flex; align-items:flex-start; gap:8px; margin-top:12px; padding:10px 12px; border:1px solid var(--brand); border-radius:6px; background:#fff7ed; font-weight:normal; cursor:pointer; line-height:1.4;">
+        <input type="checkbox" id="hideBgOnExport" checked style="margin-top:3px;">
+        <span style="font-size:12px; color:var(--text);">
+          <strong style="color:var(--brand);" data-en="Print text only" data-zh="导出/打印仅文字">Print text only</strong><br>
+          <span style="color:var(--muted); font-size:11px;" data-en="The preview keeps the template for reference; downloads and prints contain only the text (for pre-printed label paper such as DL750W)." data-zh="预览保留模板做对照；下载 JPG 和打印时只输出文字（适用于已预印模板的定制标签纸，如 DL750W）。">The preview keeps the template for reference; downloads and prints contain only the text (for pre-printed label paper such as DL750W).</span>
+        </span>
+      </label>
+
+      <h3 data-en="Printer" data-zh="打印机">Printer</h3>
+      <div class="row2">
+        <div>
+          <label data-en="Printer" data-zh="目标打印机">Printer</label>
+          <select id="printerName">
+            <option value="" data-en="Auto (system default)" data-zh="自动（系统默认）">Auto (system default)</option>
+          </select>
+        </div>
+        <div>
+          <label data-en="Copies" data-zh="份数">Copies</label>
+          <input type="number" id="printCopies" value="1" min="1" max="99">
+        </div>
+      </div>
+      <button id="refreshPrintersBtn" style="background:#6b7280; margin-top:8px; font-size:12px; padding:7px">🔄 <span data-en="Refresh printer list" data-zh="刷新打印机列表">Refresh printer list</span></button>
+      <div class="hint" data-en="Needs the print proxy running on this computer and the printer driver installed. The list is empty if no printer is found." data-zh="需要在这台电脑上运行打印代理，并装好打印机驱动。没有打印机时列表为空。">Needs the print proxy running on this computer and the printer driver installed. The list is empty if no printer is found.</div>
+    </section>
+
+    <div class="panel-body" style="padding: 0 20px 20px">
+      <div class="row2">
+        <button id="downloadBtn" class="secondary">📥 <span data-en="Download JPG" data-zh="下载 JPG">Download JPG</span></button>
+        <button id="printBtn">🖨️ <span data-en="Print" data-zh="直接打印">Print</span></button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PREVIEW -->
+  <div class="panel preview-area">
+    <div class="canvas-wrap">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="size-info" id="sizeInfo">58×40 mm · 685×473 px @ 300dpi</div>
+
+    <details>
+      <summary data-en="Data details (editable)" data-zh="数据详情（可手动修改）">Data details (editable)</summary>
+      <table id="dataTable">
+        <thead><tr><th data-en="Ticker" data-zh="代码">Ticker</th><th data-en="Change %" data-zh="涨跌%">Change %</th><th data-en="Price" data-zh="现价">Price</th><th data-en="Name / note" data-zh="名称/备注">Name / note</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </details>
+  </div>
+
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+
+// ============ UI LANGUAGE (EN / 中文) ============
+// Only the controls are bilingual. Everything printed on the sticker is English.
+let LANG = 'en';
+try { LANG = localStorage.getItem('sgLabelLang') === 'zh' ? 'zh' : 'en'; } catch (e) {}
+const T = (en, zh) => (LANG === 'zh' ? zh : en);
+const canvas = $('canvas');
+const ctx = canvas.getContext('2d');
+
+let stocks = [];
+let moodData = null;  // {indexSymbol, changePct, price}
+let bgImg = null;
+let dataTime = '';
+// When true, render skips all decorative template backgrounds — used by download/print
+// when the user is printing onto pre-printed custom label paper (DL750W workflow).
+let exportNoBg = false;
+let defaultPrinterName = '';
+const printerAutoLabel = () => T(`Auto (system default${defaultPrinterName ? ': ' + defaultPrinterName : ''})`, `自动（系统默认${defaultPrinterName ? '：' + defaultPrinterName : ''}）`);
+
+// ============ CONFIG PERSISTENCE ============
+const STORAGE_KEY = 'stockLabelConfig_sg_v1';
+function saveConfig() {
+  const cfg = {};
+  document.querySelectorAll('[id]').forEach(el => {
+    if (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.tagName === 'SELECT') {
+      if (el.type === 'file' || el.type === 'button') return;
+      if (el.type === 'checkbox') cfg[el.id] = el.checked;
+      else cfg[el.id] = el.value;
+    }
+  });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(cfg));
+}
+function loadConfig() {
+  try {
+    const cfg = JSON.parse(localStorage.getItem(STORAGE_KEY) || '{}');
+    Object.entries(cfg).forEach(([k, v]) => {
+      const el = $(k);
+      if (!el) return;
+      if (el.type === 'checkbox') el.checked = v;
+      else el.value = v;
+    });
+    // One-shot migration: upgrade legacy default (classic orange) to Longbridge brand.
+    // Only affects users who never manually touched style/theme — custom picks are preserved.
+    const MIGRATED_KEY = 'cafe_lb_brand_migrated_sg_v1';
+    if (!localStorage.getItem(MIGRATED_KEY)) {
+      const uiStyleEl = $('uiStyle');
+      const themeEl   = $('themeColor');
+      const wasLegacyStyle = !cfg.uiStyle || cfg.uiStyle === 'classic';
+      const wasLegacyTheme = !cfg.themeColor || cfg.themeColor === '#ff6a00';
+      if (wasLegacyStyle && uiStyleEl) uiStyleEl.value = 'longbridge';
+      if (wasLegacyTheme && themeEl)   themeEl.value   = '#00B8B8';
+      localStorage.setItem(MIGRATED_KEY, '1');
+      saveConfig();
+    }
+  } catch (e) {}
+}
+
+// ============ MODE HINTS ============
+const MODE_HINTS = {
+  topn:     {en: 'Longbridge style prints the Magnificent 7 card. Other styles rank the top N gainers from the watchlist.',
+             zh: '长桥风格打印「美股七巨头」卡；其他风格从观察池里选涨幅前 N 名。'},
+  mood:     {en: 'A mood sticker from the index move: label, colour and wording change automatically.',
+             zh: '根据大盘指数当日涨跌幅生成情绪贴纸：标题、配色、文案自动匹配。'},
+  star:     {en: 'Shows the single best performer with a short caption.',
+             zh: '只展示 1 只涨幅最高的股票，搭配一句副标题。'},
+  earnings: {en: 'Earnings reminders for the week. Fill in the list on the left.',
+             zh: '本周财报提醒，在左侧列表手动填写。'},
+  history:  {en: 'A finance event that happened on today\'s date.',
+             zh: '金融史「今日发生」，按日期从内置事件库选一条。'},
+  holiday:  {en: 'Stickers for Singapore public holidays and popular dates.',
+             zh: '节日彩蛋：新加坡公众假期和常见节日。'},
+};
+
+const FOOTER_DATA = 'Data as of {time}. For reference only. Not investment advice.';
+const MODE_DEFAULTS = {
+  topn:     { title: 'Top 3 Gainers',       footer: FOOTER_DATA },
+  mood:     { title: 'Market Mood',         footer: FOOTER_DATA },
+  star:     { title: "Yesterday's Star",    footer: FOOTER_DATA },
+  earnings: { title: 'Earnings This Week',  footer: 'Dates for reference only. See company announcements.' },
+  history:  { title: 'This Day in Finance', footer: '{date} · Compiled from public sources.' },
+  holiday:  { title: '',                    footer: '{date} · ☕ Longbridge Café Singapore' },
+};
+
+let modeOverrides = {};
+let currentMode = 'topn';
+
+function loadModeOverrides() {
+  try { modeOverrides = JSON.parse(localStorage.getItem('modeOverrides_sg_v1') || '{}'); }
+  catch (e) { modeOverrides = {}; }
+}
+function saveModeOverrides() {
+  localStorage.setItem('modeOverrides_sg_v1', JSON.stringify(modeOverrides));
+}
+function getModeValue(mode, key) {
+  return modeOverrides[mode]?.[key] ?? MODE_DEFAULTS[mode]?.[key] ?? '';
+}
+function setModeValue(mode, key, val) {
+  if (!modeOverrides[mode]) modeOverrides[mode] = {};
+  modeOverrides[mode][key] = val;
+  saveModeOverrides();
+}
+function applyModeTemplate(mode) {
+  $('title').value = getModeValue(mode, 'title');
+  $('footer').value = getModeValue(mode, 'footer');
+}
+
+// ============ HISTORICAL EVENTS ============
+// One finance event for every day of the year (English, <= 68 characters so it fits two lines).
+// Translated from the Hong Kong library and fact-checked; wrong or off-topic entries were replaced.
+const HISTORY_EVENTS = {
+  "01-01": {year: 1999, text: "The euro launches in 11 countries; notes and coins follow in 2002"},
+  "01-02": {year: 2008, text: "Oil hits US$100 a barrel for the first time"},
+  "01-03": {year: 2009, text: "Satoshi Nakamoto mines Bitcoin's first block, the genesis block"},
+  "01-04": {year: 2010, text: "Burj Khalifa, the world's tallest building, opens in Dubai"},
+  "01-05": {year: 1914, text: "Henry Ford announces the US$5 workday, about double the old pay"},
+  "01-06": {year: 2014, text: "Janet Yellen is confirmed as the first woman to lead the US Fed"},
+  "01-07": {year: 1782, text: "Bank of North America, the first US commercial bank, opens"},
+  "01-08": {year: 1835, text: "The US pays off its national debt, the only time in its history"},
+  "01-09": {year: 2007, text: "Steve Jobs unveils the iPhone; Apple shares jump over 8%"},
+  "01-10": {year: 2000, text: "AOL agrees to buy Time Warner, then the biggest merger ever"},
+  "01-11": {year: 2008, text: "Bank of America agrees to buy Countrywide for about US$4 billion"},
+  "01-12": {year: 1998, text: "Hong Kong investment bank Peregrine collapses in the Asian crisis"},
+  "01-13": {year: 1999, text: "Brazil devalues the real as central bank chief Gustavo Franco quits"},
+  "01-14": {year: 2000, text: "Dow closes at a record 11,722.98, a high that stood until 2006"},
+  "01-15": {year: 2015, text: "Swiss central bank scraps its cap on the franc; the franc soars"},
+  "01-16": {year: 2009, text: "Citigroup splits in two after a US$8.3 billion quarterly loss"},
+  "01-17": {year: 1956, text: "Ford goes public in the biggest IPO in US history at the time"},
+  "01-18": {year: 2022, text: "Microsoft agrees to buy Activision Blizzard for US$68.7 billion"},
+  "01-19": {year: 2012, text: "Eastman Kodak, the photo film pioneer, files for bankruptcy"},
+  "01-20": {year: 2011, text: "Google says co-founder Larry Page will take over as CEO"},
+  "01-21": {year: 1980, text: "Gold hits a record US$850 an ounce in London"},
+  "01-22": {year: 2008, text: "Fed makes an emergency 0.75-point rate cut, its biggest since 1984"},
+  "01-23": {year: 1571, text: "Queen Elizabeth I opens London's Royal Exchange for merchants"},
+  "01-24": {year: 1984, text: "Apple launches the Macintosh personal computer"},
+  "01-25": {year: 1915, text: "AT&T opens coast-to-coast phone service, New York to San Francisco"},
+  "01-26": {year: 2018, text: "Hackers steal about US$530 million in crypto from Japan's Coincheck"},
+  "01-27": {year: 2010, text: "Steve Jobs unveils the first iPad"},
+  "01-28": {year: 2021, text: "Robinhood curbs GameStop buying at the height of the meme rally"},
+  "01-29": {year: 2016, text: "Bank of Japan adopts negative interest rates for the first time"},
+  "01-30": {year: 2018, text: "Amazon, Berkshire and JPMorgan team up on staff health care"},
+  "01-31": {year: 1995, text: "US leads a US$50 billion rescue package to steady Mexico's peso"},
+  "02-01": {year: 2008, text: "Microsoft bids US$44.6 billion for Yahoo, which later says no"},
+  "02-02": {year: 2021, text: "Jeff Bezos says he will step down as Amazon CEO"},
+  "02-03": {year: 1637, text: "Dutch tulip bulb prices collapse after a failed Haarlem auction"},
+  "02-04": {year: 2004, text: "Mark Zuckerberg launches Facebook from his Harvard dorm"},
+  "02-05": {year: 2018, text: "Dow plunges 1,175 points, its biggest point drop at the time"},
+  "02-06": {year: 1959, text: "Texas Instruments files Jack Kilby's patent for the microchip"},
+  "02-07": {year: 1992, text: "Maastricht Treaty is signed, paving the way for the euro"},
+  "02-08": {year: 1971, text: "Nasdaq opens as the world's first electronic stock market"},
+  "02-09": {year: 1969, text: "Boeing's 747 jumbo jet makes its first flight"},
+  "02-10": {year: 2009, text: "US unveils a bank rescue plan; the S&P 500 slides 4.9%"},
+  "02-11": {year: 2016, text: "US oil settles at US$26.21 a barrel, its lowest since 2003"},
+  "02-12": {year: 2001, text: "US appeals court rules against Napster, a blow to free song swaps"},
+  "02-13": {year: 1990, text: "Junk bond giant Drexel Burnham Lambert files for bankruptcy"},
+  "02-14": {year: 2005, text: "Three ex-PayPal staff register YouTube.com, founding YouTube"},
+  "02-15": {year: 1971, text: "Britain goes decimal: one pound now equals 100 new pence"},
+  "02-16": {year: 1937, text: "DuPont is granted the US patent for nylon"},
+  "02-17": {year: 2009, text: "US enacts a US$787 billion economic stimulus package"},
+  "02-18": {year: 2010, text: "Fed raises its discount rate to 0.75%, unwinding crisis support"},
+  "02-19": {year: 2020, text: "S&P 500 closes at a record 3,386 before the COVID-19 sell-off"},
+  "02-20": {year: 2018, text: "Walmart shares sink 10%, their worst day in 30 years"},
+  "02-21": {year: 2012, text: "Eurozone agrees a second Greek bailout worth 130 billion euros"},
+  "02-22": {year: 1879, text: "Woolworth opens its first five-cent store in Utica, New York"},
+  "02-23": {year: 2009, text: "S&P 500 sinks 3.5% to 743, back at levels last seen in 1997"},
+  "02-24": {year: 2020, text: "Dow drops 1,031 points as coronavirus fears grip world markets"},
+  "02-25": {year: 1791, text: "Washington signs the law creating the First Bank of the US"},
+  "02-26": {year: 1995, text: "Barings collapses after Nick Leeson's losses trading in Singapore"},
+  "02-27": {year: 2007, text: "Shanghai stocks plunge 8.8%, sparking a global sell-off"},
+  "02-28": {year: 1827, text: "Baltimore & Ohio, the first US commercial railroad, is chartered"},
+  "02-29": {year: 2012, text: "ECB lends 529.5 billion euros to 800 banks in cheap 3-year loans"},
+  "03-01": {year: 2017, text: "Dow Jones closes above 21,000 for the first time"},
+  "03-02": {year: 1995, text: "Nick Leeson, whose Singapore trades sank Barings, is arrested"},
+  "03-03": {year: 2020, text: "US Fed makes an emergency 0.5-point rate cut as COVID-19 spreads"},
+  "03-04": {year: 1957, text: "S&P 500 index is launched, replacing the older S&P 90"},
+  "03-05": {year: 2024, text: "Bitcoin tops US$69,000, beating its 2021 record high"},
+  "03-06": {year: 1933, text: "US declares a national bank holiday to halt a banking panic"},
+  "03-07": {year: 1876, text: "Alexander Graham Bell is granted the US patent for the telephone"},
+  "03-08": {year: 1817, text: "New York Stock & Exchange Board, forerunner of the NYSE, is formed"},
+  "03-09": {year: 2009, text: "S&P 500 closes at 676.53, the low of the global financial crisis"},
+  "03-10": {year: 2000, text: "Nasdaq closes at a record 5,048, the peak of the dot-com bubble"},
+  "03-11": {year: 2021, text: "Beeple NFT artwork sells for US$69 million at Christie's"},
+  "03-12": {year: 1894, text: "Coca-Cola is sold in bottles for the first time, in Mississippi"},
+  "03-13": {year: 1986, text: "Microsoft goes public at US$21 a share"},
+  "03-14": {year: 2008, text: "Fed and JPMorgan stage an emergency rescue of Bear Stearns"},
+  "03-15": {year: 1968, text: "London gold market shuts for 2 weeks amid a US dollar crisis"},
+  "03-16": {year: 2020, text: "Dow plunges 12.9%, its worst day since 1987, on COVID-19 fears"},
+  "03-17": {year: 1968, text: "Central banks split gold into an official and a free-market price"},
+  "03-18": {year: 2009, text: "Fed expands QE, pledging to buy US$300 billion of Treasuries"},
+  "03-19": {year: 2023, text: "UBS agrees to buy troubled rival Credit Suisse for CHF 3 billion"},
+  "03-20": {year: 1602, text: "Dutch East India Company, an early public company, is founded"},
+  "03-21": {year: 2006, text: "Jack Dorsey sends the first-ever tweet on Twitter"},
+  "03-22": {year: 1993, text: "Intel launches its first Pentium processor"},
+  "03-23": {year: 2020, text: "Fed pledges unlimited QE; US stocks hit their COVID-19 low"},
+  "03-24": {year: 2000, text: "S&P 500 closes at 1,527.46, its dot-com bubble peak"},
+  "03-25": {year: 1957, text: "Treaty of Rome signed, creating the European Economic Community"},
+  "03-26": {year: 2018, text: "Uber sells its Southeast Asia business to Singapore's Grab"},
+  "03-27": {year: 1980, text: "Silver Thursday: Hunt brothers' silver squeeze collapses"},
+  "03-28": {year: 2013, text: "S&P 500 closes at a record 1,569, topping its 2007 peak"},
+  "03-29": {year: 1999, text: "Dow Jones closes above 10,000 for the first time"},
+  "03-30": {year: 2020, text: "MAS eases policy, cutting the Singapore dollar's appreciation to 0%"},
+  "03-31": {year: 1951, text: "US Census Bureau accepts UNIVAC I, an early commercial computer"},
+  "04-01": {year: 1976, text: "Apple is founded by Steve Jobs, Steve Wozniak and Ronald Wayne"},
+  "04-02": {year: 1792, text: "US Coinage Act creates the US dollar and the US Mint"},
+  "04-03": {year: 2010, text: "Apple iPad goes on sale in the US, selling 300,000 on day one"},
+  "04-04": {year: 1975, text: "Bill Gates and Paul Allen found Microsoft"},
+  "04-05": {year: 1933, text: "US bans private gold hoarding, ordering gold sold to the Fed"},
+  "04-06": {year: 1998, text: "Citicorp and Travelers agree to merge, creating Citigroup"},
+  "04-07": {year: 1964, text: "IBM unveils System/360, a landmark family of mainframes"},
+  "04-08": {year: 2014, text: "Microsoft ends support for Windows XP"},
+  "04-09": {year: 2012, text: "Facebook agrees to buy Instagram for US$1 billion"},
+  "04-10": {year: 1816, text: "Second Bank of the United States is chartered"},
+  "04-11": {year: 1919, text: "International Labour Organization is founded"},
+  "04-12": {year: 1996, text: "Yahoo goes public; shares jump 154% on day one"},
+  "04-13": {year: 1998, text: "NationsBank and BankAmerica agree to merge, forming Bank of America"},
+  "04-14": {year: 2000, text: "Nasdaq crashes 9.7% in a day as the dot-com bubble bursts"},
+  "04-15": {year: 1955, text: "Ray Kroc opens his first McDonald's restaurant, in Illinois"},
+  "04-16": {year: 2010, text: "SEC sues Goldman Sachs for fraud; its shares fall 12.8%"},
+  "04-17": {year: 1964, text: "Ford unveils the Mustang at the New York World's Fair"},
+  "04-18": {year: 2019, text: "Zoom and Pinterest list on the same day; Zoom jumps 72%"},
+  "04-19": {year: 2022, text: "Netflix reports its first subscriber loss in a decade; stock sinks"},
+  "04-20": {year: 2020, text: "US oil price turns negative for the first time, at -US$37.63"},
+  "04-21": {year: 2025, text: "Gold tops US$3,400 an ounce for the first time"},
+  "04-22": {year: 1864, text: "US Coinage Act creates the two-cent coin and makes the cent bronze"},
+  "04-23": {year: 2013, text: "Hacked AP tweet briefly wipes US$136 billion off US stocks"},
+  "04-24": {year: 1913, text: "Woolworth Building opens in New York, built for US$13.5 million"},
+  "04-25": {year: 1961, text: "Robert Noyce is granted a patent for the integrated circuit"},
+  "04-26": {year: 1956, text: "Ideal X, the first successful container ship, sets sail"},
+  "04-27": {year: 2010, text: "S&P cuts Greece's credit rating to junk, deepening the euro crisis"},
+  "04-28": {year: 2003, text: "Apple opens the iTunes Music Store, selling songs for US$0.99"},
+  "04-29": {year: 2018, text: "T-Mobile and Sprint agree to a US$26.5 billion merger"},
+  "04-30": {year: 1803, text: "US agrees to buy Louisiana from France for US$15 million"},
+  "05-01": {year: 1975, text: "'May Day': US ends fixed stock commissions, discount brokers arrive"},
+  "05-02": {year: 1670, text: "England charters the Hudson's Bay Company for the fur trade"},
+  "05-03": {year: 1999, text: "Dow Jones closes above 11,000 for the first time"},
+  "05-04": {year: 2000, text: "ILOVEYOU email virus spreads worldwide, causing billions in damage"},
+  "05-05": {year: 1893, text: "Wall Street's 'Industrial Black Friday' crash deepens Panic of 1893"},
+  "05-06": {year: 2010, text: "Flash Crash: Dow sinks nearly 1,000 points in minutes, then rebounds"},
+  "05-07": {year: 1998, text: "Daimler-Benz and Chrysler announce a 'merger of equals'"},
+  "05-08": {year: 1886, text: "First Coca-Cola is sold at an Atlanta pharmacy, 5 cents a glass"},
+  "05-09": {year: 1873, text: "Vienna stock market crashes, sparking the global Panic of 1873"},
+  "05-10": {year: 2019, text: "Uber lists on the NYSE at US$45 a share, closes 7.6% lower"},
+  "05-11": {year: 1997, text: "IBM's Deep Blue computer beats world chess champion Garry Kasparov"},
+  "05-12": {year: 1865, text: "Nokia is founded as a wood pulp mill in Tampere, Finland"},
+  "05-13": {year: 2019, text: "Dow falls 617 points as US-China trade tensions escalate"},
+  "05-14": {year: 2007, text: "Daimler agrees to sell Chrysler stake to Cerberus for US$7.4 billion"},
+  "05-15": {year: 1997, text: "Amazon debuts on Nasdaq at US$18 a share, closing at US$23.50"},
+  "05-16": {year: 1866, text: "US Congress authorizes the five-cent 'nickel' coin"},
+  "05-17": {year: 1792, text: "24 brokers sign the Buttonwood Agreement, the origin of the NYSE"},
+  "05-18": {year: 2012, text: "Facebook debuts on Nasdaq at US$38 a share, closing at US$38.23"},
+  "05-19": {year: 2021, text: "Bitcoin plunges to near US$30,000 in a one-day crypto crash"},
+  "05-20": {year: 1873, text: "Levi Strauss and Jacob Davis patent riveted blue jeans"},
+  "05-21": {year: 1894, text: "Queen Victoria officially opens the Manchester Ship Canal"},
+  "05-22": {year: 2010, text: "Bitcoin Pizza Day: 10,000 BTC buys two pizzas"},
+  "05-23": {year: 2002, text: "Netflix goes public on Nasdaq at US$15 a share"},
+  "05-24": {year: 1844, text: "Morse sends 'What hath God wrought' on the first US telegraph line"},
+  "05-25": {year: 2018, text: "EU's GDPR data privacy rules take effect"},
+  "05-26": {year: 1896, text: "Dow Jones Industrial Average is first published, at 40.94"},
+  "05-27": {year: 1933, text: "US Securities Act is signed, laying the base of modern stock rules"},
+  "05-28": {year: 1937, text: "Volkswagen is founded in Germany"},
+  "05-29": {year: 1990, text: "Agreement creating the EBRD development bank is signed in Paris"},
+  "05-30": {year: 2007, text: "China triples stock stamp duty; Shanghai index plunges 6.5%"},
+  "05-31": {year: 1977, text: "Trans-Alaska oil pipeline is completed with its final weld"},
+  "06-01": {year: 2009, text: "General Motors files for bankruptcy, a record for a US manufacturer"},
+  "06-02": {year: 1896, text: "Marconi files a British patent for his wireless telegraph"},
+  "06-03": {year: 1621, text: "Dutch West India Company receives its trade charter"},
+  "06-04": {year: 1896, text: "Henry Ford test-drives his first car, the Quadricycle"},
+  "06-05": {year: 1947, text: "George Marshall proposes the Marshall Plan to rebuild Europe"},
+  "06-06": {year: 1934, text: "US Securities Exchange Act is signed, creating the SEC"},
+  "06-07": {year: 2010, text: "Apple unveils the iPhone 4 with FaceTime video calling"},
+  "06-08": {year: 2020, text: "S&P 500 erases its 2020 losses after the Covid crash"},
+  "06-09": {year: 2008, text: "Lehman warns of a US$2.8 billion loss, its first since going public"},
+  "06-10": {year: 1977, text: "Apple begins shipping the Apple II personal computer"},
+  "06-11": {year: 2020, text: "Dow plunges 1,861 points on fears of a second Covid wave"},
+  "06-12": {year: 1967, text: "Singapore issues its first banknotes, the Orchid series"},
+  "06-13": {year: 2022, text: "S&P 500 closes in a bear market, down 21.8% from its peak"},
+  "06-14": {year: 2017, text: "US Fed raises rates and unveils a plan to shrink its balance sheet"},
+  "06-15": {year: 1844, text: "Charles Goodyear patents vulcanized rubber"},
+  "06-16": {year: 2004, text: "Tencent lists in Hong Kong at HK$3.70 a share"},
+  "06-17": {year: 1930, text: "US signs Smoot-Hawley Tariff Act, deepening a global trade slump"},
+  "06-18": {year: 2019, text: "Facebook unveils Libra, its planned global digital currency"},
+  "06-19": {year: 2013, text: "Bernanke says the Fed may start slowing bond buying later in 2013"},
+  "06-20": {year: 1948, text: "The Deutsche Mark is introduced in western Germany"},
+  "06-21": {year: 1970, text: "Penn Central files for the biggest US bankruptcy of its time"},
+  "06-22": {year: 2007, text: "Blackstone debuts on the NYSE after a US$4.1 billion IPO"},
+  "06-23": {year: 1868, text: "Christopher Sholes and partners patent the typewriter"},
+  "06-24": {year: 2016, text: "Pound hits a 31-year low as markets reel from the Brexit vote"},
+  "06-25": {year: 1974, text: "Temasek Holdings is incorporated in Singapore"},
+  "06-26": {year: 1992, text: "Starbucks goes public on Nasdaq at US$17 a share"},
+  "06-27": {year: 2017, text: "NotPetya cyberattack hits global firms including shipper Maersk"},
+  "06-28": {year: 2011, text: "Microsoft launches Office 365, its cloud subscription service"},
+  "06-29": {year: 2007, text: "Apple's first iPhone goes on sale in the US"},
+  "06-30": {year: 2015, text: "Greece misses a 1.5 billion euro IMF payment, falling into arrears"},
+  "07-01": {year: 1955, text: "Singapore's Central Provident Fund (CPF) starts operating"},
+  "07-02": {year: 1997, text: "Thailand floats the baht, sparking the Asian financial crisis"},
+  "07-03": {year: 1884, text: "Charles Dow publishes his first stock average, tracking 11 stocks"},
+  "07-04": {year: 1996, text: "Hotmail launches as one of the first free web-based email services"},
+  "07-05": {year: 1994, text: "Jeff Bezos incorporates Amazon, first called Cadabra"},
+  "07-06": {year: 2018, text: "US tariffs on US$34 billion of Chinese goods take effect"},
+  "07-07": {year: 1928, text: "Pre-sliced bread goes on sale for the first time, in Missouri, US"},
+  "07-08": {year: 2015, text: "Over 1,300 China-listed firms halt share trading amid a stock rout"},
+  "07-09": {year: 2025, text: "Nvidia becomes the first company worth US$4 trillion"},
+  "07-10": {year: 1962, text: "AT&T's Telstar 1, a pioneering commercial satellite, is launched"},
+  "07-11": {year: 2008, text: "US regulators seize IndyMac Bank in a major crisis-era failure"},
+  "07-12": {year: 1909, text: "US House approves the amendment that allows a federal income tax"},
+  "07-13": {year: 2008, text: "US unveils emergency backing for Fannie Mae and Freddie Mac"},
+  "07-14": {year: 2009, text: "Goldman Sachs posts a US$3.44 billion profit as markets recover"},
+  "07-15": {year: 1983, text: "Nintendo launches its Famicom games console in Japan"},
+  "07-16": {year: 1968, text: "DBS, the Development Bank of Singapore, is incorporated"},
+  "07-17": {year: 1955, text: "Disneyland opens its doors in Anaheim, California"},
+  "07-18": {year: 1968, text: "Robert Noyce and Gordon Moore found Intel in California"},
+  "07-19": {year: 2024, text: "Faulty CrowdStrike update crashes Windows PCs; its shares fall 11%"},
+  "07-20": {year: 1938, text: "US sues Hollywood's big studios in a landmark antitrust case"},
+  "07-21": {year: 2010, text: "Dodd-Frank Act signed into law, overhauling US financial rules"},
+  "07-22": {year: 1944, text: "Bretton Woods deal pegs currencies to a gold-backed US dollar"},
+  "07-23": {year: 1903, text: "Ford Motor Company sells its first car, the Model A"},
+  "07-24": {year: 2002, text: "Dow soars 489 points, its best percentage day since 1987"},
+  "07-25": {year: 2018, text: "Facebook shares sink about 20% after hours on weak results"},
+  "07-26": {year: 2012, text: "ECB's Mario Draghi vows to do 'whatever it takes' to save the euro"},
+  "07-27": {year: 1694, text: "The Bank of England is founded by royal charter"},
+  "07-28": {year: 2014, text: "Dollar Tree agrees to buy Family Dollar for US$8.5 billion"},
+  "07-29": {year: 2015, text: "Microsoft releases Windows 10 as a free upgrade"},
+  "07-30": {year: 2002, text: "Sarbanes-Oxley Act signed, tightening US corporate accounting rules"},
+  "07-31": {year: 2019, text: "US Fed cuts interest rates for the first time in over a decade"},
+  "08-01": {year: 2017, text: "Bitcoin splits in a hard fork, creating Bitcoin Cash"},
+  "08-02": {year: 2018, text: "Apple becomes the first US company worth US$1 trillion"},
+  "08-03": {year: 1932, text: "Dow jumps 9.5% in one day, one of its biggest gains ever"},
+  "08-04": {year: 2016, text: "Bank of England cuts rates to a record low of 0.25%"},
+  "08-05": {year: 2011, text: "S&P cuts the US credit rating from AAA to AA+ for the first time"},
+  "08-06": {year: 1997, text: "Microsoft invests US$150 million in a struggling Apple"},
+  "08-07": {year: 2018, text: "Elon Musk tweets about taking Tesla private: 'funding secured'"},
+  "08-08": {year: 2011, text: "Dow plunges 634 points after the US credit rating downgrade"},
+  "08-09": {year: 2007, text: "BNP Paribas freezes three funds, sparking a global credit crunch"},
+  "08-10": {year: 2015, text: "Google restructures under a new parent company, Alphabet"},
+  "08-11": {year: 2015, text: "China cuts the yuan's reference rate by 1.9% in a surprise move"},
+  "08-12": {year: 1981, text: "IBM launches its Personal Computer, the IBM PC"},
+  "08-13": {year: 1913, text: "Harry Brearley creates 'rustless' stainless steel in Sheffield, UK"},
+  "08-14": {year: 2003, text: "Massive blackout hits the US Northeast and Canada, costing billions"},
+  "08-15": {year: 1971, text: "US ends the dollar's convertibility into gold, the 'Nixon Shock'"},
+  "08-16": {year: 1858, text: "First official messages cross the new transatlantic telegraph cable"},
+  "08-17": {year: 1998, text: "Russia devalues the rouble and defaults on its domestic debt"},
+  "08-18": {year: 2011, text: "HP agrees to buy UK software firm Autonomy for US$10.3 billion"},
+  "08-19": {year: 2004, text: "Google goes public at US$85 a share and opens at US$100"},
+  "08-20": {year: 2012, text: "Apple hits US$623 billion, a record value for a US company"},
+  "08-21": {year: 1998, text: "Hedge fund LTCM loses about US$550 million in a single day"},
+  "08-22": {year: 2018, text: "S&P 500 bull run becomes the longest in its history"},
+  "08-23": {year: 2013, text: "Steve Ballmer says he will retire as Microsoft CEO; shares jump"},
+  "08-24": {year: 2015, text: "Shanghai stocks plunge 8.5% on 'Black Monday', rattling markets"},
+  "08-25": {year: 2011, text: "Buffett's Berkshire invests US$5 billion in Bank of America"},
+  "08-26": {year: 2015, text: "Dow rebounds 619 points as global markets steady"},
+  "08-27": {year: 1859, text: "Edwin Drake strikes oil in Pennsylvania, starting the US oil boom"},
+  "08-28": {year: 1907, text: "UPS is founded in Seattle as the American Messenger Company"},
+  "08-29": {year: 1997, text: "Netflix is founded in California, first renting DVDs by mail"},
+  "08-30": {year: 1930, text: "Warren Buffett, the 'Oracle of Omaha', is born"},
+  "08-31": {year: 1998, text: "Dow falls 512 points as Russia's crisis rattles markets"},
+  "09-01": {year: 1998, text: "Malaysia imposes capital controls amid the Asian financial crisis"},
+  "09-02": {year: 1969, text: "First US cash machine opens at Chemical Bank in New York"},
+  "09-03": {year: 1929, text: "Dow peaks at 381.17, a high not seen again until 1954"},
+  "09-04": {year: 1998, text: "Larry Page and Sergey Brin incorporate Google"},
+  "09-05": {year: 1929, text: "Roger Babson predicts a crash and US stocks slide nearly 3%"},
+  "09-06": {year: 2008, text: "US takes over mortgage giants Fannie Mae and Freddie Mac"},
+  "09-07": {year: 2021, text: "El Salvador becomes first country to make bitcoin legal tender"},
+  "09-08": {year: 2022, text: "ECB hikes rates by 0.75 point to fight record euro-zone inflation"},
+  "09-09": {year: 2014, text: "Apple unveils Apple Pay and the Apple Watch"},
+  "09-10": {year: 2008, text: "Lehman Brothers reports a US$3.9 billion quarterly loss"},
+  "09-11": {year: 1789, text: "Alexander Hamilton becomes the first US Treasury Secretary"},
+  "09-12": {year: 1958, text: "Jack Kilby demonstrates the first microchip at Texas Instruments"},
+  "09-13": {year: 2012, text: "Fed launches QE3, buying US$40 billion of mortgage bonds a month"},
+  "09-14": {year: 2007, text: "Savers queue at Northern Rock after it seeks Bank of England help"},
+  "09-15": {year: 2008, text: "Lehman Brothers files for bankruptcy, the largest in US history"},
+  "09-16": {year: 1992, text: "Black Wednesday: pound exits ERM; Soros makes over US$1 billion"},
+  "09-17": {year: 2019, text: "NY Fed injects US$53bn into repo market, first such move since 2008"},
+  "09-18": {year: 2007, text: "Fed cuts rates by half a point to 4.75%, its first cut in 4 years"},
+  "09-19": {year: 2014, text: "Alibaba debuts on the NYSE after a then-record US$25 billion IPO"},
+  "09-20": {year: 1873, text: "NYSE shuts for 10 days as the Panic of 1873 spreads"},
+  "09-21": {year: 1931, text: "Britain abandons the gold standard"},
+  "09-22": {year: 1985, text: "Plaza Accord signed as G5 nations agree to weaken the US dollar"},
+  "09-23": {year: 2008, text: "Warren Buffett invests US$5 billion in Goldman Sachs"},
+  "09-24": {year: 1869, text: "Black Friday: gold price collapses as Gould and Fisk's corner fails"},
+  "09-25": {year: 2008, text: "Washington Mutual seized in the biggest US bank failure ever"},
+  "09-26": {year: 1955, text: "Dow falls 6.5% after President Eisenhower's heart attack"},
+  "09-27": {year: 1908, text: "Ford builds its first Model T in Detroit"},
+  "09-28": {year: 2008, text: "SpaceX's Falcon 1 becomes first private liquid-fuel rocket in orbit"},
+  "09-29": {year: 2008, text: "US House rejects US$700 billion bailout; Dow plunges 778 points"},
+  "09-30": {year: 2020, text: "Palantir and Asana debut on the NYSE via direct listings"},
+  "10-01": {year: 1972, text: "Singapore Airlines begins flying as Singapore's own national carrier"},
+  "10-02": {year: 2001, text: "Swissair grounds its entire fleet after running out of cash"},
+  "10-03": {year: 2008, text: "US$700 billion TARP bank rescue is signed into law"},
+  "10-04": {year: 2021, text: "Facebook, Instagram and WhatsApp down for 6 hours; shares fall 4.9%"},
+  "10-05": {year: 2011, text: "Apple co-founder Steve Jobs dies at 56"},
+  "10-06": {year: 1979, text: "Fed chief Paul Volcker unveils a surprise plan to crush inflation"},
+  "10-07": {year: 1919, text: "KLM is founded, now the oldest airline still under its original name"},
+  "10-08": {year: 2008, text: "Fed, ECB and 4 other central banks make a joint emergency rate cut"},
+  "10-09": {year: 2007, text: "Dow closes at a record 14,164.53 before the financial crisis"},
+  "10-10": {year: 2008, text: "Dow ends its worst week ever, down 18% in five days"},
+  "10-11": {year: 2016, text: "Samsung scraps the Galaxy Note 7 after fires; its shares sink 8%"},
+  "10-12": {year: 2015, text: "Dell agrees to buy EMC for US$67 billion, a record tech deal"},
+  "10-13": {year: 1989, text: "Friday the 13th mini-crash: Dow drops 6.9% as UAL buyout collapses"},
+  "10-14": {year: 1884, text: "George Eastman patents paper-strip photo film, paving way for Kodak"},
+  "10-15": {year: 1932, text: "J.R.D. Tata flies the first Tata Airlines flight, later Air India"},
+  "10-16": {year: 2007, text: "Shanghai Composite hits an all-time high of 6,124"},
+  "10-17": {year: 1907, text: "Marconi opens the first commercial transatlantic radio service"},
+  "10-18": {year: 1954, text: "Regency TR-1, the first commercial transistor radio, is announced"},
+  "10-19": {year: 1987, text: "Black Monday: Dow plunges 22.6%, its worst day ever"},
+  "10-20": {year: 2017, text: "Singapore's Sea, parent of Shopee, debuts on the NYSE"},
+  "10-21": {year: 2020, text: "PayPal says it will let users buy, hold and sell cryptocurrency"},
+  "10-22": {year: 1907, text: "Run on Knickerbocker Trust sparks the Panic of 1907"},
+  "10-23": {year: 2001, text: "Apple unveils the iPod: 1,000 songs in your pocket"},
+  "10-24": {year: 1929, text: "Black Thursday: Wall Street crashes, heralding the Great Depression"},
+  "10-25": {year: 2010, text: "SGX bids AUD 8.4 billion for Australia's ASX, a deal later blocked"},
+  "10-26": {year: 1825, text: "Erie Canal opens, linking the Great Lakes to New York City"},
+  "10-27": {year: 1997, text: "Dow falls 7.2% on Asian crisis fears; circuit breakers halt trading"},
+  "10-28": {year: 2021, text: "Facebook renames itself Meta to bet on the metaverse"},
+  "10-29": {year: 1929, text: "Black Tuesday: 16 million shares trade as Wall Street collapses"},
+  "10-30": {year: 1947, text: "23 nations sign GATT, the forerunner of the World Trade Organization"},
+  "10-31": {year: 2014, text: "Bank of Japan surprises by expanding stimulus; yen slides"},
+  "11-01": {year: 2018, text: "Apple says it will stop reporting iPhone unit sales"},
+  "11-02": {year: 2017, text: "Bank of England raises rates for the first time in a decade"},
+  "11-03": {year: 2010, text: "Fed launches QE2, a US$600 billion bond-buying plan"},
+  "11-04": {year: 1973, text: "Oil crisis: the Netherlands holds its first car-free Sunday"},
+  "11-05": {year: 2007, text: "PetroChina debuts in Shanghai, briefly worth over US$1 trillion"},
+  "11-06": {year: 2007, text: "Alibaba.com nearly triples on its Hong Kong trading debut"},
+  "11-07": {year: 2013, text: "Twitter shares jump 73% on their New York trading debut"},
+  "11-08": {year: 2016, text: "India scraps 500 and 1,000 rupee notes overnight"},
+  "11-09": {year: 2020, text: "Vaccine breakthrough sparks a rally; Dow jumps 834 points"},
+  "11-10": {year: 2021, text: "EV maker Rivian jumps 29% in the biggest US IPO of 2021"},
+  "11-11": {year: 2014, text: "Alibaba's Singles' Day sales hit a record 57.1 billion yuan"},
+  "11-12": {year: 1999, text: "US repeals Glass-Steagall, letting banks, brokers and insurers merge"},
+  "11-13": {year: 1998, text: "theglobe.com soars 606% on day one, a record IPO gain at the time"},
+  "11-14": {year: 2008, text: "Eurozone falls into its first recession since the euro's launch"},
+  "11-15": {year: 2008, text: "G20 leaders hold their first summit on the financial crisis"},
+  "11-16": {year: 1973, text: "US approves the Trans-Alaska oil pipeline amid an oil crisis"},
+  "11-17": {year: 2008, text: "Citigroup announces 52,000 job cuts as losses mount"},
+  "11-18": {year: 2008, text: "Detroit's Big Three automakers ask Congress for a bailout"},
+  "11-19": {year: 2018, text: "Bitcoin falls below US$5,000 as the crypto winter deepens"},
+  "11-20": {year: 1985, text: "Microsoft releases Windows 1.0, its first graphical system"},
+  "11-21": {year: 1995, text: "Dow Jones closes above 5,000 for the first time"},
+  "11-22": {year: 2005, text: "Microsoft launches the Xbox 360 in North America"},
+  "11-23": {year: 2008, text: "US rescues Citigroup with US$20 billion and loss guarantees"},
+  "11-24": {year: 1997, text: "Yamaichi, one of Japan's Big Four brokers, announces its closure"},
+  "11-25": {year: 2008, text: "Fed unveils US$800 billion to unfreeze consumer and home loans"},
+  "11-26": {year: 2021, text: "Omicron variant fears hit markets; Dow falls 905 points"},
+  "11-27": {year: 2009, text: "Dubai World debt scare sends Asian stocks tumbling"},
+  "11-28": {year: 2010, text: "EU and IMF agree an 85 billion euro bailout for Ireland"},
+  "11-29": {year: 1972, text: "Atari releases Pong, kick-starting the video game industry"},
+  "11-30": {year: 1985, text: "Pan-El collapses, leading to a 3-day Singapore market shutdown"},
+  "12-01": {year: 2008, text: "US recession since Dec 2007 made official; Dow falls 680 points"},
+  "12-02": {year: 2001, text: "Enron files for bankruptcy, the biggest in US history at the time"},
+  "12-03": {year: 1997, text: "South Korea signs a record US$57 billion IMF-led bailout"},
+  "12-04": {year: 1991, text: "Pan Am, once the world's leading airline, shuts down"},
+  "12-05": {year: 1996, text: "Greenspan warns of \"irrational exuberance\" in stock prices"},
+  "12-06": {year: 1994, text: "Orange County, California, files a record municipal bankruptcy"},
+  "12-07": {year: 2004, text: "Lenovo agrees to buy IBM's PC business for US$1.25 billion"},
+  "12-08": {year: 1993, text: "US signs NAFTA into law, creating a North American trade zone"},
+  "12-09": {year: 1999, text: "VA Linux soars 698% on day one, a record US IPO gain"},
+  "12-10": {year: 2007, text: "Singapore's GIC invests CHF 11 billion in UBS amid subprime losses"},
+  "12-11": {year: 2008, text: "Bernie Madoff arrested over a US$50 billion Ponzi scheme"},
+  "12-12": {year: 1980, text: "Apple goes public at US$22 a share, worth about US$1.8 billion"},
+  "12-13": {year: 2017, text: "Fed raises rates a quarter point, its third hike of 2017"},
+  "12-14": {year: 2017, text: "Disney agrees to buy most of 21st Century Fox for US$52.4 billion"},
+  "12-15": {year: 2014, text: "Russian rouble plunges 10%, its worst day since 1998"},
+  "12-16": {year: 2015, text: "Fed raises rates for the first time in nearly a decade"},
+  "12-17": {year: 2017, text: "Bitcoin hits a record near US$20,000 as crypto mania peaks"},
+  "12-18": {year: 1985, text: "Singapore Airlines lists on the Stock Exchange of Singapore"},
+  "12-19": {year: 2008, text: "US offers US$17.4 billion in loans to rescue GM and Chrysler"},
+  "12-20": {year: 1996, text: "Apple buys NeXT for US$429 million, bringing back Steve Jobs"},
+  "12-21": {year: 2020, text: "Tesla joins the S&P 500, the biggest company ever added"},
+  "12-22": {year: 2017, text: "US tax overhaul signed into law, cutting corporate tax to 21%"},
+  "12-23": {year: 1913, text: "Federal Reserve Act signed, creating the US central bank"},
+  "12-24": {year: 2007, text: "Temasek agrees to invest US$4.4 billion in Merrill Lynch"},
+  "12-25": {year: 2018, text: "Nikkei plunges 5% on Christmas Day, falling below 20,000"},
+  "12-26": {year: 2018, text: "Dow soars 1,086 points, a record one-day point gain at the time"},
+  "12-27": {year: 1945, text: "The IMF and World Bank are formally established"},
+  "12-28": {year: 2000, text: "Montgomery Ward, a 128-year-old US retailer, files to shut down"},
+  "12-29": {year: 1989, text: "Nikkei peaks at 38,915.87 as Japan's bubble hits its high"},
+  "12-30": {year: 2013, text: "Nikkei ends 2013 up 57%, its best year since 1972"},
+  "12-31": {year: 1600, text: "Queen Elizabeth I charters the English East India Company"},
+};
+
+function pickHistoryEvent() {
+  const now = new Date();
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const key = `${mm}-${dd}`;
+  if (HISTORY_EVENTS[key]) return {date: key, isToday: true, ...HISTORY_EVENTS[key]};
+  const keys = Object.keys(HISTORY_EVENTS);
+  const rk = keys[Math.floor(Math.random() * keys.length)];
+  return {date: rk, isToday: false, ...HISTORY_EVENTS[rk]};
+}
+
+// ============ HOLIDAYS ============
+// Singapore edition. `name` and `line` are printed on the sticker (English);
+// `zh` is only used for the Chinese UI. Religious holidays get warm greetings, no market jokes.
+
+// Same date every year
+const HOLIDAYS_SOLAR = {
+  '01-01': {name:"New Year's Day",  zh:'元旦',       emoji:'🎊', line:"A fresh year, a fresh cup. Here's to a strong start.",        color:'#00B8B8'},
+  '02-14': {name:"Valentine's Day", zh:'情人节',     emoji:'💘', line:'Love is a long-term investment.',                              color:'#ec4899'},
+  '03-14': {name:'Pi Day',          zh:'圆周率日',   emoji:'π',  line:'May your good days go on like π.',                              color:'#6366f1'},
+  '04-01': {name:"April Fools' Day",zh:'愚人节',     emoji:'🤡', line:"Any hot stock tip you hear today is a joke.",                   color:'#f97316'},
+  '05-01': {name:'Labour Day',      zh:'劳动节',     emoji:'💪', line:'Work hard, and let compounding do the rest.',                   color:'#00B8B8'},
+  '08-09': {name:'National Day',    zh:'国庆日',     emoji:'🇸🇬', line:'Happy National Day, Singapore! Majulah Singapura.',            color:'#dc2626'},
+  '10-31': {name:'Halloween',       zh:'万圣节',     emoji:'🎃', line:'Trick or treat: candy, or a bear market?',                      color:'#ea580c'},
+  '11-11': {name:"Singles' Day",    zh:'双十一',     emoji:'🛒', line:'Shop smart, and save a little for future you.',                color:'#ef4444'},
+  '12-24': {name:'Christmas Eve',   zh:'平安夜',     emoji:'🌲', line:'Wishing you a calm night and a steady portfolio.',             color:'#16a34a'},
+  '12-25': {name:'Christmas',       zh:'圣诞节',     emoji:'🎄', line:"Merry Christmas! Here's to a Santa rally.",                     color:'#16a34a'},
+  '12-31': {name:"New Year's Eve",  zh:'除夕倒数',   emoji:'🎆', line:'Close the books and cheers to the year ahead.',                color:'#6366f1'},
+};
+
+// Moving dates (lunar / religious / Sunday-based) — maintain yearly
+const HOLIDAYS_MOVABLE = {
+  // 2026 · Year of the Horse. Public holiday dates from MOM (mom.gov.sg).
+  '2026-02-17': {name:'Chinese New Year', zh:'农历新年', emoji:'🧧', line:"Gong Xi Fa Cai! Huat ah, here's to a prosperous year.", color:'#dc2626'},
+  '2026-02-18': {name:'Chinese New Year · Day 2', zh:'年初二', emoji:'🐴', line:'Year of the Horse: may your year gallop ahead.', color:'#dc2626'},
+  '2026-03-21': {name:'Hari Raya Puasa', zh:'开斋节', emoji:'🌙', line:'Selamat Hari Raya Aidilfitri! Maaf zahir dan batin.', color:'#16a34a'},
+  '2026-04-03': {name:'Good Friday', zh:'耶稣受难日', emoji:'🕊️', line:'Wishing you a peaceful Good Friday.', color:'#6366f1'},
+  '2026-05-10': {name:"Mother's Day", zh:'母亲节', emoji:'🌷', line:'Mum: the original long-term investor.', color:'#ec4899'},
+  '2026-05-27': {name:'Hari Raya Haji', zh:'哈芝节', emoji:'🌙', line:'Selamat Hari Raya Haji to all who celebrate.', color:'#16a34a'},
+  '2026-05-31': {name:'Vesak Day', zh:'卫塞节', emoji:'🪷', line:'Happy Vesak Day. Wishing you peace and calm.', color:'#f59e0b'},
+  '2026-06-19': {name:'Dragon Boat Festival', zh:'端午节', emoji:'🐉', line:'Row steady, row together. Happy Dragon Boat Festival!', color:'#16a34a'},
+  '2026-06-21': {name:"Father's Day", zh:'父亲节', emoji:'👔', line:"Dad's first lesson: don't chase the highs.", color:'#1d4ed8'},
+  '2026-09-25': {name:'Mid-Autumn Festival', zh:'中秋节', emoji:'🌕', line:'Mooncakes, lanterns and a full moon. Happy Mid-Autumn!', color:'#f59e0b'},
+  '2026-11-08': {name:'Deepavali', zh:'屠妖节', emoji:'🪔', line:'Happy Deepavali! May light and good fortune shine on you.', color:'#f59e0b'},
+  // 2027 · Year of the Goat. Hari Raya dates depend on the moon sighting and may still move — recheck with MOM.
+  '2027-02-06': {name:'Chinese New Year', zh:'农历新年', emoji:'🧧', line:"Gong Xi Fa Cai! Huat ah, here's to a prosperous year.", color:'#dc2626'},
+  '2027-02-07': {name:'Chinese New Year · Day 2', zh:'年初二', emoji:'🐑', line:'Year of the Goat: wishing you a calm, steady climb.', color:'#dc2626'},
+  '2027-03-10': {name:'Hari Raya Puasa', zh:'开斋节', emoji:'🌙', line:'Selamat Hari Raya Aidilfitri! Maaf zahir dan batin.', color:'#16a34a'},
+  '2027-03-26': {name:'Good Friday', zh:'耶稣受难日', emoji:'🕊️', line:'Wishing you a peaceful Good Friday.', color:'#6366f1'},
+  '2027-05-09': {name:"Mother's Day", zh:'母亲节', emoji:'🌷', line:'Mum: the original long-term investor.', color:'#ec4899'},
+  '2027-05-17': {name:'Hari Raya Haji', zh:'哈芝节', emoji:'🌙', line:'Selamat Hari Raya Haji to all who celebrate.', color:'#16a34a'},
+  '2027-05-20': {name:'Vesak Day', zh:'卫塞节', emoji:'🪷', line:'Happy Vesak Day. Wishing you peace and calm.', color:'#f59e0b'},
+  '2027-06-09': {name:'Dragon Boat Festival', zh:'端午节', emoji:'🐉', line:'Row steady, row together. Happy Dragon Boat Festival!', color:'#16a34a'},
+  '2027-06-20': {name:"Father's Day", zh:'父亲节', emoji:'👔', line:"Dad's first lesson: don't chase the highs.", color:'#1d4ed8'},
+  '2027-09-15': {name:'Mid-Autumn Festival', zh:'中秋节', emoji:'🌕', line:'Mooncakes, lanterns and a full moon. Happy Mid-Autumn!', color:'#f59e0b'},
+  '2027-10-28': {name:'Deepavali', zh:'屠妖节', emoji:'🪔', line:'Happy Deepavali! May light and good fortune shine on you.', color:'#f59e0b'},
+};
+
+function holidayKeyToday() {
+  const d = new Date();
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return {full: `${d.getFullYear()}-${mm}-${dd}`, solar: `${mm}-${dd}`};
+}
+
+// Returns today's holiday object if any, else null.
+function detectTodayHoliday() {
+  const k = holidayKeyToday();
+  return HOLIDAYS_MOVABLE[k.full] || HOLIDAYS_SOLAR[k.solar] || null;
+}
+
+// Returns the holiday to render based on current selection; falls back to a
+// default if nothing chosen. Override via #holidayPick dropdown.
+function pickHoliday() {
+  const pick = document.getElementById('holidayPick')?.value || 'auto';
+  if (pick !== 'auto') {
+    // Values are either YYYY-MM-DD (movable) or MM-DD (solar)
+    const h = HOLIDAYS_MOVABLE[pick] || HOLIDAYS_SOLAR[pick];
+    if (h) return {...h, isToday: false};
+  }
+  const today = detectTodayHoliday();
+  if (today) return {...today, isToday: true};
+  // No match — give a graceful generic line that still works as a fun label
+  return {name:'Coffee of the Day', zh:'今日特饮', emoji:'☕', line:'Every day deserves a good cup of coffee.', color:'#00B8B8', isToday:false};
+}
+
+function parseEarningsEntries() {
+  // Accepts: "TICKER M/D [週X] [note...]"  or  "TICKER 週X [note...]" (legacy)
+  const DATE_RE = /^\d{1,2}[\/\-]\d{1,2}$/;
+  const DAY_RE  = /^(週[一二三四五六日天]|mon|tue|wed|thu|fri|sat|sun)$/i;
+  return $('earningsList').value.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const parts = line.split(/\s+/);
+    const ticker = parts[0] || '';
+    let date = '', day = '', noteStart = 1;
+    if (parts[1] && DATE_RE.test(parts[1])) {
+      date = parts[1].replace('-', '/');
+      noteStart = 2;
+      if (parts[2] && DAY_RE.test(parts[2])) noteStart = 3;   // a typed weekday is accepted, but the date decides
+      day = deriveWeekday(date);
+    } else if (parts[1] && DAY_RE.test(parts[1])) {
+      day = normalizeWeekday(parts[1]);
+      noteStart = 2;
+    }
+    return {
+      ticker,
+      date,
+      day,
+      note: parts.slice(noteStart).join(' '),
+      price: 0,
+      changePct: 0,
+    };
+  });
+}
+
+function isStockShape(s) { return s && 'changePct' in s && 'price' in s && !('day' in s) && !('year' in s); }
+
+function resetStocksForMode() {
+  const mode = $('labelMode').value;
+  if (mode === 'history') {
+    if (!stocks[0] || !('year' in stocks[0])) stocks = [pickHistoryEvent()];
+  } else if (mode === 'earnings') {
+    stocks = parseEarningsEntries();
+    if (!stocks.length) stocks = [{ticker:'', day:'', note:'', price:0, changePct:0}];
+  } else if (mode === 'star') {
+    if (stocks.length && isStockShape(stocks[0])) stocks = [stocks[0]];
+    else stocks = [{ticker:'NVDA', changePct:4.20, price:201.68, name:'NVIDIA'}];
+  } else if (mode === 'topn') {
+    if (!stocks.length || !isStockShape(stocks[0])) {
+      stocks = [
+        {ticker:'TSLA', changePct:7.63, price:400.62, name:'Tesla'},
+        {ticker:'PLTR', changePct:4.75, price:146.39, name:'Palantir'},
+        {ticker:'MSFT', changePct:4.63, price:425.30, name:'Microsoft'},
+      ];
+    }
+  } else if (mode === 'mood') {
+    if (!moodData) moodData = {ticker:'SPY', changePct:1.23, price:520.45};
+  } else if (mode === 'holiday') {
+    // Holiday mode doesn't depend on stock data — clear the table
+    stocks = [];
+  }
+}
+
+// ============ MOOD LOGIC ============
+function computeMood(changePct) {
+  if (changePct >= 2)     return {emoji:'🚀', label:'Strong Rally',   color:'#16a34a', desc:'Big gains all round'};
+  if (changePct >= 0.5)   return {emoji:'📈', label:'Steady Climb',   color:'#22c55e', desc:'Buyers in control'};
+  if (changePct > -0.5)   return {emoji:'↔️', label:'Range-bound',    color:'#64748b', desc:'Waiting for direction'};
+  if (changePct > -2)     return {emoji:'📉', label:'Under Pressure', color:'#ea580c', desc:'Sellers in control'};
+  return                         {emoji:'🔻', label:'Risk-off Day',   color:'#dc2626', desc:'Sharp drop, stay calm'};
+}
+
+// ============ DATA FETCH ============
+let staticCache = null;
+// English names for the data table (quotes.json carries Chinese names for the HK page)
+const NAME_EN = {
+  'SE.US':'Sea', 'GRAB.US':'Grab', 'AAPL.US':'Apple', 'MSFT.US':'Microsoft', 'NVDA.US':'NVIDIA',
+  'GOOGL.US':'Alphabet', 'AMZN.US':'Amazon', 'META.US':'Meta Platforms', 'TSLA.US':'Tesla',
+  'NFLX.US':'Netflix', 'AMD.US':'AMD', 'AVGO.US':'Broadcom', 'ORCL.US':'Oracle', 'CRM.US':'Salesforce',
+  'ADBE.US':'Adobe', 'PLTR.US':'Palantir', 'COIN.US':'Coinbase', 'UBER.US':'Uber', 'JPM.US':'JPMorgan Chase',
+  'V.US':'Visa', 'MA.US':'Mastercard', 'WMT.US':'Walmart', 'COST.US':'Costco', 'DIS.US':'Disney',
+  'KO.US':'Coca-Cola', 'MCD.US':"McDonald's", 'SBUX.US':'Starbucks', 'NKE.US':'Nike', 'UNH.US':'UnitedHealth',
+  'LLY.US':'Eli Lilly', 'XOM.US':'ExxonMobil', 'BABA.US':'Alibaba', 'PDD.US':'PDD', 'JD.US':'JD.com',
+  'BIDU.US':'Baidu', 'NIO.US':'NIO', 'LI.US':'Li Auto', 'XPEV.US':'XPeng', 'TME.US':'Tencent Music',
+  'BILI.US':'Bilibili', 'NTES.US':'NetEase', '700.HK':'Tencent', '9988.HK':'Alibaba', '3690.HK':'Meituan',
+  '1810.HK':'Xiaomi', '9618.HK':'JD.com', '1299.HK':'AIA', '2318.HK':'Ping An', '1024.HK':'Kuaishou',
+  '1211.HK':'BYD', '9866.HK':'NIO', '600519.SH':'Kweichow Moutai', '300750.SZ':'CATL',
+};
+async function fetchFromStatic(tickers) {
+  if (!staticCache) {
+    const res = await fetch('../quotes.json?t=' + Date.now());
+    if (!res.ok) throw new Error(`quotes.json HTTP ${res.status}`);
+    staticCache = await res.json();
+  }
+  const want = new Set(tickers.map(t => t.toUpperCase()));
+  return (staticCache.quotes || [])
+    .filter(q => want.has(q.symbol) || want.has(q.ticker))
+    .filter(q => q.price > 0)
+    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: NAME_EN[q.symbol] || q.name || '' }));
+}
+async function fetchFromLongbridge(proxyUrl, tickers) {
+  const base = proxyUrl.replace(/\/$/, '');
+  const url = `${base}/quotes?symbols=${encodeURIComponent(tickers.join(','))}`;
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`Proxy HTTP ${res.status}`);
+  const data = await res.json();
+  if (!Array.isArray(data)) throw new Error(data.error || T('Unexpected proxy response', '代理响应异常'));
+  return data
+    .filter(q => !q.error && q.price > 0)
+    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: '' }));
+}
+async function fetchFinnhubQuote(ticker, apiKey) {
+  const t = ticker.replace(/\.US$/i, '');
+  const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(t)}&token=${apiKey}`;
+  const res = await fetch(url);
+  const d = await res.json();
+  if (!d || d.c == null || d.c === 0) return null;
+  return { ticker: t, symbol: t, price: d.c, changePct: d.dp, name: '' };
+}
+
+async function fetchData(tickers) {
+  const source = $('dataSource').value;
+  if (source === 'static') {
+    staticCache = null;  // force refresh each generate
+    return fetchFromStatic(tickers);
+  } else if (source === 'longbridge') {
+    return fetchFromLongbridge($('proxyUrl').value.trim() || 'http://localhost:8787', tickers);
+  } else if (source === 'finnhub') {
+    const k = $('apiKey').value.trim();
+    if (!k) throw new Error(T('Please enter a Finnhub API key', '请填写 Finnhub API Key'));
+    const qs = await Promise.all(tickers.map(t => fetchFinnhubQuote(t, k).catch(() => null)));
+    return qs.filter(Boolean);
+  } else {
+    return [];  // manual
+  }
+}
+
+function showStatus(msg, type = 'ok') {
+  const s = $('status');
+  s.textContent = msg;
+  s.className = `status show ${type}`;
+  if (type === 'ok') setTimeout(() => s.classList.remove('show'), 4000);
+}
+
+function parseTickerList() {
+  return $('tickers').value.split(/[,\n\s]+/).map(s => s.trim()).filter(Boolean);
+}
+
+// Date/time parts in Singapore time (numbers as strings, month as a number)
+function sgParts(d) {
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'Asia/Singapore', year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false,
+  }).formatToParts(d).map(x => [x.type, x.value]));
+  return {...p, day: String(parseInt(p.day, 10)), month: parseInt(p.month, 10), hour: p.hour === '24' ? '00' : p.hour};
+}
+function nowTimeStr() {
+  // e.g. "21 Oct, 08:47 SGT" — the mood template splits this at the comma
+  const fmt = d => {
+    const p = sgParts(d);
+    return `${p.day} ${MONTHS_SHORT[p.month - 1]}, ${p.hour}:${p.minute} SGT`;
+  };
+  if ($('dataSource').value === 'static' && staticCache?.generatedAt) return fmt(new Date(staticCache.generatedAt));
+  return fmt(new Date());
+}
+
+async function generate() {
+  saveConfig();
+  const mode = $('labelMode').value;
+  const source = $('dataSource').value;
+
+  try {
+    if (mode === 'topn') {
+      if (isLb()) {
+        // Classic Longbridge template: fixed M7 roster, fixed cell layout, no ranking
+        if (source === 'manual') {
+          stocks = M7_LAYOUT.map(m => ({
+            ticker: m.label, symbol: m.fetch + '.US',
+            label: m.label, col: m.col, row: m.row,
+            price: 0, changePct: 0, missing: true,
+          }));
+        } else {
+          showStatus(T('Fetching the Magnificent 7...', '获取美股七巨头...'), 'info');
+          const data = await fetchData(M7_FETCH_SYMBOLS);
+          const byFetch = {};
+          for (const d of data) byFetch[(d.ticker || '').toUpperCase()] = d;
+          stocks = M7_LAYOUT.map(m => {
+            const d = byFetch[m.fetch];
+            return d ? {
+              ...d, ticker: m.label,            // display the label, not the fetch symbol
+              label: m.label, col: m.col, row: m.row,
+            } : {
+              ticker: m.label, symbol: m.fetch + '.US',
+              label: m.label, col: m.col, row: m.row,
+              price: 0, changePct: 0, missing: true,
+            };
+          });
+        }
+        dataTime = nowTimeStr();
+        showStatus(T('✓ Magnificent 7 updated', '✓ 七巨头已更新'));
+      } else {
+        const tickers = parseTickerList();
+        if (!tickers.length && source !== 'manual') throw new Error(T('The watchlist is empty', '观察池为空'));
+        if (source !== 'manual') {
+          showStatus(T(`Fetching ${tickers.length} stocks...`, `获取 ${tickers.length} 只股票...`), 'info');
+          stocks = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
+          const n = parseInt($('topN').value) || 3;
+          stocks = stocks.slice(0, n);
+        } else if (stocks.length === 0) {
+          stocks = Array.from({length: parseInt($('topN').value)||3}, () => ({ticker:'', price:0, changePct:0, name:''}));
+        }
+        dataTime = nowTimeStr();
+        showStatus(T('✓ Done', '✓ 成功'));
+      }
+    }
+    else if (mode === 'mood') {
+      const idx = $('moodIndex').value.trim() || 'SPY.US';
+      showStatus(T(`Fetching ${idx}...`, `获取 ${idx}...`), 'info');
+      const data = await fetchData([idx]);
+      if (!data.length) throw new Error(T('Could not load the index', '大盘数据获取失败'));
+      moodData = data[0];
+      dataTime = nowTimeStr();
+      showStatus(`✓ ${idx} ${moodData.changePct >= 0 ? '+' : ''}${moodData.changePct.toFixed(2)}%`);
+    }
+    else if (mode === 'star') {
+      const tickers = parseTickerList();
+      if (!tickers.length) throw new Error(T('The watchlist is empty', '观察池为空'));
+      showStatus(T(`Fetching ${tickers.length} stocks...`, `获取 ${tickers.length} 只...`), 'info');
+      const data = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
+      if (!data.length) throw new Error(T('No valid data', '无有效数据'));
+      stocks = [data[0]];
+      dataTime = nowTimeStr();
+      // Auto-update star caption based on the actual top mover (overwrites manual edits each generate).
+      // Two-clause format that wraps cleanly: "{verb} {%}\n{ticker} 領跑昨日漲幅榜"
+      if (isLb()) {
+        const top = stocks[0];
+        const sign = top.changePct >= 0 ? '+' : '';
+        const t = top.ticker || '—';
+        const p = top.changePct || 0;
+        let trend;
+        if (p >= 3)         trend = 'led the gainers';
+        else if (p >= 1)    trend = 'climbed steadily';
+        else if (p >= 0)    trend = 'edged higher';
+        else if (p > -1)    trend = 'dipped slightly';
+        else if (p > -3)    trend = 'slipped lower';
+        else                trend = 'fell sharply';
+        $('starCaption').value = `${t} ${trend}\nClosed ${sign}${p.toFixed(2)}%`;
+        saveConfig();
+      }
+      showStatus(T(`✓ Star: ${stocks[0].ticker}`, `✓ 主角：${stocks[0].ticker}`));
+    }
+    else if (mode === 'earnings') {
+      stocks = parseEarningsEntries();
+      dataTime = nowTimeStr();
+      showStatus(T(`✓ ${stocks.length} earnings`, `✓ ${stocks.length} 条财报`));
+    }
+    else if (mode === 'history') {
+      stocks = [pickHistoryEvent()];
+      dataTime = nowTimeStr();
+      showStatus(T(`✓ Event for ${stocks[0].date}`, `✓ ${stocks[0].date} 事件`));
+    }
+    else if (mode === 'holiday') {
+      const h = pickHoliday();
+      dataTime = nowTimeStr();
+      showStatus(`✓ ${LANG === 'zh' ? (h.zh || h.name) : h.name}${h.isToday ? T(' (today)', '（今日）') : T(' (preview)', '（预览）')}`);
+    }
+  } catch (e) {
+    const hint = source === 'longbridge' && mode !== 'history' && mode !== 'earnings'
+      ? T(' (is the proxy running? python3 longbridge_proxy.py)', '（检查代理是否启动：python3 longbridge_proxy.py）') : '';
+    showStatus(`${T('Failed: ', '失败: ')}${e.message}${hint}`, 'err');
+    return;
+  }
+
+  renderTable();
+  render();
+}
+
+// ============ TABLE ============
+function renderTable() {
+  const tbody = $('dataTable').querySelector('tbody');
+  tbody.innerHTML = '';
+  const mode = $('labelMode').value;
+  stocks.forEach((s, i) => {
+    const tr = document.createElement('tr');
+    if (mode === 'history') {
+      tr.innerHTML = `<td>${T('Date', '日期')}</td><td colspan="3">${s.date} (${s.year}): ${s.text}</td>`;
+    } else if (mode === 'earnings') {
+      tr.innerHTML = `
+        <td><input value="${s.ticker||''}" data-i="${i}" data-k="ticker"></td>
+        <td><input value="${s.day||''}" data-i="${i}" data-k="day"></td>
+        <td>—</td>
+        <td><input value="${s.note||''}" data-i="${i}" data-k="note"></td>`;
+    } else {
+      tr.innerHTML = `
+        <td><input value="${s.ticker||''}" data-i="${i}" data-k="ticker"></td>
+        <td><input type="number" step="0.01" value="${(s.changePct||0).toFixed(2)}" data-i="${i}" data-k="changePct"></td>
+        <td><input type="number" step="0.01" value="${(s.price||0).toFixed(2)}" data-i="${i}" data-k="price"></td>
+        <td><input value="${s.name||''}" data-i="${i}" data-k="name"></td>`;
+    }
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input').forEach(inp => {
+    inp.addEventListener('input', e => {
+      const i = +e.target.dataset.i, k = e.target.dataset.k;
+      let v = e.target.value;
+      if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
+      stocks[i][k] = v;
+      render();
+    });
+  });
+}
+
+// ============ CANVAS RENDER ============
+function computeCanvasSize() {
+  const w = parseFloat($('widthMm').value) || 58;
+  const h = parseFloat($('heightMm').value) || 40;
+  const dpi = parseInt($('dpi').value) || 300;
+  const renderW = Math.round(w * dpi / 25.4);
+  const renderH = Math.round(h * dpi / 25.4);
+  return {w, h, dpi, renderW, renderH};
+}
+
+function setCanvasSize() {
+  const {w, h, dpi, renderW, renderH} = computeCanvasSize();
+  canvas.width = renderW;
+  canvas.height = renderH;
+  // Display scale: fit to ~420px wide
+  const maxDisplay = 480;
+  const scale = Math.min(1, maxDisplay / renderW);
+  canvas.style.width = Math.round(renderW * scale) + 'px';
+  canvas.style.height = Math.round(renderH * scale) + 'px';
+  $('sizeInfo').textContent = `${w}×${h} mm · ${renderW}×${renderH} px @ ${dpi}dpi`;
+  return {renderW, renderH};
+}
+
+// Material Design trending_up / trending_down icon — single filled polygon
+function drawPath(ctx, x, y, w, h, pts, color) {
+  ctx.save();
+  ctx.fillStyle = color;
+  ctx.beginPath();
+  pts.forEach(([px, py], i) => {
+    const cx = x + px * w, cy = y + py * h;
+    if (i === 0) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+  });
+  ctx.closePath();
+  ctx.fill();
+  ctx.restore();
+}
+
+const TREND_UP_PATH = [
+  [0.667, 0.250], [0.762, 0.345], [0.559, 0.549], [0.392, 0.382],
+  [0.083, 0.691], [0.142, 0.750], [0.392, 0.500], [0.559, 0.667],
+  [0.821, 0.405], [0.917, 0.500], [0.917, 0.250], [0.667, 0.250],
+];
+const TREND_DOWN_PATH = [
+  [0.667, 0.750], [0.762, 0.655], [0.559, 0.451], [0.392, 0.618],
+  [0.083, 0.309], [0.142, 0.250], [0.392, 0.500], [0.559, 0.333],
+  [0.821, 0.595], [0.917, 0.500], [0.917, 0.750], [0.667, 0.750],
+];
+
+function drawTrendUp(ctx, x, y, w, h, color)   { drawPath(ctx, x, y, w, h, TREND_UP_PATH, color); }
+function drawTrendDown(ctx, x, y, w, h, color) { drawPath(ctx, x, y, w, h, TREND_DOWN_PATH, color); }
+
+// Text wrap: keeps English words together (CJK still breaks per character).
+// Returns the list of lines that fit maxWidth.
+function layoutLines(ctx, text, maxWidth) {
+  const lines = [];
+  for (const para of String(text || '').split('\n')) {
+    const tokens = para.match(/[\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]|[^\s\u2e80-\u9fff\uf900-\ufaff\uff00-\uffef]+|\s+/g) || [];
+    let line = '';
+    for (const tok of tokens) {
+      const test = line + tok;
+      if (ctx.measureText(test.trimEnd()).width <= maxWidth || !line.trim()) { line = test; continue; }
+      lines.push(line.trimEnd());
+      line = /^\s+$/.test(tok) ? '' : tok;
+    }
+    if (line.trim()) lines.push(line.trimEnd());
+  }
+  // Hard-split any single word that is still wider than the box
+  const out = [];
+  for (let ln of lines) {
+    while (ctx.measureText(ln).width > maxWidth && ln.length > 1) {
+      let cut = ln.length - 1;
+      while (cut > 1 && ctx.measureText(ln.slice(0, cut)).width > maxWidth) cut--;
+      out.push(ln.slice(0, cut));
+      ln = ln.slice(cut).trimStart();
+    }
+    if (ln) out.push(ln);
+  }
+  return out;
+}
+// Adds "…" to the last visible line when text had to be cut.
+function clampLines(ctx, lines, maxWidth, maxLines) {
+  maxLines = Math.max(1, maxLines | 0);
+  if (lines.length <= maxLines) return lines;
+  const kept = lines.slice(0, maxLines);
+  let last = kept[maxLines - 1];
+  while (last && ctx.measureText(last + '…').width > maxWidth) last = last.slice(0, -1);
+  kept[maxLines - 1] = last.trimEnd() + '…';
+  return kept;
+}
+function wrapText(ctx, text, x, y, maxWidth, lineHeight, maxLines = 99) {
+  let cy = y;
+  for (const ln of clampLines(ctx, layoutLines(ctx, text, maxWidth), maxWidth, maxLines)) {
+    ctx.fillText(ln, x, cy);
+    cy += lineHeight;
+  }
+  return cy;
+}
+// Shrinks the font until the text fits in maxLines (down to minPx). Returns the size used.
+function fitFontToLines(ctx, text, maxWidth, maxLines, startPx, minPx, fontFor) {
+  let px = startPx;
+  ctx.font = fontFor(px);
+  while (px > minPx && layoutLines(ctx, text, maxWidth).length > maxLines) {
+    px -= 1;
+    ctx.font = fontFor(px);
+  }
+  return px;
+}
+
+const LED_UP   = '#00D4E6';
+const LED_DOWN = '#FF3B5C';
+
+// Longbridge brand tokens — mirrors the HK marketing site design system
+const LB_BRAND   = '#00B8B8';
+const LB_BRAND_D = '#008C91';
+const LB_TINT    = '#DFF7F3';
+const LB_TEXT    = '#0A0E19';
+const LB_MUTED   = '#82888D';
+const LB_UP      = '#1DB57C';   // Singapore / US convention: green = up
+const LB_DOWN    = '#F7415F';   // red = down
+const LB_BORDER  = '#E6E7E8';
+
+const BRAND_FONT = `"Cera Pro", "PingFang HK", "PingFang TC", "Source Han Sans CN", "Microsoft JhengHei", -apple-system, sans-serif`;
+const BODY_FONT  = `-apple-system, BlinkMacSystemFont, "PingFang HK", "PingFang TC", "Source Han Sans CN", sans-serif`;
+const NUM_FONT   = `"SF Pro Display", "Cera Pro", SFMono-Regular, Menlo, Consolas, monospace`;
+
+// Official Longbridge logos from their CDN (CORS-enabled)
+const LB_LOGO_MARK_URL = 'https://assets.wbrks.com/assets/logo/logo1.png';       // 500x500 bar-chart icon
+const LB_LOGO_FULL_URL = 'https://assets.wbrks.com/assets/logo/light/sg.png';   // 633x139 "Singapore LONGBRIDGE" lockup
+let lbLogoMark = null;
+let lbLogoFull = null;
+(function preloadLBLogos() {
+  const m = new Image();
+  m.crossOrigin = 'anonymous';
+  m.onload = () => { lbLogoMark = m; if (typeof render === 'function') render(); };
+  m.src = LB_LOGO_MARK_URL;
+  const f = new Image();
+  f.crossOrigin = 'anonymous';
+  f.onload = () => { lbLogoFull = f; if (typeof render === 'function') render(); };
+  f.src = LB_LOGO_FULL_URL;
+})();
+
+// ======== Official Longbridge templates (per-mode background art) ========
+const MONTHS_SHORT = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const LB_TPL_TOPN_CLASSIC    = '../assets/templates/sg/topn_classic.png';
+const LB_TPL_STAR_CLASSIC    = '../assets/templates/sg/star_classic.png';
+const LB_TPL_HISTORY_CLASSIC = '../assets/templates/sg/history_classic.png';
+const LB_TPL_MOOD_CLASSIC    = '../assets/templates/sg/mood_classic.png';
+let tplTopnClassic = null;
+let tplStarClassic = null;
+let tplHistoryClassic = null;
+let tplMoodClassic = null;
+(function preloadLBTemplates() {
+  const loadOne = (url, setter) => {
+    const t = new Image();
+    t.onload = () => { setter(t); if (typeof render === 'function') render(); };
+    t.src = url;
+  };
+  loadOne(LB_TPL_TOPN_CLASSIC,    t => tplTopnClassic    = t);
+  loadOne(LB_TPL_STAR_CLASSIC,    t => tplStarClassic    = t);
+  loadOne(LB_TPL_HISTORY_CLASSIC, t => tplHistoryClassic = t);
+  loadOne(LB_TPL_MOOD_CLASSIC,    t => tplMoodClassic    = t);
+})();
+
+// "Magnificent 7" — fixed roster + fixed cell positions for the topn-classic template
+// label = what we draw on the sticker (matches official design),
+// fetch = symbol used to query data (e.g. Alphabet → fetch GOOGL, display GOOG)
+const M7_LAYOUT = [
+  { label: 'AAPL', fetch: 'AAPL',  col: 0, row: 0 },
+  { label: 'MSFT', fetch: 'MSFT',  col: 1, row: 0 },
+  { label: 'NVDA', fetch: 'NVDA',  col: 2, row: 0 },
+  { label: 'AMZN', fetch: 'AMZN',  col: 3, row: 0 },
+  { label: 'META', fetch: 'META',  col: 0, row: 1 },
+  { label: 'GOOG', fetch: 'GOOGL', col: 1, row: 1 },
+  { label: 'TSLA', fetch: 'TSLA',  col: 2, row: 1 },
+  // (col=3, row=1) is the mascot illustration baked into the template — no overlay
+];
+const M7_FETCH_SYMBOLS = M7_LAYOUT.map(m => m.fetch);
+
+// Mode → eyebrow text (shown in header instead of duplicate LONGBRIDGE wordmark)
+const MODE_EYEBROW = {
+  topn:     'TOP MOVERS',
+  mood:     'MARKET SENTIMENT',
+  star:     'SPOTLIGHT',
+  earnings: 'EARNINGS WEEK',
+  history:  'MARKET HISTORY',
+  holiday:  'FESTIVE',
+};
+function getCurrentEyebrow() {
+  const m = ($('labelMode') && $('labelMode').value) || 'topn';
+  return MODE_EYEBROW[m] || 'LONGBRIDGE';
+}
+
+// Longbridge 4-color bar palette (matches the official mark: teal, mint, amber, coral)
+const LB_MARK_COLORS = ['#00B8B8', '#5FD4C8', '#FFC24B', '#FF7A70'];
+
+// Vector bar-chart mark — ascending bars in brand colors. Used when lbLogoMark isn't loaded yet.
+function drawMarkVector(ctx, x, y, size) {
+  const barW = size * 0.18, gap = size * 0.05;
+  const heights = [0.28, 0.50, 0.72, 0.95];
+  const baseY = y + size;
+  heights.forEach((h, i) => {
+    ctx.fillStyle = LB_MARK_COLORS[i];
+    const barH = size * h;
+    ctx.fillRect(x + i * (barW + gap), baseY - barH, barW, barH);
+  });
+}
+
+// Draw the bar-chart mark (image if loaded, vector fallback otherwise)
+function drawLogoMark(ctx, x, y, size) {
+  if (lbLogoMark && lbLogoMark.complete && lbLogoMark.naturalWidth) {
+    ctx.drawImage(lbLogoMark, x, y, size, size);
+    return;
+  }
+  drawMarkVector(ctx, x, y, size);
+}
+
+// Draw the full "Singapore LONGBRIDGE" lockup at (rightX, bottomY). Image if loaded, vector fallback.
+function drawLogoFull(ctx, rightX, bottomY, targetH) {
+  if (lbLogoFull && lbLogoFull.complete && lbLogoFull.naturalWidth) {
+    const ratio = lbLogoFull.width / lbLogoFull.height;
+    const h = targetH;
+    const w = h * ratio;
+    ctx.drawImage(lbLogoFull, rightX - w, bottomY - h, w, h);
+    return;
+  }
+  // Vector fallback: mini mark + LONGBRIDGE wordmark, right-aligned
+  const fs = Math.round(targetH * 0.72);
+  ctx.font = `900 ${fs}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'bottom';
+  ctx.textAlign = 'right';
+  ctx.fillStyle = LB_TEXT;
+  ctx.fillText('LONGBRIDGE', rightX, bottomY);
+  const textW = ctx.measureText('LONGBRIDGE').width;
+  const markSize = targetH * 0.85;
+  drawMarkVector(ctx, rightX - textW - markSize - 4, bottomY - markSize, markSize);
+}
+
+// Mood chart: 4 brand-colored bars arranged to express sentiment (ascending / flat / descending)
+function drawMoodChart(ctx, cx, cy, size, pct) {
+  const barW = size * 0.18, gap = size * 0.05;
+  const totalW = barW * 4 + gap * 3;
+  const x0 = cx - totalW / 2;
+  const baseY = cy + size / 2;
+  let heights;
+  if (pct >= 0.5)       heights = [0.30, 0.50, 0.72, 0.95]; // strong up
+  else if (pct >= 0)    heights = [0.45, 0.55, 0.70, 0.85]; // mild up
+  else if (pct > -0.5)  heights = [0.60, 0.60, 0.60, 0.60]; // flat
+  else if (pct > -2)    heights = [0.85, 0.70, 0.55, 0.45]; // mild down
+  else                  heights = [0.95, 0.72, 0.50, 0.30]; // strong down
+  heights.forEach((h, i) => {
+    ctx.fillStyle = LB_MARK_COLORS[i];
+    const barH = size * h;
+    ctx.fillRect(x0 + i * (barW + gap), baseY - barH, barW, barH);
+  });
+}
+
+// Derive the English weekday from MM/DD or M-D (assumes current year)
+function deriveWeekday(mmdd) {
+  if (!mmdd) return '';
+  const parts = mmdd.split(/[\/\-]/).map(Number);
+  if (parts.length !== 2 || parts.some(isNaN)) return '';
+  const [m, d] = parts;
+  const now = new Date();
+  let dt = new Date(now.getFullYear(), m - 1, d);
+  // A date more than ~2 months in the past is next year's (e.g. "1/5" typed in late December)
+  if (now - dt > 60 * 86400000) dt = new Date(now.getFullYear() + 1, m - 1, d);
+  return ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'][dt.getDay()];
+}
+// "週三" / "wed" / "WED" → "Wed"
+function normalizeWeekday(s) {
+  const zh = {'一':'Mon','二':'Tue','三':'Wed','四':'Thu','五':'Fri','六':'Sat','日':'Sun','天':'Sun'};
+  const m = String(s || '').match(/^週(.)$/);
+  if (m) return zh[m[1]] || '';
+  const t = String(s || '').slice(0, 3).toLowerCase();
+  return t ? t[0].toUpperCase() + t.slice(1) : '';
+}
+// "11/19" → "19 Nov"
+function fmtDayMonth(md) {
+  const [m, d] = String(md || '').split(/[\/\-]/).map(Number);
+  return (m >= 1 && m <= 12 && d) ? `${d} ${MONTHS_SHORT[m - 1]}` : String(md || '');
+}
+
+function isLed() { return $('uiStyle').value === 'led'; }
+function isLb()  { return $('uiStyle').value === 'longbridge'; }
+function isMono(){ return $('uiStyle').value === 'mono'; }
+
+function pctColor(pct) {
+  if (isLed()) return pct >= 0 ? LED_UP : LED_DOWN;
+  // Longbridge preset auto-applies HK (red=up) convention regardless of dropdown
+  if (isLb()) return pct >= 0 ? LB_UP : LB_DOWN;
+  const conv = $('colorConv').value;
+  if (conv === 'mono') return '#111';
+  if (conv === 'cn') return pct >= 0 ? 'var-up' : 'var-down';
+  return pct >= 0 ? 'var-down' : 'var-up';
+}
+function resolveColor(c) {
+  if (c === 'var-up') return getComputedStyle(document.documentElement).getPropertyValue('--up').trim() || '#F7415F';
+  if (c === 'var-down') return getComputedStyle(document.documentElement).getPropertyValue('--down').trim() || '#2AD390';
+  return c;
+}
+
+function drawBg(ctx, W, H) {
+  const style = $('uiStyle').value;
+  if (style === 'led') { ctx.fillStyle = '#000'; ctx.fillRect(0,0,W,H); }
+  else if (style === 'longbridge') { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); }
+  else { ctx.fillStyle = '#fff'; ctx.fillRect(0,0,W,H); }
+
+  if (bgImg && $('tplMode').value === 'full' && !exportNoBg) ctx.drawImage(bgImg, 0, 0, W, H);
+}
+function textColor() {
+  if (isLed()) return '#ffffff';
+  if (isLb())  return LB_TEXT;
+  return '#111';
+}
+function mutedColor() {
+  if (isLed()) return '#9ca3af';
+  if (isLb())  return LB_MUTED;
+  return '#6b7280';
+}
+function brandColor() {
+  if (isLed()) return LED_UP;
+  if (isLb())  return LB_BRAND;
+  return $('themeColor').value;
+}
+
+// Bottom-right brand anchor — uses the official "Singapore · LONGBRIDGE" lockup image when loaded
+function drawLBWordmark(ctx, W, H) {
+  if (!isLb()) return;
+  const targetH = Math.max(14, Math.round(H * 0.07));
+  drawLogoFull(ctx, W - W * 0.05, H - W * 0.02, targetH);
+}
+
+function drawHeaderBar(ctx, W, headerH, title) {
+  if (isLb()) {
+    // Longbridge: brand mark + mode eyebrow + big title + teal rule
+    const pad = W * 0.05;
+    // Brand mark (small bar-chart icon at top-left)
+    const markSize = Math.max(16, Math.round(headerH * 0.28));
+    drawLogoMark(ctx, pad, Math.round(headerH * 0.10), markSize);
+    // Mode eyebrow (small teal label, letter-spaced) — to the right of the mark
+    ctx.fillStyle = LB_BRAND;
+    const ebFS = Math.max(9, Math.round(headerH * 0.18));
+    ctx.font = `800 ${ebFS}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    const ebY = Math.round(headerH * 0.10) + markSize / 2;
+    ctx.save();
+    ctx.letterSpacing && (ctx.letterSpacing = '1.5px');
+    ctx.fillText(getCurrentEyebrow(), pad + markSize + pad * 0.5, ebY);
+    ctx.restore();
+    // Main title below
+    ctx.fillStyle = LB_TEXT;
+    const fs = Math.round(headerH * 0.44);
+    ctx.font = `900 ${fs}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.fillText(title, pad, headerH * 0.72);
+    // Thin teal rule at the very bottom of header, short accent
+    ctx.fillStyle = LB_BRAND;
+    const ruleW = Math.max(W * 0.14, pad * 3);
+    ctx.fillRect(pad, headerH - Math.max(2, Math.round(headerH * 0.04)), ruleW, Math.max(2, Math.round(headerH * 0.04)));
+    return;
+  }
+  if (isLed()) {
+    // Dark background continues; thin cyan underline instead of solid bar
+    ctx.fillStyle = '#fff';
+    const fs = Math.round(headerH * 0.46);
+    ctx.font = `bold ${fs}px -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", sans-serif`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText(title, W * 0.04, headerH / 2);
+    // Cyan underline
+    ctx.fillStyle = LED_UP;
+    ctx.fillRect(W * 0.04, headerH - 2, W * 0.16, 2);
+    // Cyan trend icon on the right
+    const iconW = headerH * 1.1, iconH = headerH * 0.55;
+    drawTrendUp(ctx, W - iconW - W*0.03, (headerH - iconH)/2, iconW, iconH, LED_UP);
+    return;
+  }
+  const color = $('themeColor').value;
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, W, headerH);
+  ctx.fillStyle = '#fff';
+  const fs = Math.round(headerH * 0.48);
+  ctx.font = `bold ${fs}px -apple-system, "PingFang HK", "PingFang TC", "Microsoft JhengHei", sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(title, W * 0.04, headerH / 2);
+  const iconW = headerH * 1.1, iconH = headerH * 0.55;
+  drawTrendUp(ctx, W - iconW - W*0.03, (headerH - iconH)/2, iconW, iconH, '#fff');
+}
+
+function drawFooterText(ctx, W, H, startY) {
+  const tpl = $('tplMode').value;
+  const raw = $('footer').value
+    .replace(/\{time\}/g, dataTime || '—')
+    .replace(/\{date\}/g, (p => `${p.day} ${MONTHS_SHORT[p.month - 1]} ${p.year}`)(sgParts(new Date())));
+  const footerH = H - startY;
+
+  if (bgImg && tpl === 'bottom' && !exportNoBg) {
+    const ratio = bgImg.height / bgImg.width;
+    const imgH = Math.min(W * ratio, footerH);
+    ctx.drawImage(bgImg, 0, H - imgH, W, imgH);
+    return;
+  }
+
+  if (isLed()) {
+    ctx.fillStyle = '#0a0a0a';
+    ctx.fillRect(W*0.025, startY, W - W*0.05, footerH - 4);
+    // Thin cyan top border for the footer section
+    ctx.fillStyle = LED_UP;
+    ctx.fillRect(W*0.025, startY, W - W*0.05, 1);
+  } else if (isLb()) {
+    // Longbridge: no background card — just a hairline separator
+    ctx.fillStyle = LB_BORDER;
+    ctx.fillRect(W*0.05, startY, W - W*0.10, 1);
+  } else {
+    ctx.fillStyle = '#f8fafc';
+    ctx.fillRect(W*0.025, startY, W - W*0.05, footerH - 4);
+  }
+  ctx.fillStyle = mutedColor();
+  const fs = Math.max(9, Math.round(W * 0.026));
+  ctx.font = `${fs}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'left';
+  const footerStartY = isLb() ? startY + W * 0.025 : startY + W * 0.02;
+  // Leave room for the LB lockup (≈ W*0.34 at default H) when LB style
+  const textMaxW = isLb() ? W * 0.58 : W - W*0.22;
+  wrapText(ctx, raw, W*0.05, footerStartY, textMaxW, fs * 1.35, Math.floor(footerH / (fs*1.4)));
+  // Draw the official Longbridge lockup bottom-right (only when LB style)
+  drawLBWordmark(ctx, W, H);
+}
+
+// ============ MODE RENDERERS ============
+
+// Filled star shape (used inside the trophy)
+function drawStarShape(ctx, cx, cy, r, points = 5, innerRatio = 0.42) {
+  const innerR = r * innerRatio;
+  ctx.beginPath();
+  for (let i = 0; i < points * 2; i++) {
+    const radius = i % 2 === 0 ? r : innerR;
+    const angle = (Math.PI / points) * i - Math.PI / 2;
+    const x = cx + Math.cos(angle) * radius;
+    const y = cy + Math.sin(angle) * radius;
+    if (i === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Vector trophy icon (teal). Used in star-classic bottom-right cell.
+function drawTrophyIcon(ctx, cx, cy, size) {
+  ctx.save();
+  ctx.fillStyle = LB_BRAND;
+  ctx.strokeStyle = LB_BRAND;
+
+  const cupW = size * 0.58, cupH = size * 0.58;
+  const cupX = cx - cupW / 2;
+  const cupY = cy - size * 0.30;
+
+  // Cup body — slightly rounded bottom
+  ctx.beginPath();
+  ctx.moveTo(cupX, cupY);
+  ctx.lineTo(cupX + cupW, cupY);
+  ctx.lineTo(cupX + cupW * 0.92, cupY + cupH * 0.85);
+  ctx.quadraticCurveTo(cupX + cupW / 2, cupY + cupH * 1.05, cupX + cupW * 0.08, cupY + cupH * 0.85);
+  ctx.closePath();
+  ctx.fill();
+
+  // Side handles
+  ctx.lineWidth = size * 0.07;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(cupX, cupY + cupH * 0.30, cupH * 0.30, -Math.PI / 2, Math.PI / 2, false);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.arc(cupX + cupW, cupY + cupH * 0.30, cupH * 0.30, -Math.PI / 2, Math.PI / 2, true);
+  ctx.stroke();
+
+  // Stem + base
+  const stemH = size * 0.10, stemW = size * 0.10;
+  ctx.fillRect(cx - stemW / 2, cupY + cupH * 0.95, stemW, stemH);
+  const baseW = size * 0.50, baseH = size * 0.10;
+  ctx.fillRect(cx - baseW / 2, cupY + cupH * 0.95 + stemH, baseW, baseH);
+
+  // Star inside the cup (white)
+  ctx.fillStyle = '#fff';
+  drawStarShape(ctx, cx, cupY + cupH * 0.42, size * 0.13);
+
+  ctx.restore();
+}
+
+// Longbridge official "昨日主角股" classic template — full-bleed art, ticker / % / price / caption / trophy / footer overlaid
+function renderStarClassic(W, H) {
+  // Background: official template (skipped on export when printing onto pre-printed paper)
+  if (exportNoBg) {
+    // text-only mode: leave canvas white, only dynamic text below will be drawn
+  } else if (tplStarClassic && tplStarClassic.complete && tplStarClassic.naturalWidth) {
+    ctx.drawImage(tplStarClassic, 0, 0, W, H);
+  } else {
+    // Fallback bg + header so layout reads if asset 404s
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = LB_BRAND; ctx.fillRect(0, 0, W, H * 0.245);
+    ctx.fillStyle = '#000';
+    ctx.font = `900 ${Math.round(H * 0.13)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText("Yesterday's Star", W * 0.04, H * 0.12);
+  }
+
+  // Pull current data — generate() puts the top mover at stocks[0]
+  const s = stocks[0] && isStockShape(stocks[0]) ? stocks[0] : { ticker: '—', changePct: 0, price: 0 };
+  const pct = s.changePct || 0;
+  const price = s.price || 0;
+  const ticker = s.ticker || s.label || '—';
+
+  // Layout (normalized — measured from the no-text template):
+  //   header band              0      – 0.245
+  //   vertical divider         x = 0.634
+  //   left col upper (ticker)  y 0.245 – 0.581
+  //   left col lower (caption) y 0.581 – 0.870
+  //   right col % zone         y 0.245 – 0.444
+  //   right col price box      y 0.444 – 0.544
+  //   right col trophy zone    y 0.544 – 0.870
+  //   footer band              y 0.870 – 1.0
+  const leftColCx  = W * 0.317;
+  const rightColCx = W * 0.817;
+
+  // BIG ticker — left column upper, auto-shrunk if it would overflow the column
+  ctx.fillStyle = '#000';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  let tFS = Math.round(H * 0.32);
+  ctx.font = `700 ${tFS}px ${BRAND_FONT}`;
+  while (ctx.measureText(ticker).width > W * 0.58 && tFS > 20) {
+    tFS -= 4;
+    ctx.font = `700 ${tFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(ticker, leftColCx, H * 0.413);
+
+  // Change % — right column, above the price box
+  const sign = pct >= 0 ? '+' : '';
+  ctx.fillStyle = '#000';
+  ctx.font = `700 ${Math.round(H * 0.095)}px ${BRAND_FONT}`;
+  ctx.fillText(`${sign}${pct.toFixed(2)}%`, rightColCx, H * 0.345);
+
+  // Price — centered inside the pre-drawn rounded teal box
+  ctx.fillStyle = '#000';
+  ctx.font = `500 ${Math.round(H * 0.072)}px ${BRAND_FONT}`;
+  ctx.fillText(`$${price.toFixed(2)}`, rightColCx, H * 0.494);
+
+  // Caption — bottom-left, up to 2 lines, won't cross into the trophy column
+  const caption = ($('starCaption') ? $('starCaption').value : '') || '';
+  if (caption) {
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
+    const capBase = Math.min(H, W * 0.69);
+    const capFS = fitFontToLines(ctx, caption, W * 0.58, 2, Math.round(capBase * 0.072), Math.round(capBase * 0.052),
+                                 px => `500 ${px}px ${BRAND_FONT}`);
+    // Vertical center of the caption block (0.581–0.870 → mid 0.726). Two-line block ≈ 0.16 tall.
+    wrapText(ctx, caption, W * 0.05, H * 0.726 - capFS * 0.7, W * 0.58, capFS * 1.30, 2);
+  }
+
+  // Trophy — bottom-right (centered in the right column trophy zone)
+  // Skipped on export: the custom label paper has the trophy pre-printed.
+  if (!exportNoBg) drawTrophyIcon(ctx, rightColCx, H * 0.707, H * 0.24);
+
+  // Footer band — only the editable disclaimer on the right (timestamp dropped per design).
+  const footerY = H * 0.935;
+  const footerFS = Math.max(8, Math.round(H * 0.030));
+  ctx.fillStyle = '#000';
+  ctx.font = `500 ${footerFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  const noteEl = $('topnClassicNote');
+  const note = (noteEl ? noteEl.value : '*For reference only').trim();
+  if (note) ctx.fillText(note, W - W * 0.025, footerY);
+}
+
+// Longbridge official "市場情緒" classic template — full-bleed art with dynamic mood label, BIG %, arrow, desc, and right metadata stack
+function renderMoodClassic(W, H) {
+  const m = computeMood(moodData ? moodData.changePct : 0);
+  const pct = moodData ? moodData.changePct : 0;
+  const ticker = (moodData && moodData.ticker) || 'SPY';
+
+  // Background template (skipped on export)
+  if (exportNoBg) {
+    // text-only mode — leave canvas white
+  } else if (tplMoodClassic && tplMoodClassic.complete && tplMoodClassic.naturalWidth) {
+    ctx.drawImage(tplMoodClassic, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = LB_BRAND; ctx.fillRect(0, 0, W, H * 0.256);
+  }
+
+  // Cover the baked "穩健上行" with the SAME teal as the template (slightly different from LB_BRAND).
+  // Then write the dynamic mood label that matches today's pct.
+  // On export: no template = no baked text to cover, so we skip the cover rect.
+  const TPL_TEAL = '#47BBAE';
+  if (!exportNoBg) {
+    ctx.fillStyle = TPL_TEAL;
+    ctx.fillRect(W * 0.04, H * 0.05, W * 0.55, H * 0.18);
+  }
+  ctx.fillStyle = '#000';
+  let labelFS = Math.round(H * 0.13);
+  ctx.font = `900 ${labelFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  while (ctx.measureText(m.label).width > W * 0.54 && labelFS > 24) {
+    labelFS -= 2;
+    ctx.font = `900 ${labelFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(m.label, W * 0.06, H * 0.14);
+
+  // BIG percentage in middle (centered, black for both signs per design)
+  const sign = pct >= 0 ? '+' : '';
+  const pctText = `${sign}${pct.toFixed(2)}%`;
+  ctx.fillStyle = '#000';
+  let pctFS = Math.round(H * 0.34);
+  ctx.font = `900 ${pctFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  while (ctx.measureText(pctText).width > W * 0.86 && pctFS > 60) {
+    pctFS -= 4;
+    ctx.font = `900 ${pctFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(pctText, W * 0.5, H * 0.482);
+
+  // Cover the baked up-arrow box with the template's teal, then draw a fresh arrow matching today's direction
+  // On export: skip the teal cover; switch arrow color to teal so it stays visible on white.
+  const boxRight = W * 0.20;
+  const boxTop = H * 0.708;
+  if (!exportNoBg) {
+    ctx.fillStyle = TPL_TEAL;
+    ctx.fillRect(0, boxTop, boxRight, H - boxTop);
+  }
+  const arrowColor = exportNoBg ? LB_BRAND : '#fff';
+  // Arrow icon: up if positive, down if negative, slim → for flat
+  const arrowW = W * 0.13, arrowH = H * 0.16;
+  const arrowX = (boxRight - arrowW) / 2;
+  const arrowY = boxTop + (H - boxTop - arrowH) / 2;
+  if (pct >= 0.5) {
+    drawTrendUp(ctx, arrowX, arrowY, arrowW, arrowH, arrowColor);
+  } else if (pct <= -0.5) {
+    drawTrendDown(ctx, arrowX, arrowY, arrowW, arrowH, arrowColor);
+  } else {
+    // Flat — small horizontal line with arrowhead
+    ctx.strokeStyle = arrowColor;
+    ctx.fillStyle = arrowColor;
+    ctx.lineWidth = arrowH * 0.18;
+    ctx.beginPath();
+    ctx.moveTo(arrowX + arrowW * 0.10, arrowY + arrowH * 0.55);
+    ctx.lineTo(arrowX + arrowW * 0.78, arrowY + arrowH * 0.55);
+    ctx.stroke();
+    // Arrowhead
+    ctx.beginPath();
+    ctx.moveTo(arrowX + arrowW * 0.95, arrowY + arrowH * 0.55);
+    ctx.lineTo(arrowX + arrowW * 0.70, arrowY + arrowH * 0.30);
+    ctx.lineTo(arrowX + arrowW * 0.70, arrowY + arrowH * 0.80);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // Mood description (bottom-middle, single line)
+  ctx.fillStyle = '#000';
+  let descFS = Math.round(H * 0.10);
+  ctx.font = `700 ${descFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  // Strip the comma to match the official design's compact look
+  const desc = (m.desc || '').replace(/[，]/g, '');
+  while (ctx.measureText(desc).width > W * 0.56 && descFS > 22) {
+    descFS -= 2;
+    ctx.font = `700 ${descFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(desc, W * 0.22, H * 0.85);
+
+  // Right metadata stack: ticker / date / time / disclaimer
+  const metaX = W * 0.82;
+  const noteEl = $('topnClassicNote');
+  const note = (noteEl ? noteEl.value : '*For reference only').trim();
+
+  // Split dataTime "21 Oct, 08:47 SGT" into date + time
+  const dt = dataTime || '';
+  const dtMatch = dt.match(/^(.+?),\s*(.+)$/);
+  const datePart = dtMatch ? dtMatch[1] : dt;
+  const timePart = dtMatch ? dtMatch[2] : '';
+
+  const fs = Math.max(8, Math.round(H * 0.034));
+  ctx.fillStyle = '#000';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  // 4 stacked lines, evenly spaced within bottom row 0.708–1.0
+  const lineY = [H * 0.755, H * 0.815, H * 0.870, H * 0.940];
+  const metaMaxW = W * 0.145;
+  const metaLine = (text, weight, y) => {
+    let px = fs;
+    ctx.font = `${weight} ${px}px ${BRAND_FONT}`;
+    while (ctx.measureText(text).width > metaMaxW && px > 6) { px -= 1; ctx.font = `${weight} ${px}px ${BRAND_FONT}`; }
+    ctx.fillText(text, metaX, y);
+  };
+  metaLine(ticker, 800, lineY[0]);
+  if (datePart) metaLine(datePart, 500, lineY[1]);
+  if (timePart) metaLine(timePart, 500, lineY[2]);
+  if (note) metaLine(note, 500, lineY[3]);
+}
+
+// Longbridge official "金融史·今日" classic template — full-bleed art with year + date + event description
+function renderHistoryClassic(W, H) {
+  // Background template (skipped on export)
+  if (exportNoBg) {
+    // text-only mode — leave canvas white
+  } else if (tplHistoryClassic && tplHistoryClassic.complete && tplHistoryClassic.naturalWidth) {
+    ctx.drawImage(tplHistoryClassic, 0, 0, W, H);
+  } else {
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = LB_BRAND; ctx.fillRect(0, 0, W, H * 0.256);
+    ctx.fillStyle = '#000';
+    ctx.font = `900 ${Math.round(H * 0.13)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
+    ctx.fillText('This Day in Finance', W * 0.04, H * 0.13);
+  }
+
+  // Pull the event from stocks[0] (set by generate() via pickHistoryEvent)
+  const ev = stocks[0] && 'year' in stocks[0] ? stocks[0] : pickHistoryEvent();
+  const year = ev.year || '—';
+  const dateStr = ev.date || '';
+  const dateParts = dateStr.split('-').map(s => String(parseInt(s, 10) || ''));
+  const dateDisplay = (dateParts[0] && dateParts[1]) ? `${dateParts[1]} ${MONTHS_SHORT[+dateParts[0] - 1]}` : '—';
+  const text = ev.text || '';
+
+  // Layout (normalized — measured from no-text template):
+  //   header                  0      – 0.256
+  //   body upper              0.256  – 0.608
+  //     year (left)           x: 0–0.669
+  //     date "on M·D" (right) x: 0.669–1.0
+  //   body lower (event)      0.608  – 0.875
+  //   footer band             0.875  – 1.0
+  const upperCy = H * 0.432;
+
+  // BIG year — left column upper
+  ctx.fillStyle = '#000';
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  let yFS = Math.round(H * 0.34);
+  ctx.font = `900 ${yFS}px ${BRAND_FONT}`;
+  while (ctx.measureText(String(year)).width > W * 0.62 && yFS > 30) {
+    yFS -= 4;
+    ctx.font = `900 ${yFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(String(year), W * 0.335, upperCy);
+
+  // "on" stacked above "M·D" — right column upper
+  const dateCx = W * 0.834;
+  const onFS = Math.round(H * 0.085);
+  ctx.font = `700 ${onFS}px ${BRAND_FONT}`;
+  ctx.fillText('on', dateCx, upperCy - H * 0.08);
+  let dateFS = Math.round(H * 0.105);
+  ctx.font = `800 ${dateFS}px ${BRAND_FONT}`;
+  while (ctx.measureText(dateDisplay).width > W * 0.28 && dateFS > 12) {
+    dateFS -= 2;
+    ctx.font = `800 ${dateFS}px ${BRAND_FONT}`;
+  }
+  ctx.fillText(dateDisplay, dateCx, upperCy + H * 0.07);
+
+  // Event description — full width, body lower, up to 2 lines, vertically centered
+  ctx.fillStyle = '#000';
+  const fsBase = Math.min(H, W * 0.69);
+  const descFS = fitFontToLines(ctx, text, W * 0.92, 2, Math.round(fsBase * 0.075), Math.round(fsBase * 0.058),
+                                px => `500 ${px}px ${BRAND_FONT}`);
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  // Center the block in y 0.608–0.875 (mid 0.741)
+  const descLines = Math.min(2, layoutLines(ctx, text, W * 0.92).length);
+  wrapText(ctx, text, W * 0.05, H * 0.741 - (descLines - 1) * descFS * 0.65, W * 0.92, descFS * 1.30, 2);
+
+  // Footer band — only the editable disclaimer on the right (timestamp dropped per design)
+  const footerY = H * 0.935;
+  const footerFS = Math.max(8, Math.round(H * 0.030));
+  ctx.fillStyle = '#000';
+  ctx.font = `500 ${footerFS}px ${BRAND_FONT}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  const noteEl = $('topnClassicNote');
+  const note = (noteEl ? noteEl.value : '*For reference only').trim();
+  if (note) ctx.fillText(note, W - W * 0.025, footerY);
+}
+
+// Longbridge official "美股七巨頭" classic template — uses topn_classic.png as full-bleed art,
+// then overlays ticker label + yesterday's % change in each of 7 cells (8th cell is the mascot).
+function renderTopNClassic(W, H) {
+  // Background: official template (skipped on export so only the 7 cell texts are printed)
+  if (exportNoBg) {
+    // text-only mode — leave canvas white
+  } else if (tplTopnClassic && tplTopnClassic.complete && tplTopnClassic.naturalWidth) {
+    ctx.drawImage(tplTopnClassic, 0, 0, W, H);
+  } else {
+    // Fallback: solid white + teal header so the layout still reads if the asset 404s
+    ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#00DBB6'; ctx.fillRect(0, 0, W, H * 0.25);
+    ctx.fillStyle = '#000';
+    ctx.font = `900 ${Math.round(H * 0.13)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+    ctx.fillText('Magnificent 7', W / 2, H * 0.125);
+  }
+
+  // Editable corner note in the bottom-right white margin strip (default "*僅供參考"). Empty → hidden.
+  // The template has a ~3% white strip at the very bottom outside the rounded teal border.
+  const noteEl = $('topnClassicNote');
+  const noteText = (noteEl ? noteEl.value : '*For reference only').trim();
+  if (noteText) {
+    ctx.fillStyle = '#000';
+    ctx.font = `500 ${Math.max(8, Math.round(H * 0.030))}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'right';
+    ctx.fillText(noteText, W - W * 0.025, H * 0.985);
+  }
+
+  // Cell positions calibrated to the actual colored blocks in topn_classic.png (2519×1680):
+  //   Outer border ~12px each side ≈ 4.0% of W and ~80px top/60px bottom ≈ 4.8%/3.6% of H
+  //   Header band: y=80–440 (0.262 of H from top edge of color block, 0.262–0.619 row 0, 0.619–0.964 row 1)
+  const gridLeft   = W * 0.040;
+  const gridRight  = W * 0.969;
+  const gridW      = gridRight - gridLeft;
+  const cellW      = gridW / 4;
+  const row0Top    = H * 0.262;
+  const row0Bottom = H * 0.619;
+  const row1Top    = H * 0.619;
+  const row1Bottom = H * 0.964;
+
+  for (const s of (stocks || [])) {
+    if (s.col == null || s.row == null) continue;     // skip non-LB rows
+    const cellX  = gridLeft + s.col * cellW;
+    const cellTop    = s.row === 0 ? row0Top    : row1Top;
+    const cellBottom = s.row === 0 ? row0Bottom : row1Bottom;
+    const cellH  = cellBottom - cellTop;
+    const cx     = cellX + cellW / 2;
+
+    // Ticker — Cera Pro Bold (one step lighter than Black), centered, upper portion of cell.
+    ctx.fillStyle = '#000';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    const label = s.label || s.ticker || '—';
+    let tickerFS = Math.round(cellH * 0.32);
+    const maxTextW = cellW * 0.78;
+    ctx.font = `700 ${tickerFS}px ${BRAND_FONT}`;
+    while (ctx.measureText(label).width > maxTextW && tickerFS > 10) {
+      tickerFS -= 2;
+      ctx.font = `700 ${tickerFS}px ${BRAND_FONT}`;
+    }
+    ctx.fillText(label, cx, cellTop + cellH * 0.34);
+
+    // Percentage — Cera Pro Medium (lighter than ticker), smaller size, no stroke.
+    if (!s.missing) {
+      const pct = s.changePct || 0;
+      const sign = pct >= 0 ? '+' : '';
+      let pctFS = Math.round(cellH * 0.18);
+      const pctText = `${sign}${pct.toFixed(2)}%`;
+      ctx.font = `500 ${pctFS}px ${BRAND_FONT}`;
+      while (ctx.measureText(pctText).width > maxTextW && pctFS > 8) {
+        pctFS -= 1;
+        ctx.font = `500 ${pctFS}px ${BRAND_FONT}`;
+      }
+      ctx.fillText(pctText, cx, cellTop + cellH * 0.72);
+    } else {
+      ctx.fillStyle = '#888';
+      ctx.font = `${Math.round(cellH * 0.16)}px ${BODY_FONT}`;
+      ctx.fillText('—', cx, cellTop + cellH * 0.72);
+    }
+  }
+}
+
+function renderTopN(W, H) {
+  // Longbridge style → use the official 美股七巨頭 classic template
+  if (isLb()) return renderTopNClassic(W, H);
+
+  const headerH = Math.round(H * 0.20);
+  drawHeaderBar(ctx, W, headerH, $('title').value);
+
+  const footerH = Math.round(H * 0.22);
+  const bodyStart = headerH + Math.round(H * 0.03);
+  const bodyEnd = H - footerH;
+  const bodyH = bodyEnd - bodyStart;
+
+  const n = stocks.length || 1;
+  const rowH = bodyH / n;
+  const showArrow = $('showArrow').checked;
+  const showPrice = $('showPrice').checked;
+  const showChange = $('showChange').checked;
+  const showTicker = $('showTicker').checked;
+
+  stocks.forEach((s, i) => {
+    const y = bodyStart + i * rowH + rowH / 2;
+    const pct = s.changePct || 0;
+    const col = resolveColor(pctColor(pct));
+
+    // Longbridge style: teal rank number + thin row separator
+    let xText = W * 0.05;
+    if (isLb()) {
+      // Rank number (01, 02, 03) in teal
+      ctx.fillStyle = LB_BRAND;
+      const rkFS = Math.round(rowH * 0.26);
+      ctx.font = `700 ${rkFS}px ${NUM_FONT}`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      const rank = String(i + 1).padStart(2, '0');
+      ctx.fillText(rank, W * 0.05, y);
+      xText = W * 0.05 + ctx.measureText(rank).width + W * 0.025;
+      // Thin row separator (except for first row)
+      if (i > 0) {
+        ctx.fillStyle = LB_BORDER;
+        ctx.fillRect(W * 0.05, bodyStart + i * rowH, W * 0.9, 1);
+      }
+    } else if (showArrow) {
+      // Classic/mono/led: original arrow on the left
+      const aW = rowH * 0.85, aH = rowH * 0.55;
+      const ay = y - aH / 2;
+      if (pct >= 0) drawTrendUp(ctx, W * 0.04, ay, aW, aH, col);
+      else drawTrendDown(ctx, W * 0.04, ay, aW, aH, col);
+      xText = W * 0.04 + aW + W * 0.02;
+    }
+    // Ticker
+    if (showTicker) {
+      ctx.fillStyle = textColor();
+      const fs = Math.round(rowH * (isLb() ? 0.48 : 0.55));
+      ctx.font = `${isLb() ? 900 : 'bold'} ${fs}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'left';
+      ctx.fillText(s.ticker || '—', xText, y);
+    }
+    // Right side: change% (big) + price (small below)
+    const rightX = W - W * 0.04;
+    if (showChange) {
+      ctx.fillStyle = col;
+      const fs = Math.round(rowH * 0.56);
+      ctx.font = `${isLb() ? 900 : 'bold'} ${fs}px ${NUM_FONT}`;
+      ctx.textBaseline = 'middle';
+      ctx.textAlign = 'right';
+      const sign = pct >= 0 ? '+' : '';
+      ctx.fillText(`${sign}${pct.toFixed(2)}%`, rightX, showPrice ? y - rowH*0.12 : y);
+    }
+    if (showPrice) {
+      ctx.fillStyle = mutedColor();
+      const fs = Math.round(rowH * 0.26);
+      ctx.font = `${fs}px ${NUM_FONT}`;
+      ctx.textAlign = 'right';
+      ctx.fillText(`$${(s.price||0).toFixed(2)}`, rightX, y + rowH*0.24);
+    }
+  });
+
+  drawFooterText(ctx, W, H, bodyEnd);
+}
+
+function renderMood(W, H) {
+  // Longbridge style → official "市場情緒" classic template
+  if (isLb()) return renderMoodClassic(W, H);
+
+  const m = computeMood(moodData ? moodData.changePct : 0);
+  const pct = moodData ? moodData.changePct : 0;
+
+  if (false) {
+    // (legacy LB-minimal branch — short-circuited above; kept for diff history)
+    const pad = W * 0.05;
+    // Brand mark + eyebrow row
+    const markSize = Math.max(16, Math.round(H * 0.09));
+    drawLogoMark(ctx, pad, pad * 0.9, markSize);
+    ctx.fillStyle = LB_BRAND;
+    ctx.font = `800 ${Math.max(10, Math.round(W * 0.032))}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'middle';
+    ctx.textAlign = 'left';
+    ctx.fillText('MARKET SENTIMENT', pad + markSize + pad * 0.5, pad * 0.9 + markSize / 2);
+    // Accent rule
+    ctx.fillStyle = LB_BRAND;
+    ctx.fillRect(pad, pad + markSize + W * 0.015, W * 0.10, 2);
+
+    // Big ticker (index symbol)
+    const idx = moodData ? moodData.ticker : 'SPY';
+    ctx.fillStyle = LB_TEXT;
+    ctx.font = `900 ${Math.round(H * 0.10)}px ${BRAND_FONT}`;
+    ctx.textBaseline = 'top';
+    ctx.fillText(idx, pad, pad + markSize + W * 0.035);
+
+    // Change% huge, brand red/green
+    ctx.fillStyle = pct >= 0 ? LB_UP : LB_DOWN;
+    const pctFS = Math.round(H * 0.21);
+    ctx.font = `900 ${pctFS}px ${NUM_FONT}`;
+    ctx.textBaseline = 'middle';
+    const sign = pct >= 0 ? '+' : '';
+    ctx.fillText(`${sign}${pct.toFixed(2)}%`, pad, H * 0.50);
+
+    // Mood chart (4 brand-colored bars) on the right — on-brand, print-friendly, no emoji
+    const chartSize = Math.round(H * 0.28);
+    drawMoodChart(ctx, W - pad - chartSize / 2, H * 0.50, chartSize, pct);
+
+    // Mood label + desc on lower half
+    ctx.fillStyle = LB_TEXT;
+    ctx.font = `700 ${Math.round(H * 0.075)}px ${BRAND_FONT}`;
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(m.label, pad, H * 0.68);
+    ctx.fillStyle = LB_MUTED;
+    ctx.font = `400 ${Math.round(H * 0.052)}px ${BODY_FONT}`;
+    wrapText(ctx, m.desc, pad, H * 0.78, W - pad*2, H * 0.058, 2);
+
+    // Footer
+    drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
+    return;
+  }
+
+  // Original mood design (other styles)
+  ctx.fillStyle = m.color;
+  ctx.fillRect(0, 0, W, H);
+  const pad = W * 0.04;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(pad, pad, W - pad*2, H - pad*2);
+
+  ctx.fillStyle = m.color;
+  const emojiSize = Math.round(H * 0.32);
+  ctx.font = `${emojiSize}px -apple-system, "Apple Color Emoji", sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(m.emoji, W * 0.28, H * 0.40);
+
+  ctx.fillStyle = '#111';
+  const labelFS = Math.round(H * 0.11);
+  ctx.font = `bold ${labelFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textAlign = 'left';
+  ctx.fillText(m.label, W * 0.45, H * 0.32);
+
+  ctx.fillStyle = m.color;
+  const pctFS = Math.round(H * 0.14);
+  ctx.font = `bold ${pctFS}px -apple-system, SF Mono, monospace`;
+  const sign = pct >= 0 ? '+' : '';
+  ctx.fillText(`${sign}${pct.toFixed(2)}%`, W * 0.45, H * 0.48);
+
+  ctx.fillStyle = mutedColor();
+  const descFS = Math.round(H * 0.055);
+  ctx.font = `${descFS}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.fillText(m.desc, W * 0.08, H * 0.72);
+
+  ctx.fillStyle = '#9ca3af';
+  const fs = Math.round(H * 0.04);
+  ctx.font = `${fs}px -apple-system, "PingFang HK", "PingFang TC", sans-serif`;
+  ctx.textBaseline = 'bottom';
+  const idx = moodData ? moodData.ticker : 'SPY';
+  ctx.fillText(`${idx} · ${dataTime} · For reference only`, W * 0.08, H - pad - 4);
+}
+
+function renderStar(W, H) {
+  // Longbridge style → official "昨日主角股" classic template
+  if (isLb()) return renderStarClassic(W, H);
+
+  const s = stocks[0] && isStockShape(stocks[0]) ? stocks[0] : {ticker:'—', changePct:0, price:0};
+  const pct = s.changePct || 0;
+  const col = resolveColor(pctColor(pct));
+  const pad = W * 0.05;
+
+  // Header
+  const headerH = Math.round(H * 0.16);
+  drawHeaderBar(ctx, W, headerH, $('title').value || "Yesterday's Star");
+
+  // Change% + arrow — right-aligned, measured first so ticker left gets remaining space
+  const pctText = `${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%`;
+  const pctFS = Math.round(H * 0.15);
+  ctx.font = `${isLb() ? 900 : 'bold'} ${pctFS}px ${NUM_FONT}`;
+  const pctW = ctx.measureText(pctText).width;
+
+  const arrowH = H * 0.14, arrowW = arrowH * 1.25;
+  const rowY = H * 0.44;
+
+  // Draw change% at right edge
+  ctx.fillStyle = col;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'right';
+  ctx.fillText(pctText, W - pad, rowY);
+  // Arrow just left of % (skip in Longbridge — the red/green + sign is enough)
+  let arrowSlot = 0;
+  if (!isLb()) {
+    if (pct >= 0) drawTrendUp(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
+    else drawTrendDown(ctx, W - pad - pctW - arrowW - W*0.015, rowY - arrowH/2, arrowW, arrowH, col);
+    arrowSlot = arrowW + W*0.015;
+  }
+
+  // Ticker — left, sized to fit remaining space
+  const tickerMaxW = W - pad*2 - pctW - arrowSlot - W*0.04;
+  let tkFS = Math.round(H * 0.32);
+  ctx.fillStyle = textColor();
+  ctx.font = `900 ${tkFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+  while (ctx.measureText(s.ticker||'—').width > tickerMaxW && tkFS > 12) {
+    tkFS -= 2;
+    ctx.font = `900 ${tkFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+  }
+  ctx.textAlign = 'left';
+  ctx.fillText(s.ticker || '—', pad, rowY);
+
+  // Price (below ticker)
+  ctx.fillStyle = mutedColor();
+  const prFS = Math.round(H * 0.075);
+  ctx.font = `${prFS}px ${NUM_FONT}`;
+  ctx.fillText(`$${(s.price||0).toFixed(2)}`, pad, H * 0.64);
+
+  // Caption
+  const cap = $('starCaption').value || '';
+  ctx.fillStyle = textColor();
+  const capFS = Math.round(H * 0.068);
+  ctx.font = `${isLb() ? 500 : 500} ${capFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+  ctx.textBaseline = 'top';
+  wrapText(ctx, cap, pad, H * 0.74, W - pad*2, capFS * 1.35, 2);
+
+  drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
+}
+
+function renderEarnings(W, H) {
+  const headerH = Math.round(H * 0.20);
+  drawHeaderBar(ctx, W, headerH, $('title').value || 'Earnings This Week');
+
+  const bodyStart = headerH + H*0.03;
+  const bodyEnd = H - Math.round(H * 0.18);
+  const rows = stocks.length || 1;
+  const rowH = (bodyEnd - bodyStart) / rows;
+
+  stocks.forEach((s, i) => {
+    const y = bodyStart + i * rowH + rowH / 2;
+    ctx.textBaseline = 'middle';
+
+    // Day badge (left) — wider pill so it can hold "M/D" + "週X" stacked
+    const badgeBg  = isLb() ? LB_TINT   : '#fff7ed';
+    const badgeStr = isLb() ? LB_BRAND  : $('themeColor').value;
+    ctx.fillStyle = badgeBg;
+    const hasDate = !!s.date;
+    const badgeW = hasDate ? W * 0.20 : W * 0.16;
+    const badgeH = rowH * 0.78;
+    const badgeX = W * 0.04;
+    const badgeY = y - badgeH / 2;
+    if (isLb()) {
+      // Rounded pill-style badge
+      const r = Math.min(badgeH / 2, 6);
+      ctx.beginPath();
+      ctx.moveTo(badgeX + r, badgeY);
+      ctx.lineTo(badgeX + badgeW - r, badgeY);
+      ctx.quadraticCurveTo(badgeX + badgeW, badgeY, badgeX + badgeW, badgeY + r);
+      ctx.lineTo(badgeX + badgeW, badgeY + badgeH - r);
+      ctx.quadraticCurveTo(badgeX + badgeW, badgeY + badgeH, badgeX + badgeW - r, badgeY + badgeH);
+      ctx.lineTo(badgeX + r, badgeY + badgeH);
+      ctx.quadraticCurveTo(badgeX, badgeY + badgeH, badgeX, badgeY + badgeH - r);
+      ctx.lineTo(badgeX, badgeY + r);
+      ctx.quadraticCurveTo(badgeX, badgeY, badgeX + r, badgeY);
+      ctx.closePath();
+      ctx.fill();
+    } else {
+      ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+      ctx.strokeStyle = badgeStr;
+      ctx.lineWidth = 1;
+      ctx.strokeRect(badgeX, badgeY, badgeW, badgeH);
+    }
+    ctx.fillStyle = badgeStr;
+    ctx.textAlign = 'center';
+    if (hasDate) {
+      // Primary line: M/D
+      const dateTxt = fmtDayMonth(s.date);
+      let dateFS = Math.round(rowH * 0.30);
+      const dateFont = px => `${isLb() ? 900 : 'bold'} ${px}px ${isLb() ? BRAND_FONT : '-apple-system, sans-serif'}`;
+      ctx.font = dateFont(dateFS);
+      while (ctx.measureText(dateTxt).width > badgeW * 0.88 && dateFS > 8) { dateFS -= 1; ctx.font = dateFont(dateFS); }
+      ctx.textBaseline = 'alphabetic';
+      ctx.fillText(dateTxt, badgeX + badgeW/2, y - rowH * 0.04);
+      // Secondary line: 週X
+      const dayFS = Math.round(rowH * 0.22);
+      ctx.font = `${isLb() ? 700 : 'normal'} ${dayFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+      ctx.fillText(s.day || '', badgeX + badgeW/2, y + rowH * 0.22);
+      ctx.textBaseline = 'middle';
+    } else {
+      const dayFS = Math.round(rowH * 0.30);
+      ctx.font = `${isLb() ? 800 : 'bold'} ${dayFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+      ctx.fillText(s.day || '?', badgeX + badgeW/2, y);
+    }
+
+    // Ticker
+    const tickerX = badgeX + badgeW + W * 0.03;
+    ctx.fillStyle = textColor();
+    const tkFS = Math.round(rowH * 0.42);
+    ctx.font = `${isLb() ? 900 : 'bold'} ${tkFS}px ${isLb() ? BRAND_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+    ctx.textAlign = 'left';
+    ctx.fillText(s.ticker || '—', tickerX, y);
+
+    // Note
+    ctx.fillStyle = mutedColor();
+    const noteFS = Math.round(rowH * 0.26);
+    ctx.font = `${noteFS}px ${isLb() ? BODY_FONT : '-apple-system, SF Mono, monospace'}`;
+    ctx.textAlign = 'right';
+    ctx.fillText(s.note || '', W - W * 0.04, y);
+  });
+
+  drawFooterText(ctx, W, H, bodyEnd);
+}
+
+function renderHistory(W, H) {
+  // Longbridge style → official "金融史·今日" classic template
+  if (isLb()) return renderHistoryClassic(W, H);
+
+  const ev = stocks[0] || pickHistoryEvent();
+  const headerH = Math.round(H * 0.18);
+  // If user hasn't customized the title and today has no matching event,
+  // swap 今日 → 往昔 so the header doesn't lie about the date.
+  let title = $('title').value || 'This Day in Finance';
+  if (!ev.isToday && title === 'This Day in Finance') title = 'From the Archives';
+  drawHeaderBar(ctx, W, headerH, title);
+
+  // Big year
+  ctx.fillStyle = isLb() ? LB_BRAND : $('themeColor').value;
+  const yrFS = Math.round(H * 0.24);
+  ctx.font = `900 ${yrFS}px ${isLb() ? NUM_FONT : '-apple-system, SF Mono, monospace'}`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'left';
+  ctx.fillText(String(ev.year), W * 0.05, H * 0.36);
+
+  // Date as "3 Feb"
+  ctx.fillStyle = mutedColor();
+  const dtFS = Math.round(H * 0.07);
+  ctx.font = `${dtFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", SF Mono, monospace'}`;
+  const [mmStr, ddStr] = ev.date.split('-');
+  const dateLabel = `${parseInt(ddStr, 10)} ${MONTHS_SHORT[parseInt(mmStr, 10) - 1]}`;
+  ctx.fillText(dateLabel, W * 0.05, H * 0.51);
+
+  // Event text
+  ctx.fillStyle = textColor();
+  const txFS = Math.round(Math.min(H, W * 0.69) * 0.075);
+  ctx.font = `500 ${txFS}px ${isLb() ? BODY_FONT : '-apple-system, sans-serif'}`;
+  ctx.textBaseline = 'top';
+  wrapText(ctx, ev.text, W * 0.05, H * 0.59, W * 0.9, txFS * 1.40, 3);
+
+  drawFooterText(ctx, W, H, H - Math.round(H * 0.13));
+}
+
+function renderHoliday(W, H) {
+  const h = pickHoliday();
+  const headerH = Math.round(H * 0.18);
+  const title = $('title').value || (isLb() ? h.name : `☕ ${h.name}`);
+  drawHeaderBar(ctx, W, headerH, title);
+
+  // Giant emoji in the middle — use system color emoji font
+  const emojiFS = Math.round(H * (isLb() ? 0.32 : 0.38));
+  ctx.font = `${emojiFS}px "Apple Color Emoji", "Segoe UI Emoji", "Noto Color Emoji", sans-serif`;
+  ctx.textBaseline = 'middle';
+  ctx.textAlign = 'center';
+  ctx.fillText(h.emoji, W * 0.5, H * (isLb() ? 0.46 : 0.42));
+
+  // Holiday name — LB: only show if no custom title, else skip to avoid duplication
+  if (!isLb() || !$('title').value) {
+    ctx.fillStyle = isLb() ? LB_TEXT : (h.color || $('themeColor').value);
+    const ntFS = Math.round(H * (isLb() ? 0.095 : 0.12));
+    let nameFS = ntFS;
+    const nameFont = px => `${isLb() ? 900 : 800} ${px}px ${isLb() ? BRAND_FONT : '-apple-system, sans-serif'}`;
+    ctx.font = nameFont(nameFS);
+    while (ctx.measureText(h.name).width > W * 0.9 && nameFS > 10) { nameFS -= 2; ctx.font = nameFont(nameFS); }
+    ctx.fillText(h.name, W * 0.5, H * (isLb() ? 0.68 : 0.66));
+  }
+
+  // Flavor line — muted, wrapped, centered-ish
+  ctx.fillStyle = mutedColor();
+  const lnFS = Math.round(H * 0.065);
+  ctx.font = `${isLb() ? 400 : 500} ${lnFS}px ${isLb() ? BODY_FONT : '-apple-system, "PingFang HK", "PingFang TC", sans-serif'}`;
+  ctx.textBaseline = 'top';
+  ctx.textAlign = 'center';
+  wrapTextCentered(ctx, h.line, W * 0.5, H * 0.78, W * 0.9, lnFS * 1.35, 2);
+  ctx.textAlign = 'left';
+
+  drawFooterText(ctx, W, H, H - Math.round(H * 0.10));
+}
+
+// Centered wrap helper (canvas wrapText is left-aligned only)
+function wrapTextCentered(ctx, text, cx, y, maxWidth, lineHeight, maxLines = 2) {
+  clampLines(ctx, layoutLines(ctx, text, maxWidth), maxWidth, maxLines)
+    .forEach((ln, i) => ctx.fillText(ln, cx, y + i * lineHeight));
+}
+
+// ============ MAIN RENDER DISPATCH ============
+function render() {
+  const {renderW, renderH} = setCanvasSize();
+  drawBg(ctx, renderW, renderH);
+
+  const mode = $('labelMode').value;
+  if (mode === 'mood')           renderMood(renderW, renderH);
+  else if (mode === 'star')      renderStar(renderW, renderH);
+  else if (mode === 'earnings')  renderEarnings(renderW, renderH);
+  else if (mode === 'history')   renderHistory(renderW, renderH);
+  else if (mode === 'holiday')   renderHoliday(renderW, renderH);
+  else                           renderTopN(renderW, renderH);
+}
+
+// ============ UI STATE ============
+function updateModeUI() {
+  const mode = $('labelMode').value;
+  $('modeHint').textContent = MODE_HINTS[mode] ? T(MODE_HINTS[mode].en, MODE_HINTS[mode].zh) : '';
+  document.querySelectorAll('.mode-field[data-needs]').forEach(el => {
+    const needs = el.dataset.needs.split(/\s+/);
+    el.classList.toggle('show', needs.includes(mode));
+  });
+}
+function updateSourceUI() {
+  const s = $('dataSource').value;
+  $('staticFields').classList.toggle('show', s === 'static');
+  $('lbFields').classList.toggle('show', s === 'longbridge');
+  $('finnhubFields').classList.toggle('show', s === 'finnhub');
+}
+function applySizePreset() {
+  const p = $('sizePreset').value;
+  if (p === 'custom') return;
+  const [w, h] = p.split('x').map(Number);
+  $('widthMm').value = w;
+  $('heightMm').value = h;
+}
+
+// Holiday dropdown is built from the data so the list and the calendar never drift apart
+function buildHolidayOptions() {
+  const sel = $('holidayPick');
+  if (!sel) return;
+  const keep = sel.value;
+  const nm = h => (LANG === 'zh' ? (h.zh || h.name) : h.name);
+  const opt = (value, h) => `<option value="${value}">${nm(h)} ${h.emoji}</option>`;
+  const years = [...new Set(Object.keys(HOLIDAYS_MOVABLE).map(k => k.slice(0, 4)))].sort();
+  sel.innerHTML =
+    `<option value="auto">${T('Auto (follow today)', '自动（跟随今日）')}</option>` +
+    `<optgroup label="${T('Every year', '每年固定')}">` +
+      Object.keys(HOLIDAYS_SOLAR).sort().map(k => opt(k, HOLIDAYS_SOLAR[k])).join('') + '</optgroup>' +
+    years.map(y => `<optgroup label="${y}">` +
+      Object.keys(HOLIDAYS_MOVABLE).filter(k => k.startsWith(y)).sort().map(k => opt(k, HOLIDAYS_MOVABLE[k])).join('') +
+      '</optgroup>').join('');
+  sel.value = [...sel.options].some(o => o.value === keep) ? keep : 'auto';
+}
+
+function applyLang() {
+  document.documentElement.lang = LANG === 'zh' ? 'zh-CN' : 'en';
+  document.querySelectorAll('[data-en]').forEach(el => { el.textContent = LANG === 'zh' ? el.dataset.zh : el.dataset.en; });
+  document.querySelectorAll('.lang-btn').forEach(b => b.classList.toggle('active', b.dataset.lang === LANG));
+  buildHolidayOptions();
+  updateModeUI();
+  refreshHolidayBanner();
+  renderTable();
+  const po = $('printerName') && $('printerName').options[0];
+  if (po && po.value === '') po.textContent = printerAutoLabel();
+}
+document.querySelectorAll('.lang-btn').forEach(b => b.addEventListener('click', () => {
+  LANG = b.dataset.lang === 'zh' ? 'zh' : 'en';
+  try { localStorage.setItem('sgLabelLang', LANG); } catch (e) {}
+  applyLang();
+}));
+
+// ============ EVENTS ============
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const t = btn.dataset.tab;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tab-body').forEach(b => b.classList.toggle('active', b.dataset.tab === t));
+  });
+});
+
+$('fetchBtn').addEventListener('click', generate);
+// Wrap a canvas-capture step so the preview shows the template (layout reference)
+// but the captured image only contains the dynamic text. Restores the preview after.
+function withExportRender(fn) {
+  const wantNoBg = $('hideBgOnExport') && $('hideBgOnExport').checked;
+  if (!wantNoBg) return fn();
+  exportNoBg = true;
+  try {
+    render();
+    return fn();
+  } finally {
+    exportNoBg = false;
+    render();
+  }
+}
+
+$('downloadBtn').addEventListener('click', () => {
+  withExportRender(() => {
+    const a = document.createElement('a');
+    const d = new Date();
+    const stamp = `${d.getFullYear()}${String(d.getMonth()+1).padStart(2,'0')}${String(d.getDate()).padStart(2,'0')}-${String(d.getHours()).padStart(2,'0')}${String(d.getMinutes()).padStart(2,'0')}`;
+    a.download = `coffee-sticker-${$('labelMode').value}-${stamp}.jpg`;
+    // 0.95 quality — high fidelity for label print, keeps file small
+    a.href = canvas.toDataURL('image/jpeg', 0.95);
+    a.click();
+  });
+});
+
+// ============ PRINTER ============
+async function refreshPrinters() {
+  const proxyUrl = ($('proxyUrl').value.trim() || 'http://localhost:8787').replace(/\/$/, '');
+  try {
+    const r = await fetch(`${proxyUrl}/printers`);
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const d = await r.json();
+    const sel = $('printerName');
+    const current = sel.value;
+    defaultPrinterName = d.default || '';
+    sel.innerHTML = `<option value="">${printerAutoLabel()}</option>` +
+      (d.printers || []).map(p => `<option value="${p}">${p}${p === d.default ? ' ★' : ''}</option>`).join('');
+    sel.value = current;
+    showStatus(T(`✓ Found ${d.printers.length} printer(s)`, `✓ 找到 ${d.printers.length} 台打印机`));
+  } catch (e) {
+    showStatus(T(`Could not list printers: ${e.message} (is the proxy running?)`, `获取打印机失败: ${e.message}（代理是否启动？）`), 'err');
+  }
+}
+
+async function printSticker() {
+  const proxyUrl = ($('proxyUrl').value.trim() || 'http://localhost:8787').replace(/\/$/, '');
+  const widthMm = parseFloat($('widthMm').value) || 58;
+  const heightMm = parseFloat($('heightMm').value) || 40;
+  // Capture the text-only image when "导出/打印仅文字" is on (default for pre-printed label paper).
+  const imageDataUrl = withExportRender(() => canvas.toDataURL('image/png'));
+  const payload = {
+    image: imageDataUrl,
+    printer: $('printerName').value || null,
+    copies: parseInt($('printCopies').value) || 1,
+    media: `${widthMm}x${heightMm}mm`,
+  };
+  showStatus(T('📨 Sending to the printer...', '📨 发送打印任务...'), 'info');
+  try {
+    const r = await fetch(`${proxyUrl}/print`, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload),
+    });
+    const d = await r.json();
+    if (!r.ok || !d.ok) throw new Error(d.error || T('Print failed', '打印失败'));
+    showStatus(T(`✓ Sent ${payload.copies} cop${payload.copies > 1 ? 'ies' : 'y'} to ${d.printer || 'the default printer'}`, `✓ 已发送 ${payload.copies} 份到 ${d.printer || '默认打印机'}`));
+  } catch (e) {
+    showStatus(`${T('Print failed: ', '打印失败: ')}${e.message}`, 'err');
+  }
+}
+
+$('refreshPrintersBtn').addEventListener('click', refreshPrinters);
+$('printBtn').addEventListener('click', printSticker);
+
+$('bgImage').addEventListener('change', e => {
+  const f = e.target.files[0];
+  if (!f) { bgImg = null; render(); return; }
+  const r = new FileReader();
+  r.onload = ev => { const img = new Image(); img.onload = () => { bgImg = img; render(); }; img.src = ev.target.result; };
+  r.readAsDataURL(f);
+});
+
+$('labelMode').addEventListener('change', () => {
+  // Save current mode's title/footer before switching
+  setModeValue(currentMode, 'title', $('title').value);
+  setModeValue(currentMode, 'footer', $('footer').value);
+  // Switch and load new mode's template
+  currentMode = $('labelMode').value;
+  applyModeTemplate(currentMode);
+  updateModeUI();
+  resetStocksForMode();
+  saveConfig();
+  renderTable();
+  render();
+  refreshHolidayBanner();
+});
+$('earningsList').addEventListener('input', () => {
+  if ($('labelMode').value === 'earnings') { resetStocksForMode(); renderTable(); }
+  saveConfig(); render();
+});
+$('dataSource').addEventListener('change', () => { updateSourceUI(); saveConfig(); });
+$('sizePreset').addEventListener('change', () => { applySizePreset(); saveConfig(); render(); });
+document.getElementById('holidayPick')?.addEventListener('change', () => { saveConfig(); render(); });
+
+// Auto-suggest holiday mode if today is actually a holiday
+function refreshHolidayBanner() {
+  const banner = document.getElementById('holidayBanner');
+  if (!banner) return;
+  const today = detectTodayHoliday();
+  const mode = $('labelMode').value;
+  if (today && mode !== 'holiday') {
+    banner.style.display = 'block';
+    banner.textContent = T(`🎉 Today is ${today.name} — tap to switch to holiday stickers →`, `🎉 今天是「${today.zh || today.name}」，点这里切换节日贴纸模式 →`);
+    banner.onclick = () => {
+      $('labelMode').value = 'holiday';
+      $('labelMode').dispatchEvent(new Event('change'));
+    };
+  } else {
+    banner.style.display = 'none';
+  }
+}
+
+['themeColor','widthMm','heightMm','dpi','colorConv','tplMode','topN',
+ 'moodIndex','starCaption','uiStyle','printerName','printCopies',
+ 'showTicker','showChange','showPrice','showArrow','topnClassicNote'].forEach(id => {
+  const el = $(id);
+  if (!el) return;
+  el.addEventListener('input', () => { saveConfig(); render(); });
+  el.addEventListener('change', () => { saveConfig(); render(); });
+});
+
+// Title and footer are per-mode
+$('title').addEventListener('input', () => {
+  setModeValue(currentMode, 'title', $('title').value);
+  saveConfig();
+  render();
+});
+$('footer').addEventListener('input', () => {
+  setModeValue(currentMode, 'footer', $('footer').value);
+  saveConfig();
+  render();
+});
+
+// ============ INIT ============
+buildHolidayOptions();
+loadConfig();
+loadModeOverrides();
+currentMode = $('labelMode').value;
+
+// First-run migration: if no per-mode overrides, seed current mode from whatever's in inputs
+if (!modeOverrides[currentMode]) {
+  setModeValue(currentMode, 'title', $('title').value);
+  setModeValue(currentMode, 'footer', $('footer').value);
+}
+applyModeTemplate(currentMode);
+
+updateModeUI();
+updateSourceUI();
+
+moodData = {ticker:'SPY', changePct:1.23, price:520.45};
+dataTime = nowTimeStr();
+resetStocksForMode();
+renderTable();
+render();
+applyLang();
+// Cera Pro loads lazily; redraw once every weight is ready so text is measured with the real font
+if (document.fonts && document.fonts.load) {
+  Promise.all(['400', '700', '900'].map(w => document.fonts.load(`${w} 20px "Cera Pro"`)))
+    .then(() => render()).catch(() => {});
+}
+</script>
+
+</body>
+</html>

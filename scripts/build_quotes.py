@@ -40,6 +40,10 @@ SYMBOLS = [
     "2318.HK", "1024.HK", "1211.HK", "9866.HK",
     # A shares
     "600519.SH", "300750.SZ",
+    # Singapore companies listed in the US (watchlist of the /sg/ page)
+    "SE.US", "GRAB.US",
+    # S&P 500 ETF — the default index for "market mood" stickers on both pages
+    "SPY.US",
 ]
 
 
