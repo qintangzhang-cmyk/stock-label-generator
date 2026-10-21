@@ -467,22 +467,9 @@ Closed +4.20%</textarea>
         <input type="checkbox" id="oldPaperMode" checked style="margin-top:3px;">
         <span style="font-size:12px; color:var(--text);">
           <strong data-en="Old Chinese label paper" data-zh="旧中文标签纸模式">Old Chinese label paper</strong><br>
-          <span style="color:var(--muted); font-size:11px;" data-en="Prints a black block over the Chinese title on the paper and the English title next to it (Magnificent 7, Yesterday's Star, This Day in Finance). Turn this off when the English label paper arrives." data-zh="打印时用黑块盖住纸上的中文标题，并在旁边打上英文标题（美股七巨头、昨日主角股、金融史今日）。英文标签纸到了以后关掉。">Prints a black block over the Chinese title on the paper and the English title next to it (Magnificent 7, Yesterday's Star, This Day in Finance). Turn this off when the English label paper arrives.</span>
+          <span style="color:var(--muted); font-size:11px;" data-en="Prints the English title on the old paper: under 美股七巨頭, and next to 昨日主角股 and 金融史｜今日. Turn this off when the English label paper arrives." data-zh="在旧标签纸上加印英文标题：美股七巨头印在中文下面，昨日主角股和金融史今日印在中文右边。英文标签纸到了以后关掉。">Prints the English title on the old paper: under 美股七巨頭, and next to 昨日主角股 and 金融史｜今日. Turn this off when the English label paper arrives.</span>
         </span>
       </label>
-      <div class="row2" style="margin-top:6px">
-        <div><label data-en="Title block fill" data-zh="黑块填充方式">Title block fill</label>
-          <select id="oldPaperFill">
-            <option value="hatch" selected data-en="Cross-hatch (recommended)" data-zh="交叉网格（推荐）">Cross-hatch (recommended)</option>
-            <option value="stripes" data-en="Dense stripes" data-zh="密集斜线">Dense stripes</option>
-            <option value="solid" data-en="Solid black" data-zh="纯黑">Solid black</option>
-          </select>
-        </div>
-        <div><label data-en="Title position (mm, + = down)" data-zh="标题位置微调（毫米，正数往下）">Title position (mm, + = down)</label>
-          <input type="number" id="oldPaperShiftMm" value="2.5" step="0.5" min="-6" max="6">
-        </div>
-      </div>
-      <div class="hint" data-en="If the black block does not cover the Chinese title, print a test and nudge the position by 0.5 mm at a time." data-zh="如果黑块没有完全盖住中文，先打一张测试，再按 0.5 毫米一次微调位置。">If the black block does not cover the Chinese title, print a test and nudge the position by 0.5 mm at a time.</div>
 
       <h3 data-en="Printer" data-zh="打印机">Printer</h3>
       <div class="row2">
@@ -1565,76 +1552,40 @@ let tplMoodClassic = null;
 })();
 
 // ======== Old Chinese label paper ========
-// Black block over the Chinese title that is pre-printed on the old rolls, English title beside it in black.
-// Fractions of W/H, measured on the template art (the block has ~1 mm extra margin for paper registration).
-const OLD_PAPER_COVER = {
-  topn:    {bar: [0.3077, 0.0708, 0.6761, 0.2167], text: [0.0600, 0.2877], cy: 0.1438, capH: 0.072, label: 'Magnificent 7'},
-  star:    {bar: [0.0537, 0.0713, 0.4189, 0.2157], text: [0.4389, 0.9500], cy: 0.1435, capH: 0.071, label: "Yesterday's Star"},
-  history: {bar: [0.0518, 0.0676, 0.4793, 0.2185], text: [0.4993, 0.9500], cy: 0.1431, capH: 0.076, label: 'This Day in Finance'},
+// The old rolls have the Chinese title pre-printed. We leave it as is and print the English title
+// in the free space: under the centred 美股七巨頭, beside the left-aligned 昨日主角股 / 金融史｜今日.
+// Boxes are fractions of W/H measured on the template art; the text is fitted inside the box.
+const OLD_PAPER_TITLE = {
+  topn:    {box: [0.06, 0.196, 0.94, 0.259], cx: 0.4917, align: 'center', label: 'MAGNIFICENT 7'},       // between the Chinese title and the grid; caps = no descenders, bigger in a 2.8 mm gap
+  star:    {box: [0.432, 0.098, 0.950, 0.189], align: 'left', label: "Yesterday's Star"},                  // right of 昨日主角股
+  history: {box: [0.490, 0.096, 0.950, 0.190], align: 'left', label: 'This Day in Finance'},               // right of 金融史｜今日
 };
 function oldPaperOn() { return !!($('oldPaperMode') && $('oldPaperMode').checked); }
 function tplReady(t) { return !!(t && t.complete && t.naturalWidth); }
 function tplPick(kind, sgTpl) { return oldPaperOn() && tplReady(tplOld[kind]) ? tplOld[kind] : sgTpl; }
-// Thermal label printers print thin lines solid but large black areas come out grey,
-// so the block is filled with dense lines by default.
-function drawOldPaperCover(kind, W, H) {
+function drawOldPaperTitle(kind, W, H) {
   if (!oldPaperOn()) return;
-  const c = OLD_PAPER_COVER[kind];
+  const c = OLD_PAPER_TITLE[kind];
   if (!c) return;
-  const pxPerMm = W / (parseFloat($('widthMm').value) || 58);
-  // The nudge compensates the printer's paper feed, so it only applies to the printed/downloaded image
-  const dy = exportNoBg ? (parseFloat(($('oldPaperShiftMm') || {}).value) || 0) * pxPerMm : 0;   // + = down
-  const pad = 0.6 * pxPerMm;                                                      // extra cover for paper drift
-  const x = c.bar[0] * W, y = c.bar[1] * H - pad + dy;
-  const w = (c.bar[2] - c.bar[0]) * W, h = (c.bar[3] - c.bar[1]) * H + pad * 2;
-  const r = Math.min(H * 0.02, h / 2);
-  const fill = ($('oldPaperFill') || {}).value || 'hatch';
-  ctx.save();
-  ctx.beginPath();
-  if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h);
-  ctx.fillStyle = '#000';
-  ctx.strokeStyle = '#000';
-  if (fill === 'solid') {
-    ctx.fill();
-  } else {
-    ctx.save();
-    ctx.clip();
-    ctx.lineCap = 'butt';
-    const lines = (angleDeg, lw, gap) => {
-      ctx.lineWidth = lw;
-      const step = lw + gap, a = angleDeg * Math.PI / 180, len = w + h;
-      ctx.save();
-      ctx.translate(x + w / 2, y + h / 2);
-      ctx.rotate(a);
-      ctx.beginPath();
-      for (let t = -len; t <= len; t += step) { ctx.moveTo(t, -len); ctx.lineTo(t, len); }
-      ctx.stroke();
-      ctx.restore();
-    };
-    if (fill === 'hatch') {
-      lines(45, 0.5 * pxPerMm, 0.18 * pxPerMm);
-      lines(-45, 0.5 * pxPerMm, 0.18 * pxPerMm);
-    } else {
-      lines(45, 0.6 * pxPerMm, 0.14 * pxPerMm);
-    }
-    ctx.restore();
-    // solid outline so the block reads as one shape
-    ctx.lineWidth = 0.6 * pxPerMm;
-    ctx.beginPath();
-    if (ctx.roundRect) ctx.roundRect(x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth, r);
-    else ctx.rect(x + ctx.lineWidth / 2, y + ctx.lineWidth / 2, w - ctx.lineWidth, h - ctx.lineWidth);
-    ctx.stroke();
-  }
-  // English title beside the block, moved by the same nudge
-  const maxW = (c.text[1] - c.text[0]) * W;
-  let px = Math.round(c.capH * H * 1.35);          // cap height is ~0.72 em
+  const [x0, y0, x1, y1] = c.box;
+  const boxW = (x1 - x0) * W, boxH = (y1 - y0) * H;
   const font = p => `900 ${p}px ${BRAND_FONT}`;
-  ctx.font = font(px);
-  while (ctx.measureText(c.label).width > maxW && px > 8) { px -= 1; ctx.font = font(px); }
+  // Largest size whose glyphs (cap height + descenders) fit the box
+  let px = Math.round(boxH * 1.4), m;
+  for (;;) {
+    ctx.font = font(px);
+    m = ctx.measureText(c.label);
+    const h = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+    if ((m.width <= boxW && h <= boxH) || px <= 8) break;
+    px -= 1;
+  }
+  const glyphH = m.actualBoundingBoxAscent + m.actualBoundingBoxDescent;
+  const baseline = (y0 * H + y1 * H) / 2 - glyphH / 2 + m.actualBoundingBoxAscent;   // centred in the box
+  ctx.save();
   ctx.fillStyle = '#000';
-  ctx.textAlign = 'left';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(c.label, c.text[0] * W, c.cy * H + dy);
+  ctx.textBaseline = 'alphabetic';
+  ctx.textAlign = c.align === 'center' ? 'center' : 'left';
+  ctx.fillText(c.label, c.align === 'center' ? c.cx * W : x0 * W, baseline);
   ctx.restore();
 }
 
@@ -1983,7 +1934,7 @@ function renderStarClassic(W, H) {
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     ctx.fillText("Yesterday's Star", W * 0.04, H * 0.12);
   }
-  drawOldPaperCover('star', W, H);
+  drawOldPaperTitle('star', W, H);
 
   // Pull current data — generate() puts the top mover at stocks[0]
   const s = stocks[0] && isStockShape(stocks[0]) ? stocks[0] : { ticker: '—', changePct: 0, price: 0 };
@@ -2198,7 +2149,7 @@ function renderHistoryClassic(W, H) {
     ctx.textBaseline = 'middle'; ctx.textAlign = 'left';
     ctx.fillText('This Day in Finance', W * 0.04, H * 0.13);
   }
-  drawOldPaperCover('history', W, H);
+  drawOldPaperTitle('history', W, H);
 
   // Pull the event from stocks[0] (set by generate() via pickHistoryEvent)
   const ev = stocks[0] && 'year' in stocks[0] ? stocks[0] : pickHistoryEvent();
@@ -2282,7 +2233,7 @@ function renderTopNClassic(W, H) {
     ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
     ctx.fillText('Magnificent 7', W / 2, H * 0.125);
   }
-  drawOldPaperCover('topn', W, H);
+  drawOldPaperTitle('topn', W, H);
 
   // Editable corner note in the bottom-right white margin strip (default "*僅供參考"). Empty → hidden.
   // The template has a ~3% white strip at the very bottom outside the rounded teal border.
@@ -2962,7 +2913,7 @@ function refreshHolidayBanner() {
 
 ['themeColor','widthMm','heightMm','dpi','colorConv','tplMode','topN',
  'moodIndex','starCaption','uiStyle','printerName','printCopies',
- 'showTicker','showChange','showPrice','showArrow','topnClassicNote','oldPaperMode','hideBgOnExport','oldPaperFill','oldPaperShiftMm'].forEach(id => {
+ 'showTicker','showChange','showPrice','showArrow','topnClassicNote','oldPaperMode','hideBgOnExport'].forEach(id => {
   const el = $(id);
   if (!el) return;
   el.addEventListener('input', () => { saveConfig(); render(); });
