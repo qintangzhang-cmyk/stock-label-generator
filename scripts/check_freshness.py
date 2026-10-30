@@ -13,6 +13,7 @@ Prints one line explaining the verdict. Exit 0 fresh, 1 stale or unreadable.
 
 Usage:
     python3 scripts/check_freshness.py [<pages base url>]
+    python3 scripts/check_freshness.py --file <quotes.json>   # judge a local copy
 """
 import json
 import os
@@ -29,13 +30,20 @@ DEFAULT_BASE = "https://qintangzhang-cmyk.github.io/stock-label-generator/"
 
 
 def main():
-    base = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_BASE
-    url = "%squotes.json?t=%d" % (base.rstrip("/") + "/", int(time.time()))
     now = datetime.now(timezone.utc)
     expected = latest_ready(now).strftime("%Y-%m-%d %H:%M UTC")
+    if sys.argv[1:2] == ["--file"]:
+        url = sys.argv[2]
+    else:
+        base = sys.argv[1] if len(sys.argv) > 1 else DEFAULT_BASE
+        url = "%squotes.json?t=%d" % (base.rstrip("/") + "/", int(time.time()))
     try:
-        req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
-        doc = json.load(urllib.request.urlopen(req, timeout=30))
+        if sys.argv[1:2] == ["--file"]:
+            with open(url) as f:
+                doc = json.load(f)
+        else:
+            req = urllib.request.Request(url, headers={"Cache-Control": "no-cache"})
+            doc = json.load(urllib.request.urlopen(req, timeout=30))
         gen = parse_generated_at(doc)
     except Exception as e:  # noqa: BLE001 — unreadable counts as stale
         print("could not read %s: %s" % (url, e))
@@ -45,7 +53,11 @@ def main():
     if not is_fresh(doc, now):
         print("stale: generated %s (%.1f h ago), before the latest US close %s" % (doc["generatedAt"], age_h, expected))
         sys.exit(1)
-    if not has_required(doc):
+    try:
+        complete = has_required(doc)
+    except Exception:  # noqa: BLE001
+        complete = False
+    if not complete:
         print("incomplete: generated %s but key symbols are missing" % doc["generatedAt"])
         sys.exit(1)
     print("fresh: generated %s (%.1f h ago), US session %s" % (doc["generatedAt"], age_h, doc.get("usTradeDate", "?")))

@@ -56,7 +56,10 @@ jobs:
           git pull --ff-only --quiet
           FORCE=""
           if [ "${{ inputs.force }}" = "true" ]; then FORCE="--force"; fi
-          echo "action=$(python3 scripts/fetch_gate.py decide quotes.json $FORCE)" >> "$GITHUB_OUTPUT"
+          # Assign first: if the gate itself crashes, the step (and run) fails
+          # instead of silently skipping the fetch.
+          ACTION=$(python3 scripts/fetch_gate.py decide quotes.json $FORCE)
+          echo "action=$ACTION" >> "$GITHUB_OUTPUT"
 
       # The Longbridge credentials are only exposed to this one step.
       - name: Build quotes.json
@@ -81,6 +84,7 @@ jobs:
             0) echo "reason=ok" >> "$GITHUB_OUTPUT" ;;
             3) echo "reason=token" >> "$GITHUB_OUTPUT" ;;
             4) echo "reason=missing_symbols" >> "$GITHUB_OUTPUT" ;;
+            5) echo "reason=suspect" >> "$GITHUB_OUTPUT" ;;
             *) echo "reason=other" >> "$GITHUB_OUTPUT" ;;
           esac
           exit "$RC"
@@ -138,6 +142,10 @@ jobs:
               SHORT="抓到的数据缺了七巨头或 SPY，这次没有覆盖。多半是长桥暂时异常，稍后重跑一次即可。"
               WHY="抓到了行情，但美股七巨頭或 SPY 缺失／價格為 0，為避免印出殘缺貼紙，**這次沒有覆蓋** quotes.json（門店仍看到上一份數據）。"
               FIX="多半是長橋行情暫時異常，稍後到 [Fetch Quotes 頁面](${RERUN_URL}) 手動運行一次即可。連續出現請查看日志。" ;;
+            suspect)
+              SHORT="抓到的数据大面积是 0%（长桥换日中，旧数据还没更新完），这次没有覆盖。稍后重跑一次即可。"
+              WHY="抓到的行情裡有一半以上是 0% 且沒有成交量，像是長橋正在換日（舊數據尚未更新完），為避免整天鎖定錯誤數據，**這次沒有覆蓋** quotes.json（門店仍看到上一份數據）。"
+              FIX="稍後（例如 10 分鐘後）到 [Fetch Quotes 頁面](${RERUN_URL}) 手動運行一次即可。" ;;
             *)
               if [ "$COMMIT_OUTCOME" = "failure" ]; then
                 SHORT="数据抓好了但保存失败（和 token 无关），重跑一次即可。"

@@ -12,18 +12,26 @@ Required env vars (read by Config.from_apikey_env):
 Set LONGBRIDGE_PRINT_QUOTE_PACKAGES=false to keep the SDK banner quiet.
 
 The stickers show the latest *completed* session, whenever the job runs:
-  * US symbols: after the US close last_done vs prev_close is the session
-    that just ended. If the job runs while today's US session is still open
-    (e.g. a manual run during New York trading hours), the change is taken
-    from the last two completed daily candles instead.
   * Hong Kong / A-share symbols: the stickers are printed in the Hong Kong
-    morning and show *yesterday's* moves. If the quote already belongs to
-    today's session (pre-market auction, intraday, or after today's close),
-    the change is taken from the last two daily candles before today.
+    morning and show *yesterday's* moves, so the change always comes from the
+    last two daily candles before today (exchange-local). The live quote is
+    not used: around 08:50-09:20 HKT Longbridge has already rolled
+    prev_close to yesterday's close while last_done has not moved, which
+    reads as 0% for every stock (seen 2026-08-27, 09-23, 10-02, 10-07, 10-23).
+    The quote is only a fallback if the candles cannot be fetched.
+  * US symbols: after the US close last_done vs prev_close is the session
+    that just ended. If today's US session is still open (a manual run during
+    New York trading hours), or the quote has been rolled over (no volume and
+    last_done == prev_close), the last two completed daily candles are used.
+
+A last check refuses to publish when half or more of the US, or of the
+HK/A-share, symbols show exactly 0% on zero volume: the "one good copy per
+day" gate would otherwise lock such a file in for the whole day.
 
 The file is written atomically and only when the key symbols are present.
 
-Exit codes: 0 ok · 3 token rejected · 4 key symbols missing · 1 other error.
+Exit codes: 0 ok · 3 token rejected · 4 key symbols missing ·
+5 data looks rolled over (mass 0%) · 1 other error.
 
 Usage:
     python3 scripts/build_quotes.py quotes.json
@@ -33,6 +41,7 @@ import os
 import re
 import sys
 import tempfile
+import time
 from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
@@ -72,7 +81,8 @@ MARKET_TZ = {
     "SZ": ZoneInfo("Asia/Shanghai"),
 }
 
-EXIT_TOKEN, EXIT_MISSING, EXIT_OTHER = 3, 4, 1
+EXIT_TOKEN, EXIT_MISSING, EXIT_SUSPECT, EXIT_OTHER = 3, 4, 5, 1
+CANDLE_PAUSE = 0.15  # seconds between candlestick calls, to stay under the API rate limit
 
 
 def num(v):
@@ -98,6 +108,7 @@ def local_date(ts, tz):
 def yesterday_from_candles(ctx, sym, today):
     """(close, prev_close, volume, turnover, trade_date) of the last completed session before `today`."""
     tz = MARKET_TZ[market(sym)]
+    time.sleep(CANDLE_PAUSE)
     candles = ctx.candlesticks(sym, Period.Day, 5, AdjustType.NoAdjust, TradeSessions.Intraday)
     done = [c for c in candles if local_date(c.timestamp, tz) and local_date(c.timestamp, tz) < today]
     if len(done) < 2:
@@ -128,11 +139,12 @@ def build(ctx, now):
         source = "quote"
 
         today = now.astimezone(tz).date()
+        rolled = volume == 0 and last == prev
         if mkt in ("HK", "SH", "SZ"):
-            use_candles = trade_date is not None and trade_date >= today
+            use_candles = True
         elif mkt == "US":
             session_open = now < datetime.combine(today, READY_AT, tzinfo=NY)
-            use_candles = trade_date is not None and trade_date >= today and session_open
+            use_candles = rolled or (trade_date is not None and trade_date >= today and session_open)
         else:
             use_candles = False
         if use_candles:
@@ -160,6 +172,12 @@ def build(ctx, now):
         })
 
     out.sort(key=lambda x: -x["changePct"])
+    for label, group in (("US", ("US",)), ("HK/A-share", ("HK", "SH", "SZ"))):
+        rows = [x for x in out if market(x["symbol"]) in group]
+        flat = [x["symbol"] for x in rows if x["changePct"] == 0 and x["volume"] == 0]
+        if rows and len(flat) * 2 >= len(rows):
+            raise SuspectData("%s: %d of %d symbols show 0%% on zero volume (%s...)"
+                              % (label, len(flat), len(rows), ", ".join(flat[:5])))
     us_dates = sorted({x["tradeDate"] for x in out if market(x["symbol"]) == "US" and x["tradeDate"]})
     return {
         "generatedAt": now.isoformat(timespec="seconds"),
@@ -168,6 +186,10 @@ def build(ctx, now):
         "symbols": SYMBOLS,
         "quotes": out,
     }
+
+
+class SuspectData(Exception):
+    pass
 
 
 def write_atomic(path, doc):
@@ -191,6 +213,9 @@ def main():
     try:
         ctx = QuoteContext(Config.from_apikey_env())
         doc = build(ctx, now)
+    except SuspectData as e:
+        sys.stderr.write("data looks rolled over, not writing %s: %s\n" % (path, e))
+        sys.exit(EXIT_SUSPECT)
     except Exception as e:  # noqa: BLE001
         sys.stderr.write("fetch failed: %s: %s\n" % (type(e).__name__, e))
         sys.exit(classify(e))

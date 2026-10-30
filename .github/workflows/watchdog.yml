@@ -21,6 +21,7 @@ on:
 permissions:
   contents: read
   actions: write   # 觸發 Fetch Quotes workflow
+  pages: write     # main 上已是新數據、只是網頁沒更新時，重新部署 Pages
   issues: write    # 開告警 issue
 
 jobs:
@@ -62,29 +63,40 @@ jobs:
           fi
           echo "⚠ $MSG"
 
-          # 已有一次 Fetch Quotes 在排隊或在跑，就等它，不再重複觸發。
-          RID=$(gh run list -R "$REPO" --workflow=fetch-quotes.yml --limit 10 --json databaseId,status \
-                --jq '[.[] | select(.status != "completed")][0].databaseId // empty')
-          if [ -n "$RID" ]; then
-            echo "已有 Fetch Quotes run $RID 未完成，等它跑完"
+          # main 上那份已經是新的 → 只是網頁（Pages）沒更新：重新部署即可，
+          # 不要重抓——重抓會用此刻的行情覆蓋掉清晨那份好數據。
+          RID=""; CONCLUSION="pages"
+          if gh api "repos/${REPO}/contents/quotes.json?ref=main" -H "Accept: application/vnd.github.raw" \
+               > "$RUNNER_TEMP/main.json" 2>/dev/null \
+             && MAIN_MSG=$(python3 scripts/check_freshness.py --file "$RUNNER_TEMP/main.json"); then
+            echo "main 上已是新數據（$MAIN_MSG），只重新部署 Pages"
+            gh api -X POST "repos/${REPO}/pages/builds" >/dev/null || echo "::warning::Pages 重新部署請求失敗"
           else
-            echo "觸發 Fetch Quotes（force）..."
-            gh workflow run fetch-quotes.yml -R "$REPO" -f force=true
-            sleep 20
-            RID=$(gh run list -R "$REPO" --workflow=fetch-quotes.yml --event workflow_dispatch --limit 1 \
-                  --json databaseId --jq '.[0].databaseId')
-            echo "觸發的 run: $RID"
+            # 已有一次 Fetch Quotes 在排隊或在跑，就等它，不再重複觸發。不帶 force：
+            # main 那份過期時，抓取本來就會執行。
+            RID=$(gh run list -R "$REPO" --workflow=fetch-quotes.yml --limit 10 --json databaseId,status \
+                  --jq '[.[] | select(.status != "completed")][0].databaseId // empty')
+            if [ -n "$RID" ]; then
+              echo "已有 Fetch Quotes run $RID 未完成，等它跑完"
+            else
+              echo "觸發 Fetch Quotes..."
+              gh workflow run fetch-quotes.yml -R "$REPO"
+              sleep 20
+              RID=$(gh run list -R "$REPO" --workflow=fetch-quotes.yml --event workflow_dispatch --limit 1 \
+                    --json databaseId --jq '.[0].databaseId')
+              echo "觸發的 run: $RID"
+            fi
+            for i in $(seq 1 40); do
+              STATUS=$(gh run view "$RID" -R "$REPO" --json status --jq '.status')
+              [ "$STATUS" = "completed" ] && break
+              sleep 30
+            done
+            CONCLUSION=$(gh run view "$RID" -R "$REPO" --json conclusion --jq '.conclusion // "unknown"')
+            echo "run $RID 結果: $CONCLUSION"
           fi
-          for i in $(seq 1 40); do
-            STATUS=$(gh run view "$RID" -R "$REPO" --json status --jq '.status')
-            [ "$STATUS" = "completed" ] && break
-            sleep 30
-          done
-          CONCLUSION=$(gh run view "$RID" -R "$REPO" --json conclusion --jq '.conclusion // "unknown"')
-          echo "run $RID 結果: $CONCLUSION"
 
-          # Pages 部署通常 1 分鐘內完成；最多再等 5 分鐘。
-          for i in $(seq 1 10); do
+          # Pages 部署通常 1–2 分鐘內完成；最多再等 8 分鐘。
+          for i in $(seq 1 16); do
             if MSG=$(python3 scripts/check_freshness.py); then
               echo "✓ $MSG"
               close_open_issue "✅ 看門狗補抓後數據已恢復。（$MSG）"
@@ -94,8 +106,11 @@ jobs:
           done
 
           echo "::error::補抓後數據仍過期：$MSG"
-          RUN_URL="https://github.com/${REPO}/actions/runs/${RID}"
-          if [ "$CONCLUSION" = "success" ]; then
+          RUN_URL="https://github.com/${REPO}/actions/runs/${RID:-$GITHUB_RUN_ID}"
+          if [ "$CONCLUSION" = "pages" ]; then
+            SHORT="数据本身是新的，但网页那份没刷新（GitHub Pages 部署卡住），重新部署也没成功，到 Actions 里看「pages build and deployment」。"
+            WHY="main 上的 quotes.json 已是新數據，但門店讀到的那份（GitHub Pages）沒有更新，看門狗請求重新部署後仍未生效。到倉庫 Actions 頁看「pages build and deployment」最近一次是否失敗，失敗就點 Re-run。"
+          elif [ "$CONCLUSION" = "success" ]; then
             SHORT="补抓成功了，但网页那份没刷新（GitHub Pages 部署卡住），到 Actions 里重跑「pages build and deployment」。"
             WHY="補抓的 run 成功了，但門店讀到的那份（GitHub Pages）還沒更新 —— 多半是 Pages 部署卡住或失敗。到倉庫的 Actions 頁看「pages build and deployment」最近一次是否失敗，失敗就點 Re-run。"
           else
@@ -106,7 +121,7 @@ jobs:
           BODY="看門狗檢測到門店頁面讀到的 quotes.json 仍是舊數據，自動補抓後**仍未恢復**。
 
           - 檢測結果：${MSG}
-          - 補抓的 run：[#${RID}](${RUN_URL})
+          - 處理記錄：[查看](${RUN_URL})
 
           **判斷**：${WHY}
 

@@ -62,7 +62,12 @@ def decide(path, force):
     except (OSError, ValueError) as e:
         log("no readable %s (%s): fetching" % (path, e))
         return "fetch"
-    if is_fresh(doc) and has_required(doc):
+    try:
+        complete = is_fresh(doc) and has_required(doc)
+    except Exception as e:  # noqa: BLE001 — malformed file: refetch rather than crash
+        log("could not judge %s (%s): fetching" % (path, e))
+        return "fetch"
+    if complete:
         log("%s was generated %s, after the latest US close (%s UTC), and is complete: skipping"
             % (path, doc.get("generatedAt"), latest_ready().strftime("%Y-%m-%d %H:%M")))
         return "skip"
