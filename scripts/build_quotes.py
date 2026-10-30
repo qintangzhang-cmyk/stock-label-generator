@@ -26,8 +26,9 @@ comes from daily candles:
     e.g. pre-market or a holiday) or today's session is still open.
 Candle changes use forward-adjusted closes (so an ex-date is handled like the
 quote does) and the unadjusted last close as the price. If candles are
-needed but cannot be fetched, the symbol is left out rather than published
-with a rolled or intraday number.
+needed but cannot be fetched, nothing is published (exit 5): a file with a
+rolled/intraday number, or with symbols silently missing, would otherwise be
+kept for the whole day by the "one good copy per day" gate.
 
 A last check refuses to publish when half or more of the US, or of the
 HK/A-share, symbols show exactly 0% on zero volume: the "one good copy per
@@ -36,7 +37,7 @@ day" gate would otherwise lock such a file in for the whole day.
 The file is written atomically and only when the key symbols are present.
 
 Exit codes: 0 ok · 3 token rejected · 4 key symbols missing ·
-5 data looks rolled over (mass 0%) · 1 other error.
+5 data not confirmed (rolled over / candles unavailable) · 1 other error.
 
 Usage:
     python3 scripts/build_quotes.py quotes.json
@@ -128,7 +129,11 @@ def last_session_from_candles(ctx, sym, before):
         return None
     last = raw[-1]
     price, prev = num(last.close), num(raw[-2].close)
-    adj = _completed(ctx, sym, AdjustType.ForwardAdjust, before, tz)
+    try:
+        adj = _completed(ctx, sym, AdjustType.ForwardAdjust, before, tz)
+    except Exception as e:  # noqa: BLE001 — the raw prev close is still a usable fallback
+        sys.stderr.write("forward-adjusted candles failed for %s (%s); using raw closes\n" % (sym, e))
+        adj = []
     if len(adj) >= 2 and local_date(adj[-1].timestamp, tz) == local_date(last.timestamp, tz) and num(adj[-2].close):
         prev = price / (num(adj[-1].close) / num(adj[-2].close))
     return price, prev, int(num(last.volume)), num(last.turnover), local_date(last.timestamp, tz)
@@ -145,7 +150,7 @@ def build(ctx, now):
     except Exception as e:  # noqa: BLE001
         sys.stderr.write("static_info failed (names omitted): %s\n" % e)
 
-    out = []
+    out, unconfirmed = [], []
     for q in quotes:
         sym = q.symbol or ""
         mkt = market(sym)
@@ -176,7 +181,7 @@ def build(ctx, now):
                 except Exception as e:  # noqa: BLE001
                     sys.stderr.write("candlesticks failed for %s (attempt %d): %s\n" % (sym, attempt, e))
             if not y:
-                sys.stderr.write("%s: quote is not a settled session and candles are unavailable; left out\n" % sym)
+                unconfirmed.append(sym)
                 continue
             last, prev, volume, turnover, trade_date = y
             source = "daily"
@@ -195,6 +200,9 @@ def build(ctx, now):
             "source": source,
         })
 
+    if unconfirmed:
+        raise SuspectData("quote is not a settled session and candles are unavailable for %s"
+                          % ", ".join(unconfirmed))
     out.sort(key=lambda x: -x["changePct"])
     for label, group in (("US", ("US",)), ("HK/A-share", ("HK", "SH", "SZ"))):
         rows = [x for x in out if market(x["symbol"]) in group]
