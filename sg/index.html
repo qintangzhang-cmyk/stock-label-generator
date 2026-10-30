@@ -1130,7 +1130,8 @@ function resetStocksForMode() {
     stocks = parseEarningsEntries();
     if (!stocks.length) stocks = [{ticker:'', day:'', note:'', price:0, changePct:0}];
   } else if (mode === 'star') {
-    if (stocks.length && isStockShape(stocks[0])) stocks = [stocks[0]];
+    if (stocks.length === 1 && isStockShape(stocks[0])) { /* already a one-row star: keep the same array */ }
+    else if (stocks.length && isStockShape(stocks[0])) stocks = [stocks[0]];
     else stocks = [{ticker:'NVDA', changePct:4.20, price:201.68, name:'NVIDIA'}];
   } else if (mode === 'topn') {
     if (!stocks.length || !isStockShape(stocks[0])) {
@@ -1372,6 +1373,27 @@ function okToOutput(action) {
   return true;
 }
 
+// Manual input starts from blank rows, never from the built-in sample numbers
+// (otherwise typing one cell would let the untouched sample rows print).
+function clearSampleForManual() {
+  const mode = $('labelMode').value;
+  if ($('dataSource').value !== 'manual' || !MARKET_MODES.includes(mode)) return;
+  if (sourceOf(mode) || isHandEdited(mode)) return;
+  const blank = () => ({ticker:'', price:0, changePct:0, name:''});
+  if (mode === 'mood') {
+    moodData = {ticker: ($('moodIndex').value.trim() || 'SPY').replace(/\.US$/i, ''), price: 0, changePct: 0};
+  } else if (mode === 'star') {
+    stocks = [blank()];
+  } else if (isLb()) {
+    stocks = M7_LAYOUT.map(m => ({
+      ticker: m.label, symbol: m.fetch + '.US', label: m.label, col: m.col, row: m.row,
+      price: 0, changePct: 0, missing: true,
+    }));
+  } else {
+    stocks = Array.from({length: parseInt($('topN').value) || 3}, blank);
+  }
+}
+
 // Opening the page, or switching to a market sticker, loads the cloud prices
 // right away so nobody starts from the sample numbers.
 function autoLoadQuotes() {
@@ -1560,7 +1582,7 @@ function renderTable() {
       let v = e.target.value;
       if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
       rows[i][k] = v;
-      if (MARKET_MODES.includes(mode) && k !== 'name') { handEdited.set(mode, dataRef(mode)); updateQuoteBar(); }
+      if (MARKET_MODES.includes(mode) && (k === 'price' || k === 'changePct')) { handEdited.set(mode, dataRef(mode)); updateQuoteBar(); }
       render();
     });
   });
@@ -3066,6 +3088,7 @@ $('labelMode').addEventListener('change', () => {
   applyModeTemplate(currentMode);
   updateModeUI();
   resetStocksForMode();
+  clearSampleForManual();
   saveConfig();
   renderTable();
   render();
@@ -3077,7 +3100,11 @@ $('earningsList').addEventListener('input', () => {
   if ($('labelMode').value === 'earnings') { resetStocksForMode(); renderTable(); }
   saveConfig(); render();
 });
-$('dataSource').addEventListener('change', () => { updateSourceUI(); saveConfig(); updateQuoteBar(); autoLoadQuotes(); });
+$('dataSource').addEventListener('change', () => {
+  updateSourceUI(); saveConfig();
+  clearSampleForManual(); renderTable(); render();
+  updateQuoteBar(); autoLoadQuotes();
+});
 $('sizePreset').addEventListener('change', () => { applySizePreset(); saveConfig(); render(); });
 document.getElementById('holidayPick')?.addEventListener('change', () => { saveConfig(); render(); });
 
@@ -3139,6 +3166,7 @@ updateSourceUI();
 moodData = {ticker:'SPY', changePct:1.23, price:520.45};
 dataTime = nowTimeStr();
 resetStocksForMode();
+clearSampleForManual();
 renderTable();
 render();
 applyLang();
