@@ -108,6 +108,8 @@ jobs:
           exit 1
 
       # Failure alert: open/update an auto-alert issue (@清汤) with the actual cause.
+      # A newly opened issue also queues a short Slack message (sent by the last
+      # step); later failures only comment on the issue, so Slack is not spammed.
       - name: Open or update failure issue
         if: failure()
         env:
@@ -123,21 +125,26 @@ jobs:
           RERUN_URL="https://github.com/${REPO}/actions/workflows/fetch-quotes.yml"
           case "$REASON" in
             token)
+              SHORT="长桥拒绝了 token，多半是有人在用户中心重新生成了 token、旧的已作废。需要把新 token 更新到 GitHub。"
               WHY="長橋拒絕了 token（401）。最常見原因：有人在長橋用戶中心**重新生成了 token**，舊的立即作廢（2026-09-08、09-11 都是這樣）。"
               FIX="1. 到長橋用戶中心取得目前有效的 Access Token
           2. 打開 [Secrets 設置頁](${SECRET_URL})，更新 \`LONGBRIDGE_ACCESS_TOKEN\`（App Key / Secret 換過的話也一併更新）
           3. 打開 [Fetch Quotes 頁面](${RERUN_URL})，點 Run workflow，勾選 force 後運行" ;;
             missing_secret)
+              SHORT="GitHub 里缺长桥的密钥，需要补上。"
               WHY="GitHub 裡缺少長橋的 App Key / Secret / Token。"
               FIX="打開 [Secrets 設置頁](${SECRET_URL}) 補上三個 \`LONGBRIDGE_*\`，再到 [Fetch Quotes 頁面](${RERUN_URL}) 手動運行。" ;;
             missing_symbols)
+              SHORT="抓到的数据缺了七巨头或 SPY，这次没有覆盖。多半是长桥暂时异常，稍后重跑一次即可。"
               WHY="抓到了行情，但美股七巨頭或 SPY 缺失／價格為 0，為避免印出殘缺貼紙，**這次沒有覆蓋** quotes.json（門店仍看到上一份數據）。"
               FIX="多半是長橋行情暫時異常，稍後到 [Fetch Quotes 頁面](${RERUN_URL}) 手動運行一次即可。連續出現請查看日志。" ;;
             *)
               if [ "$COMMIT_OUTCOME" = "failure" ]; then
+                SHORT="数据抓好了但保存失败（和 token 无关），重跑一次即可。"
                 WHY="行情已抓好，但推送 quotes.json 時衝突或失敗（與 token 無關）。"
                 FIX="到 [Fetch Quotes 頁面](${RERUN_URL}) 勾選 force 再運行一次。"
               else
+                SHORT="抓取时出错（不是 token 问题），一般重跑一次即可。"
                 WHY="抓取過程出現其他錯誤（不是 token 被拒）。"
                 FIX="查看 [日志](${RUN_URL}) 中 \`fetch failed:\` 那一行；長橋接口偶發錯誤的話，到 [Fetch Quotes 頁面](${RERUN_URL}) 再運行一次。"
               fi ;;
@@ -155,7 +162,9 @@ jobs:
             gh issue comment "$EXISTING" -R "$REPO" --body "$BODY"
           else
             gh label create "auto-alert" -R "$REPO" --color "d73a4a" --description "Auto-created by workflows" 2>/dev/null || true
-            gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert" --assignee qintangzhang-cmyk
+            ISSUE_URL=$(gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert" --assignee qintangzhang-cmyk)
+            printf '%s\n' "🔴 *股票贴纸：今天的行情没更新成功*" "原因：${SHORT}" "门店页面仍显示上一份数据，不会空白。" \
+              "<${ISSUE_URL}|处理步骤>  ·  <${RUN_URL}|运行日志>" > "$RUNNER_TEMP/slack.txt"
           fi
 
       # Best-effort: Gmail has been rejecting the app password (SMTP 535) in
@@ -189,4 +198,18 @@ jobs:
           EXISTING=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
           if [ -n "$EXISTING" ]; then
             gh issue close "$EXISTING" -R "$REPO" --comment "✅ 已自動恢復 — [Run #${RUN_ID}](https://github.com/${REPO}/actions/runs/${RUN_ID})"
+            printf '%s\n' "✅ 股票贴纸：行情已恢复更新（<https://github.com/${REPO}/actions/runs/${RUN_ID}|运行记录>）" > "$RUNNER_TEMP/slack.txt"
+          fi
+
+      # Sends whatever the alert / recovery steps queued. Best-effort: without the
+      # SLACK_WEBHOOK_URL secret it just skips; the GitHub issue still alerts.
+      - name: Slack alert
+        if: always()
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_MENTION: ${{ vars.SLACK_MENTION }}
+        run: |
+          if [ -s "$RUNNER_TEMP/slack.txt" ]; then
+            python3 scripts/send_slack_alert.py "$RUNNER_TEMP/slack.txt"
           fi

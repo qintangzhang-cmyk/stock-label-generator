@@ -30,6 +30,7 @@ jobs:
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
+      EVENT_SCHEDULE: ${{ github.event.schedule }}
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -38,10 +39,20 @@ jobs:
         run: |
           set -uo pipefail
 
+          # Slack 只在三種時候發，避免刷屏：新開告警（且 Fetch Quotes 沒有先報過）、
+          # 每天開店前一次「仍未恢復」提醒、恢復時（只對發過 Slack 的告警）。
+          # 發過 Slack 的告警在 issue 裡留 slack-notified 標記。
+          MARK="<!-- slack-notified -->"
+          queue_slack() { printf '%s\n' "$@" > "$RUNNER_TEMP/slack.txt"; }
+
           close_open_issue() {
             local n
             n=$(gh issue list -R "$REPO" --state open --label "watchdog" --json number --jq '.[0].number // empty')
-            [ -n "$n" ] && gh issue close "$n" -R "$REPO" --comment "$1" || true
+            [ -z "$n" ] && return 0
+            gh issue close "$n" -R "$REPO" --comment "$1" || true
+            if gh issue view "$n" -R "$REPO" --json body,comments --jq '[.body, .comments[].body] | join(" ")' | grep -q "slack-notified"; then
+              queue_slack "✅ 股票贴纸：门店页面的行情已恢复（<https://github.com/${REPO}/issues/${n}|告警记录>）"
+            fi
           }
 
           if MSG=$(python3 scripts/check_freshness.py); then
@@ -85,8 +96,10 @@ jobs:
           echo "::error::補抓後數據仍過期：$MSG"
           RUN_URL="https://github.com/${REPO}/actions/runs/${RID}"
           if [ "$CONCLUSION" = "success" ]; then
+            SHORT="补抓成功了，但网页那份没刷新（GitHub Pages 部署卡住），到 Actions 里重跑「pages build and deployment」。"
             WHY="補抓的 run 成功了，但門店讀到的那份（GitHub Pages）還沒更新 —— 多半是 Pages 部署卡住或失敗。到倉庫的 Actions 頁看「pages build and deployment」最近一次是否失敗，失敗就點 Re-run。"
           else
+            SHORT="补抓也失败了，原因看 Fetch Quotes 的告警。"
             WHY="補抓的 run 也失敗了（結果：\`${CONCLUSION}\`）。具體原因和處理步驟見標題為「Fetch Quotes 工作流失敗」的告警 issue（例如長橋 token 被作廢）。"
           fi
           TITLE="🔴 數據看門狗：quotes.json 過期未恢復"
@@ -99,12 +112,31 @@ jobs:
 
           > 門店頁面在此期間仍顯示上一份數據，不會被清空。數據恢復後此 issue 會自動關閉。"
 
-          EXISTING=$(gh issue list -R "$REPO" --state open --label "watchdog" --json number --jq '.[0].number // empty')
+          EXISTING=$(gh issue list -R "$REPO" --state open --label "watchdog" --json number,createdAt \
+                     --jq '.[0] | select(.) | "\(.number) \(.createdAt)"')
           if [ -n "$EXISTING" ]; then
-            gh issue comment "$EXISTING" -R "$REPO" --body "$BODY"
+            N=${EXISTING%% *}; SINCE=${EXISTING#* }
+            AGE_H=$(( ($(date -u +%s) - $(date -u -d "$SINCE" +%s)) / 3600 ))
+            # 每天開店前那一輪（07:07 HKT 計劃）提醒一次；告警剛開不到 12 小時就不重複提醒。
+            if [ "$EVENT_SCHEDULE" = "7 23 * * *" ] && [ "$AGE_H" -ge 12 ]; then
+              BODY="${BODY}
+          ${MARK}"
+              queue_slack "🔴 *股票贴纸：行情已经 ${AGE_H} 小时没恢复*，门店页面还是旧数据。" "${SHORT}" \
+                "<https://github.com/${REPO}/issues/${N}|告警详情>"
+            fi
+            gh issue comment "$N" -R "$REPO" --body "$BODY"
           else
+            # Fetch Quotes 已經為同一次故障發過 Slack 的話，這裡只開 issue 不重複發。
+            FETCH_OPEN=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number --jq 'length')
+            if [ "$FETCH_OPEN" = "0" ]; then
+              BODY="${BODY}
+          ${MARK}"
+            fi
             gh label create "watchdog" -R "$REPO" --color "b60205" --description "Data freshness watchdog" 2>/dev/null || true
-            gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "watchdog" --assignee qintangzhang-cmyk
+            ISSUE_URL=$(gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "watchdog" --assignee qintangzhang-cmyk)
+            if [ "$FETCH_OPEN" = "0" ]; then
+              queue_slack "🔴 *股票贴纸：门店页面还是旧数据*，自动补抓后仍未恢复。" "${SHORT}" "<${ISSUE_URL}|告警详情>"
+            fi
           fi
           exit 1
 
@@ -126,3 +158,16 @@ jobs:
             具體原因見倉庫裡標題為「數據看門狗」的告警 issue。
             （此郵件由 GitHub Actions 自動發送）
         run: python3 scripts/send_alert_email.py
+
+      # Sends whatever the step above queued (alert, daily reminder or recovery).
+      # Best-effort: without the SLACK_WEBHOOK_URL secret it just skips.
+      - name: Slack alert
+        if: always()
+        continue-on-error: true
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_MENTION: ${{ vars.SLACK_MENTION }}
+        run: |
+          if [ -s "$RUNNER_TEMP/slack.txt" ]; then
+            python3 scripts/send_slack_alert.py "$RUNNER_TEMP/slack.txt"
+          fi
