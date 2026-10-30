@@ -1278,6 +1278,7 @@ const loadedFrom = new Map();    // mode → {source, doc, data}: where the numb
 const handEdited = new Map();    // mode → the data object whose numbers were typed into the table
 const missingByMode = new Map(); // mode → requested tickers that came back without a price
 let lastMissing = [];
+let starAuto = null;             // {ticker, caption} last written automatically for the star sticker
 
 function stocksInUse(mode) {
   return mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
@@ -1400,7 +1401,7 @@ function autoLoadQuotes() {
   const mode = $('labelMode').value;
   if ($('dataSource').value !== 'static' || !MARKET_MODES.includes(mode)) return;
   if (isHandEdited(mode) || (sourceOf(mode) || {}).source === 'static') return;
-  generate();
+  generate({ auto: true });
 }
 
 function showStatus(msg, type = 'ok') {
@@ -1431,7 +1432,9 @@ function nowTimeStr() {
   return fmt(new Date());
 }
 
-async function generate() {
+async function generate(opts) {
+  // true for automatic loads (page open, mode switch); a Generate tap passes a click event
+  const auto = !!(opts && opts.auto === true);
   saveConfig();
   const mode = $('labelMode').value;
   const source = $('dataSource').value;
@@ -1512,8 +1515,11 @@ async function generate() {
         else if (p > -1)    trend = 'dipped slightly';
         else if (p > -3)    trend = 'slipped lower';
         else                trend = 'fell sharply';
-        $('starCaption').value = `${t} ${trend}\nClosed ${sign}${p.toFixed(2)}%`;
-        saveConfig();
+        const caption = `${t} ${trend}\nClosed ${sign}${p.toFixed(2)}%`;
+        // On automatic reloads keep a caption the user typed for this same star;
+        // a new star (e.g. the next morning) or a Generate tap always rewrites it.
+        const keepTyped = auto && starAuto && starAuto.ticker === t && $('starCaption').value !== starAuto.caption;
+        if (!keepTyped) { $('starCaption').value = caption; starAuto = { ticker: t, caption }; saveConfig(); }
       }
       showStatus(T(`✓ Star: ${stocks[0].ticker}`, `✓ 主角：${stocks[0].ticker}`));
     }
@@ -1582,7 +1588,12 @@ function renderTable() {
       let v = e.target.value;
       if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
       rows[i][k] = v;
-      if (MARKET_MODES.includes(mode) && (k === 'price' || k === 'changePct')) { handEdited.set(mode, dataRef(mode)); updateQuoteBar(); }
+      if (MARKET_MODES.includes(mode) && (k === 'price' || k === 'changePct')) {
+        delete rows[i].missing;  // a typed M7 cell is no longer "missing", so it shows on the sticker
+        // topn and star share `stocks`, so a typed number counts for both
+        for (const m of (mode === 'mood' ? ['mood'] : ['topn', 'star'])) handEdited.set(m, dataRef(m));
+        updateQuoteBar();
+      }
       render();
     });
   });
@@ -3100,6 +3111,8 @@ $('earningsList').addEventListener('input', () => {
   if ($('labelMode').value === 'earnings') { resetStocksForMode(); renderTable(); }
   saveConfig(); render();
 });
+// Manual input: switching style rebuilds the blank rows in the new style's shape.
+$('uiStyle').addEventListener('change', () => { clearSampleForManual(); renderTable(); render(); updateQuoteBar(); });
 $('dataSource').addEventListener('change', () => {
   updateSourceUI(); saveConfig();
   clearSampleForManual(); renderTable(); render();
