@@ -1,33 +1,38 @@
 name: Fetch Quotes
 
 on:
-  # GitHub 排程任務無 SLA，實測穩定延遲 ~2 小時（07:30 HKT 計劃 → 09:30 HKT 才跑）。
-  # 為了讓門店 07:30 開門前能拿到當天數據，把計劃時間提前 2 小時：
-  #   主排程 21:30 UTC = 05:30 HKT 計劃 → 實際 ~07:30 HKT 落地
-  #   備援 22:30 UTC = 06:30 HKT 計劃 → 實際 ~08:30 HKT（主排程被跳過時兜底）
-  # 同一份 quotes.json 被多次刷新沒問題：commit step 的 git diff 自動 no-op。
+  # GitHub scheduled runs start late (median ~3h in Oct 2026, up to 5h+), so
+  # scheduling "early and hoping" kept landing data at 08:00–10:00 HKT.
+  # Instead the runs start *before* the US close and scripts/fetch_gate.py
+  # waits for 16:15 New York time, then fetches. New York time handles the
+  # EDT/EST switch automatically (ready = 20:15 UTC summer, 21:15 UTC winter).
+  # Several start times give redundancy; the concurrency group runs them one
+  # at a time and the gate makes later ones skip once today's data exists.
   schedule:
-    - cron: '30 21 * * *'
-    - cron: '30 22 * * *'
+    - cron: '17 18 * * *'
+    - cron: '47 19 * * *'
+    - cron: '17 21 * * *'
+    - cron: '37 22 * * *'
   workflow_dispatch:
+    inputs:
+      force:
+        description: 'Fetch now even if today''s data already exists'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
   issues: write
 
+concurrency:
+  group: fetch-quotes
+  cancel-in-progress: false
+
 jobs:
   fetch:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
-    env:
-      # API Key 認證（用戶中心的 App Key / App Secret / Access Token，純字符串，
-      # 90 天有效）。取代舊的 longbridge CLI + 瀏覽器 OAuth + 加密 token 輪換 ——
-      # 那套每 ~2 週就因 token 解密/刷新失敗而掛。
-      LONGBRIDGE_APP_KEY: ${{ secrets.LONGBRIDGE_APP_KEY }}
-      LONGBRIDGE_APP_SECRET: ${{ secrets.LONGBRIDGE_APP_SECRET }}
-      LONGBRIDGE_ACCESS_TOKEN: ${{ secrets.LONGBRIDGE_ACCESS_TOKEN }}
-      # 關掉 SDK 啟動時打印的行情包橫幅，否則會污染 quotes.json（stdout 重定向）
-      LONGBRIDGE_PRINT_QUOTE_PACKAGES: 'false'
+    # Long enough to wait for the US close when GitHub starts the job early.
+    timeout-minutes: 330
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -37,78 +42,112 @@ jobs:
         with:
           python-version: '3.11'
 
+      # Pinned: an unpinned upgrade broke the feed once (2026-06-11).
       - name: Install Longbridge SDK
-        run: pip install --quiet longbridge
+        run: pip install --quiet 'longbridge==5.3.0'
 
-      - name: Build quotes.json
+      - name: Wait for the US close
+        if: github.event_name == 'schedule'
+        run: python3 scripts/fetch_gate.py wait
+
+      - name: Decide whether to fetch
+        id: gate
         run: |
-          if [ -z "$LONGBRIDGE_APP_KEY" ] || [ -z "$LONGBRIDGE_ACCESS_TOKEN" ]; then
+          git pull --ff-only --quiet
+          FORCE=""
+          if [ "${{ inputs.force }}" = "true" ]; then FORCE="--force"; fi
+          echo "action=$(python3 scripts/fetch_gate.py decide quotes.json $FORCE)" >> "$GITHUB_OUTPUT"
+
+      # The Longbridge credentials are only exposed to this one step.
+      - name: Build quotes.json
+        id: build
+        if: steps.gate.outputs.action == 'fetch'
+        env:
+          LONGBRIDGE_APP_KEY: ${{ secrets.LONGBRIDGE_APP_KEY }}
+          LONGBRIDGE_APP_SECRET: ${{ secrets.LONGBRIDGE_APP_SECRET }}
+          LONGBRIDGE_ACCESS_TOKEN: ${{ secrets.LONGBRIDGE_ACCESS_TOKEN }}
+          LONGBRIDGE_PRINT_QUOTE_PACKAGES: 'false'
+        run: |
+          if [ -z "$LONGBRIDGE_APP_KEY" ] || [ -z "$LONGBRIDGE_APP_SECRET" ] || [ -z "$LONGBRIDGE_ACCESS_TOKEN" ]; then
+            echo "reason=missing_secret" >> "$GITHUB_OUTPUT"
             echo "::error::Missing LONGBRIDGE_APP_KEY / LONGBRIDGE_APP_SECRET / LONGBRIDGE_ACCESS_TOKEN secret"
             exit 1
           fi
-          python3 scripts/build_quotes.py > quotes.json
-          COUNT=$(python3 -c 'import json,sys; print(json.load(open("quotes.json"))["count"])')
-          echo "::notice::Fetched $COUNT symbols"
+          set +e
+          python3 scripts/build_quotes.py quotes.json
+          RC=$?
+          set -e
+          case "$RC" in
+            0) echo "reason=ok" >> "$GITHUB_OUTPUT" ;;
+            3) echo "reason=token" >> "$GITHUB_OUTPUT" ;;
+            4) echo "reason=missing_symbols" >> "$GITHUB_OUTPUT" ;;
+            *) echo "reason=other" >> "$GITHUB_OUTPUT" ;;
+          esac
+          exit "$RC"
 
-      # 自動續期：access token 是 90 天 JWT。剩餘 <30 天時自動換新（再 90 天），
-      # 新 token 直接寫回 Secret（純字符串、無損，舊機制的二進制/解密問題不復存在）。
-      # ROTATE_PAT 未配時只是不續期；token 還有幾十天，到期會由告警提醒人工更新。
-      - name: Refresh access token if near expiry
-        if: success()
-        env:
-          GH_TOKEN: ${{ secrets.ROTATE_PAT }}
-          REPO: ${{ github.repository }}
-          REFRESH_THRESHOLD_DAYS: '30'
-        run: |
-          if [ -z "$GH_TOKEN" ]; then
-            echo "ROTATE_PAT 未配置 — 跳過自動續期"
-            exit 0
-          fi
-          STATUS=$(python3 scripts/refresh_token_if_needed.py /tmp/new_token)
-          echo "refresh status: $STATUS"
-          if [ "$STATUS" = "REFRESHED" ]; then
-            gh secret set LONGBRIDGE_ACCESS_TOKEN -R "$REPO" < /tmp/new_token
-            rm -f /tmp/new_token
-            echo "✓ Access token 已續期並寫回 Secret（再 90 天）"
-          fi
-
+      # The `if:` has no status function, so success() is implied: this only
+      # runs when the build succeeded, and a failed fetch never overwrites good
+      # data (build_quotes.py also refuses to write an incomplete file).
       - name: Commit quotes.json
+        id: commit
+        if: steps.gate.outputs.action == 'fetch'
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add quotes.json
           if git diff --cached --quiet; then
             echo "No changes in quotes.json"
-          else
-            git commit -m "chore(data): refresh quotes $(date -u '+%Y-%m-%d %H:%M UTC')"
-            git push
+            exit 0
           fi
+          git commit -m "chore(data): refresh quotes $(date -u '+%Y-%m-%d %H:%M UTC')"
+          for i in 1 2 3; do
+            git pull --rebase --quiet && git push && exit 0
+            sleep 10
+          done
+          echo "::error::Could not push quotes.json after 3 attempts"
+          exit 1
 
-      # 失敗告警：開/更新一個 auto-alert issue（@清汤，觸發郵件），成功時自動關閉。
+      # Failure alert: open/update an auto-alert issue (@清汤) with the actual cause.
       - name: Open or update failure issue
         if: failure()
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
+          REASON: ${{ steps.build.outputs.reason }}
+          COMMIT_OUTCOME: ${{ steps.commit.outcome }}
         run: |
           TITLE="🔴 Fetch Quotes 工作流失敗（自動告警）"
           RUN_URL="https://github.com/${REPO}/actions/runs/${RUN_ID}"
+          SECRET_URL="https://github.com/${REPO}/settings/secrets/actions"
+          RERUN_URL="https://github.com/${REPO}/actions/workflows/fetch-quotes.yml"
+          case "$REASON" in
+            token)
+              WHY="長橋拒絕了 token（401）。最常見原因：有人在長橋用戶中心**重新生成了 token**，舊的立即作廢（2026-09-08、09-11 都是這樣）。"
+              FIX="1. 到長橋用戶中心取得目前有效的 Access Token
+          2. 打開 [Secrets 設置頁](${SECRET_URL})，更新 \`LONGBRIDGE_ACCESS_TOKEN\`（App Key / Secret 換過的話也一併更新）
+          3. 打開 [Fetch Quotes 頁面](${RERUN_URL})，點 Run workflow，勾選 force 後運行" ;;
+            missing_secret)
+              WHY="GitHub 裡缺少長橋的 App Key / Secret / Token。"
+              FIX="打開 [Secrets 設置頁](${SECRET_URL}) 補上三個 \`LONGBRIDGE_*\`，再到 [Fetch Quotes 頁面](${RERUN_URL}) 手動運行。" ;;
+            missing_symbols)
+              WHY="抓到了行情，但美股七巨頭或 SPY 缺失／價格為 0，為避免印出殘缺貼紙，**這次沒有覆蓋** quotes.json（門店仍看到上一份數據）。"
+              FIX="多半是長橋行情暫時異常，稍後到 [Fetch Quotes 頁面](${RERUN_URL}) 手動運行一次即可。連續出現請查看日志。" ;;
+            *)
+              if [ "$COMMIT_OUTCOME" = "failure" ]; then
+                WHY="行情已抓好，但推送 quotes.json 時衝突或失敗（與 token 無關）。"
+                FIX="到 [Fetch Quotes 頁面](${RERUN_URL}) 勾選 force 再運行一次。"
+              else
+                WHY="抓取過程出現其他錯誤（不是 token 被拒）。"
+                FIX="查看 [日志](${RUN_URL}) 中 \`fetch failed:\` 那一行；長橋接口偶發錯誤的話，到 [Fetch Quotes 頁面](${RERUN_URL}) 再運行一次。"
+              fi ;;
+          esac
           BODY="**Run #${RUN_ID} 失敗** — [查看日志](${RUN_URL})
 
-          咖啡店股票標籤的行情數據沒拉到。連續失敗會導致標籤顯示舊數據。
+          **原因**：${WHY}
 
-          ---
-
-          現在用 **API Key 認證**（90 天 token + 自動續期）。可能原因：
-          - Access token 已過期且自動續期沒跑成功 → 去用戶中心重新生成 Access Token，更新 \`LONGBRIDGE_ACCESS_TOKEN\` secret
-          - 長橋 API 故障 / 行情權限變動
-
-          手動更新 token：
-          \`\`\`bash
-          gh secret set LONGBRIDGE_ACCESS_TOKEN -R ${REPO} --body '<用戶中心的新 Access Token>'
-          gh workflow run \"Fetch Quotes\" -R ${REPO}
-          \`\`\`
+          **處理**：
+          ${FIX}
 
           修好後此 issue 會在下次成功運行時自動關閉。"
           EXISTING=$(gh issue list -R "$REPO" --state open --label "auto-alert" --json number,title --jq '.[] | select(.title=="'"$TITLE"'") | .number' | head -1)
@@ -119,23 +158,23 @@ jobs:
             gh issue create -R "$REPO" --title "$TITLE" --body "$BODY" --label "auto-alert" --assignee qintangzhang-cmyk
           fi
 
-      # 同時發郵件到外部相關人（GitHub 內建通知到不了外部郵箱，靠 Gmail SMTP）。
-      # MAIL_* 未配時 send_alert_email.py 靜默跳過，不影響上面的 issue 告警。
+      # Best-effort: Gmail has been rejecting the app password (SMTP 535) in
+      # recent runs, so this must not mask the real failure. Fix MAIL_PASSWORD to revive.
       - name: Email alert on failure
         if: failure()
+        continue-on-error: true
         env:
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           ALERT_EMAILS: 'cody.fung@longbridge.hk,timmy@chcatcreative.com'
           ALERT_SUBJECT: '🔴 咖啡店股票標籤：行情數據抓取失敗'
           ALERT_BODY: |
-            Fetch Quotes 工作流失敗，咖啡店股票標籤的行情數據沒拉到。
-            連續失敗會導致 cafe 標籤頁顯示舊數據。
+            Fetch Quotes 工作流失敗，咖啡店股票標籤的行情數據這次沒有更新。
+            門店頁面仍顯示上一份數據（不會被清空）。
 
             日志: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            最可能原因：長橋 access token 過期且自動續期未成功，或長橋 API 故障。
-            處理：去用戶中心重新生成 Access Token，更新 GitHub Secret 後重觸發工作流。
+            具體原因和處理步驟見倉庫裡標題為「Fetch Quotes 工作流失敗」的告警 issue。
             （此郵件由 GitHub Actions 自動發送）
         run: python3 scripts/send_alert_email.py
 

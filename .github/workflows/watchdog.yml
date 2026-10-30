@@ -1,18 +1,21 @@
 name: Data Watchdog
 
-# 看門狗：定時檢查 quotes.json 是否新鮮。過期就自動重觸發 Fetch Quotes、
-# 等它跑完再復查；若仍過期則開/更新告警 issue（@清汤）。
-# 全程跑在 GitHub 雲端，不需要任何人的電腦開機。
+# 看門狗：檢查門店實際讀到的 quotes.json（GitHub Pages 上那份）是否已經是
+# 「最近一次美股收市之後」生成的。過期就觸發 Fetch Quotes（force），等它跑完、
+# 等 Pages 部署完再復查；仍過期才開/更新告警 issue（@清汤）。
+# 判斷用的是和抓取同一套收市時鐘（scripts/market_clock.py），週末、夏令時
+# 切換都不會誤報。全程跑在 GitHub 雲端，不需要任何人的電腦開機。
 #
-# 能自動修：GitHub 排隊延遲、偶發失敗、main 跑了但數據沒更新。
-# 不能自動修：長橋 token 死掉（需瀏覽器 longbridge login）—— 這種只能告警。
+# 能自動修：排隊延遲、偶發失敗、Pages 部署沒跟上。
+# 不能自動修：長橋 token 被作廢 —— 那種 Fetch Quotes 自己會開告警 issue 寫明原因。
 
 on:
   schedule:
-    # 主 fetch 計劃 21:30/22:30 UTC（+~2h 排隊 → 實際 ~07:30-08:30 HKT 落地）。
-    # 看門狗在那之後查：01:00 UTC = 09:00 HKT（第一道），04:00 UTC = 12:00 HKT（兜底）。
-    - cron: '0 1 * * *'
-    - cron: '0 4 * * *'
+    # 收市後 ~1–2 小時起查（冬令時收市 = 21:15 UTC），GitHub 排程本身也會晚到，
+    # 多排兩次兜底：22:07 / 23:07 / 01:07 UTC = 06:07 / 07:07 / 09:07 HKT（計劃時間）。
+    - cron: '7 22 * * *'
+    - cron: '7 23 * * *'
+    - cron: '7 1 * * *'
   workflow_dispatch:
 
 permissions:
@@ -23,12 +26,10 @@ permissions:
 jobs:
   watchdog:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
-      # 數據超過這個小時數就算過期。正常每天更新一次；留足排隊 drift 餘量。
-      STALE_HOURS: '26'
     steps:
       - name: Checkout
         uses: actions/checkout@v5
@@ -43,54 +44,60 @@ jobs:
             [ -n "$n" ] && gh issue close "$n" -R "$REPO" --comment "$1" || true
           }
 
-          AGE=$(python3 scripts/check_freshness.py "$REPO")
-          echo "quotes.json age: ${AGE}h (threshold ${STALE_HOURS}h)"
-
-          if [ "$AGE" -lt "$STALE_HOURS" ]; then
-            echo "✓ 數據新鮮，無需動作"
-            close_open_issue "✅ 數據已恢復新鮮（${AGE}h）— 看門狗自動關閉。"
+          if MSG=$(python3 scripts/check_freshness.py); then
+            echo "✓ $MSG"
+            close_open_issue "✅ 數據已恢復新鮮 — 看門狗自動關閉。（$MSG）"
             exit 0
           fi
+          echo "⚠ $MSG"
 
-          echo "⚠ 數據過期，重新觸發 Fetch Quotes..."
-          gh workflow run "Fetch Quotes" -R "$REPO"
-          sleep 20
-          RID=$(gh run list -R "$REPO" --workflow="fetch-quotes.yml" --limit 1 --json databaseId --jq '.[0].databaseId')
-          echo "觸發的 run: $RID"
-          for i in $(seq 1 24); do
+          # 已有一次 Fetch Quotes 在排隊或在跑，就等它，不再重複觸發。
+          RID=$(gh run list -R "$REPO" --workflow=fetch-quotes.yml --limit 10 --json databaseId,status \
+                --jq '[.[] | select(.status != "completed")][0].databaseId // empty')
+          if [ -n "$RID" ]; then
+            echo "已有 Fetch Quotes run $RID 未完成，等它跑完"
+          else
+            echo "觸發 Fetch Quotes（force）..."
+            gh workflow run fetch-quotes.yml -R "$REPO" -f force=true
+            sleep 20
+            RID=$(gh run list -R "$REPO" --workflow=fetch-quotes.yml --event workflow_dispatch --limit 1 \
+                  --json databaseId --jq '.[0].databaseId')
+            echo "觸發的 run: $RID"
+          fi
+          for i in $(seq 1 40); do
             STATUS=$(gh run view "$RID" -R "$REPO" --json status --jq '.status')
-            echo "  [$i] $STATUS"
             [ "$STATUS" = "completed" ] && break
             sleep 30
           done
-
-          AGE2=$(python3 scripts/check_freshness.py "$REPO")
-          echo "重試後 age: ${AGE2}h"
-          if [ "$AGE2" -lt "$STALE_HOURS" ]; then
-            echo "✓ 重觸發成功，數據已刷新"
-            close_open_issue "✅ 看門狗重觸發後數據已恢復（${AGE2}h）。"
-            exit 0
-          fi
-
-          echo "::error::重觸發後數據仍過期（${AGE2}h）"
           CONCLUSION=$(gh run view "$RID" -R "$REPO" --json conclusion --jq '.conclusion // "unknown"')
+          echo "run $RID 結果: $CONCLUSION"
+
+          # Pages 部署通常 1 分鐘內完成；最多再等 5 分鐘。
+          for i in $(seq 1 10); do
+            if MSG=$(python3 scripts/check_freshness.py); then
+              echo "✓ $MSG"
+              close_open_issue "✅ 看門狗補抓後數據已恢復。（$MSG）"
+              exit 0
+            fi
+            sleep 30
+          done
+
+          echo "::error::補抓後數據仍過期：$MSG"
           RUN_URL="https://github.com/${REPO}/actions/runs/${RID}"
+          if [ "$CONCLUSION" = "success" ]; then
+            WHY="補抓的 run 成功了，但門店讀到的那份（GitHub Pages）還沒更新 —— 多半是 Pages 部署卡住或失敗。到倉庫的 Actions 頁看「pages build and deployment」最近一次是否失敗，失敗就點 Re-run。"
+          else
+            WHY="補抓的 run 也失敗了（結果：\`${CONCLUSION}\`）。具體原因和處理步驟見標題為「Fetch Quotes 工作流失敗」的告警 issue（例如長橋 token 被作廢）。"
+          fi
           TITLE="🔴 數據看門狗：quotes.json 過期未恢復"
-          BODY="看門狗檢測到 quotes.json 已過期（約 ${AGE2} 小時未更新），自動重觸發 Fetch Quotes 後**仍未恢復**。
+          BODY="看門狗檢測到門店頁面讀到的 quotes.json 仍是舊數據，自動補抓後**仍未恢復**。
 
-          - 重試的 run: [#${RID}](${RUN_URL}) — 結果：\`${CONCLUSION}\`
+          - 檢測結果：${MSG}
+          - 補抓的 run：[#${RID}](${RUN_URL})
 
-          ---
+          **判斷**：${WHY}
 
-          **最可能原因：API Key access token 過期且自動續期沒跑成功**，或長橋 API 故障。人工恢復：
-
-          \`\`\`bash
-          # 去用戶中心(open.longbridge.com)重新生成 Access Token，然後：
-          gh secret set LONGBRIDGE_ACCESS_TOKEN -R ${REPO} --body '<新 Access Token>'
-          gh workflow run \"Fetch Quotes\" -R ${REPO}
-          \`\`\`
-
-          > 正常情況下 token 90 天有效、工作流剩 <30 天時自動續期，不該走到這步。數據恢復後此 issue 自動關閉。"
+          > 門店頁面在此期間仍顯示上一份數據，不會被清空。數據恢復後此 issue 會自動關閉。"
 
           EXISTING=$(gh issue list -R "$REPO" --state open --label "watchdog" --json number --jq '.[0].number // empty')
           if [ -n "$EXISTING" ]; then
@@ -101,20 +108,21 @@ jobs:
           fi
           exit 1
 
-      # 看門狗判定數據過期且重試無效時（上一步 exit 1 → failure），同步發郵件給外部相關人。
+      # 看門狗判定數據過期且補抓無效時，同步發郵件給外部相關人（盡力而為，失敗不影響告警）。
       - name: Email alert when data stays stale
         if: failure()
+        continue-on-error: true
         env:
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
           MAIL_PASSWORD: ${{ secrets.MAIL_PASSWORD }}
           ALERT_EMAILS: 'cody.fung@longbridge.hk,timmy@chcatcreative.com'
           ALERT_SUBJECT: '🔴 咖啡店股票標籤：數據過期未恢復（看門狗）'
           ALERT_BODY: |
-            數據看門狗檢測到 quotes.json 已過期，自動重觸發 Fetch Quotes 後仍未恢復。
-            cafe 標籤頁可能在顯示舊數據。
+            數據看門狗檢測到門店頁面讀到的 quotes.json 仍是舊數據，自動補抓後仍未恢復。
+            cafe 標籤頁在此期間顯示上一份數據。
 
             日志: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
-            處理：去長橋用戶中心重新生成 Access Token，更新 GitHub Secret 後重觸發工作流。
+            具體原因見倉庫裡標題為「數據看門狗」的告警 issue。
             （此郵件由 GitHub Actions 自動發送）
         run: python3 scripts/send_alert_email.py
