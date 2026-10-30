@@ -158,6 +158,11 @@
   .status.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
   .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
   .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+  .quote-bar { display: none; padding: 9px 12px; border-radius: 8px; font-size: 12px; line-height: 1.55; margin-bottom: 10px; white-space: pre-line; }
+  .quote-bar.show { display: block; }
+  .quote-bar.fresh { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .quote-bar.stale { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; font-weight: 600; }
+  .quote-bar.none { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
 
   .hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
   .hint code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px; }
@@ -318,7 +323,7 @@
       </select>
 
       <div id="staticFields" class="mode-field show">
-        <div class="hint" data-en="Prices refresh automatically every morning before opening — no computer needed." data-zh="每天开店前云端自动更新行情，无需开电脑。">Prices refresh automatically every morning before opening — no computer needed.</div>
+        <div class="hint" data-en="Prices update in the cloud after the US close (usually before 6am Singapore time) and load when you open this page — no computer needed." data-zh="美股收市后云端自动更新（通常新加坡时间早上 6 点前），打开页面会自动加载，无需开电脑。">Prices update in the cloud after the US close (usually before 6am Singapore time) and load when you open this page — no computer needed.</div>
       </div>
 
       <div id="lbFields" class="mode-field">
@@ -489,6 +494,7 @@ Closed +4.20%</textarea>
     </section>
 
     <div class="panel-body" style="padding: 0 20px 20px">
+      <div id="quoteBar" class="quote-bar" aria-live="polite"></div>
       <div class="row2">
         <button id="downloadBtn" class="secondary">📥 <span data-en="Download JPG" data-zh="下载 JPG">Download JPG</span></button>
         <button id="printBtn">🖨️ <span data-en="Print" data-zh="直接打印">Print</span></button>
@@ -514,6 +520,7 @@ Closed +4.20%</textarea>
 
 </div>
 
+<script src="../assets/quote-freshness.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 
@@ -1171,7 +1178,7 @@ async function fetchFromStatic(tickers) {
   return (staticCache.quotes || [])
     .filter(q => want.has(q.symbol) || want.has(q.ticker))
     .filter(q => q.price > 0)
-    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: NAME_EN[q.symbol] || q.name || '' }));
+    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: NAME_EN[q.symbol] || q.name || '', tradeDate: q.tradeDate || '' }));
 }
 async function fetchFromLongbridge(proxyUrl, tickers) {
   const base = proxyUrl.replace(/\/$/, '');
@@ -1193,8 +1200,15 @@ async function fetchFinnhubQuote(ticker, apiKey) {
   return { ticker: t, symbol: t, price: d.c, changePct: d.dp, name: '' };
 }
 
+// Fetch, and remember which requested tickers came back without a price.
 async function fetchData(tickers) {
   const source = $('dataSource').value;
+  const data = await fetchDataFrom(source, tickers);
+  lastMissing = source === 'manual' ? [] : QuoteFreshness.missingTickers(tickers, data);
+  return data;
+}
+
+async function fetchDataFrom(source, tickers) {
   if (source === 'static') {
     staticCache = null;  // force refresh each generate
     return fetchFromStatic(tickers);
@@ -1208,6 +1222,100 @@ async function fetchData(tickers) {
   } else {
     return [];  // manual
   }
+}
+
+// ============ DATA FRESHNESS ============
+// Market-data stickers must not go out with the built-in sample numbers, and
+// cloud data older than the latest US close gets a visible warning.
+// The date logic lives in assets/quote-freshness.js (shared by both pages).
+const MARKET_MODES = ['topn', 'mood', 'star'];
+const loadedFrom = new Map();    // mode → {source, doc} its numbers came from (absent = still the sample)
+const handEdited = new Set();    // modes whose numbers were typed into the table
+const missingByMode = new Map(); // mode → requested tickers that came back without a price
+let lastMissing = [];
+
+function stocksInUse(mode) {
+  return mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
+}
+
+function updateQuoteBar() {
+  const bar = $('quoteBar');
+  if (!bar) return;
+  const mode = $('labelMode').value;
+  if (!MARKET_MODES.includes(mode)) { bar.className = 'quote-bar'; bar.textContent = ''; return; }
+  const QF = QuoteFreshness, lang = T('en', 'zh');
+  const from = loadedFrom.get(mode);
+  const lines = [];
+  let cls = 'none';
+  if (!from && !handEdited.has(mode)) {
+    lines.push(T('Sample numbers: prices are not loaded yet. Tap "Generate sticker" above.',
+                 '现在是示例数字，还没加载行情。请点上方「🔄 生成贴纸」。'));
+  } else if (from && from.source === 'static' && from.doc) {
+    const us = QF.formatDate(QF.usTradeDate(from.doc), lang);
+    const otherIso = QF.otherTradeDate(stocksInUse(mode));
+    const other = otherIso ? QF.formatDate(otherIso, lang) : '';
+    const updated = QF.formatUpdated(from.doc, lang);
+    if (QF.isFresh(from.doc)) {
+      cls = 'fresh';
+      lines.push(T(`✓ Prices: US close ${us}${other ? `, HK/China ${other}` : ''}. Updated ${updated}.`,
+                   `✓ 行情：美股 ${us}收市${other ? `，港股/A股 ${other}` : ''}。云端更新于 ${updated}。`));
+    } else {
+      cls = 'stale';
+      const expected = QF.formatDate(QF.expectedUsTradeDate(), lang);
+      lines.push(T(`⚠ Cloud prices are still from the US close on ${us}; the latest close was ${expected}, so today's update has not landed yet. Try "Generate sticker" again in a few minutes. You can still print, but the numbers are old.`,
+                   `⚠ 云端行情还停在美股 ${us}收市，最近一次收市是 ${expected}，今天的还没更新。建议过几分钟再点「生成贴纸」；急用也能打印，但数字是旧的。`));
+    }
+  } else if (from && from.source === 'manual') {
+    lines.push(T('Manual input.', '手动输入的数字。'));
+  } else if (from) {
+    lines.push(T('Live prices from the local proxy / Finnhub (intraday prices if run during US trading hours).',
+                 '来自本地代理 / Finnhub 的即时价格（美股交易时段运行会是盘中价）。'));
+  }
+  if (handEdited.has(mode) && from) lines.push(T('Some numbers were edited by hand.', '表格里有手动改过的数字。'));
+  if (!from && handEdited.has(mode)) lines.push(T('Numbers typed into the table by hand.', '表格里是手动填的数字。'));
+  const missing = missingByMode.get(mode) || [];
+  if (from && from.source !== 'manual' && missing.length) {
+    lines.push(T(`No price for: ${missing.join(', ')}${from.source === 'static' ? ' (the cloud only fetches a fixed list)' : ''}.`,
+                 `这些代码没取到价格：${missing.join('、')}${from.source === 'static' ? '（云端只抓固定名单，需要请找管理员加）' : ''}。`));
+  }
+  bar.className = `quote-bar show ${cls}`;
+  bar.textContent = lines.join('\n');
+}
+
+// Called before printing or downloading. Printing sample numbers is blocked;
+// downloading them or printing old cloud data asks first.
+function okToOutput(action) {
+  const mode = $('labelMode').value;
+  if (!MARKET_MODES.includes(mode)) return true;
+  const isPrint = action === 'print';
+  const from = loadedFrom.get(mode);
+  if (!from && !handEdited.has(mode)) {
+    if (isPrint) {
+      showStatus(T('These are sample numbers, so printing is blocked. Tap "Generate sticker" to load prices first.',
+                   '现在是示例数字，不能打印。请先点「🔄 生成贴纸」加载行情。'), 'err');
+      return false;
+    }
+    return confirm(T('These are sample numbers, not real prices. Download anyway?',
+                     '现在是示例数字，不是真实行情。确定要下载吗？'));
+  }
+  if (from && from.source === 'static' && from.doc && !QuoteFreshness.isFresh(from.doc)) {
+    const us = QuoteFreshness.formatDate(QuoteFreshness.usTradeDate(from.doc), T('en', 'zh'));
+    return confirm(isPrint
+      ? T(`The cloud prices are from the US close on ${us}, not the latest trading day.\n\nPrint anyway?`,
+          `云端行情还停在美股 ${us}收市，不是最近一个交易日。\n\n确定仍要打印吗？`)
+      : T(`The cloud prices are from the US close on ${us}, not the latest trading day.\n\nDownload anyway?`,
+          `云端行情还停在美股 ${us}收市，不是最近一个交易日。\n\n确定仍要下载吗？`));
+  }
+  return true;
+}
+
+// Opening the page, or switching to a market sticker, loads the cloud prices
+// right away so nobody starts from the sample numbers.
+function autoLoadQuotes() {
+  const mode = $('labelMode').value;
+  if ($('dataSource').value !== 'static' || !MARKET_MODES.includes(mode)) return;
+  if (handEdited.has(mode) || (loadedFrom.get(mode) || {}).source === 'static') return;
+  generate();
 }
 
 function showStatus(msg, type = 'ok') {
@@ -1342,9 +1450,16 @@ async function generate() {
     const hint = source === 'longbridge' && mode !== 'history' && mode !== 'earnings'
       ? T(' (is the proxy running? python3 longbridge_proxy.py)', '（检查代理是否启动：python3 longbridge_proxy.py）') : '';
     showStatus(`${T('Failed: ', '失败: ')}${e.message}${hint}`, 'err');
+    updateQuoteBar();
     return;
   }
 
+  if (MARKET_MODES.includes(mode)) {
+    loadedFrom.set(mode, { source, doc: source === 'static' ? staticCache : null });
+    handEdited.delete(mode);
+    missingByMode.set(mode, source === 'manual' ? [] : lastMissing);
+  }
+  updateQuoteBar();
   renderTable();
   render();
 }
@@ -1379,6 +1494,7 @@ function renderTable() {
       let v = e.target.value;
       if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
       stocks[i][k] = v;
+      if (MARKET_MODES.includes(mode) && k !== 'name') { handEdited.add(mode); updateQuoteBar(); }
       render();
     });
   });
@@ -2768,6 +2884,7 @@ function applyLang() {
   updateModeUI();
   refreshHolidayBanner();
   renderTable();
+  updateQuoteBar();
   const po = $('printerName') && $('printerName').options[0];
   if (po && po.value === '') po.textContent = printerAutoLabel();
 }
@@ -2803,6 +2920,7 @@ function withExportRender(fn) {
 }
 
 $('downloadBtn').addEventListener('click', () => {
+  if (!okToOutput('download')) return;
   withExportRender(() => {
     const a = document.createElement('a');
     const d = new Date();
@@ -2834,6 +2952,7 @@ async function refreshPrinters() {
 }
 
 async function printSticker() {
+  if (!okToOutput('print')) return;
   const proxyUrl = ($('proxyUrl').value.trim() || 'http://localhost:8787').replace(/\/$/, '');
   const widthMm = parseFloat($('widthMm').value) || 58;
   const heightMm = parseFloat($('heightMm').value) || 40;
@@ -2884,12 +3003,14 @@ $('labelMode').addEventListener('change', () => {
   renderTable();
   render();
   refreshHolidayBanner();
+  updateQuoteBar();
+  autoLoadQuotes();
 });
 $('earningsList').addEventListener('input', () => {
   if ($('labelMode').value === 'earnings') { resetStocksForMode(); renderTable(); }
   saveConfig(); render();
 });
-$('dataSource').addEventListener('change', () => { updateSourceUI(); saveConfig(); });
+$('dataSource').addEventListener('change', () => { updateSourceUI(); saveConfig(); updateQuoteBar(); autoLoadQuotes(); });
 $('sizePreset').addEventListener('change', () => { applySizePreset(); saveConfig(); render(); });
 document.getElementById('holidayPick')?.addEventListener('change', () => { saveConfig(); render(); });
 
@@ -2954,6 +3075,7 @@ resetStocksForMode();
 renderTable();
 render();
 applyLang();
+autoLoadQuotes();
 // Cera Pro loads lazily; redraw once every weight is ready so text is measured with the real font
 if (document.fonts && document.fonts.load) {
   Promise.all(['400', '700', '900'].map(w => document.fonts.load(`${w} 20px "Cera Pro"`)))
