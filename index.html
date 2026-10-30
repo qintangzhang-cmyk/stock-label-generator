@@ -1291,13 +1291,28 @@ async function refreshCloudStamp() {
 // cloud data older than the latest US close gets a visible warning.
 // The date logic lives in assets/quote-freshness.js (shared by both pages).
 const MARKET_MODES = ['topn', 'mood', 'star'];
-const loadedFrom = new Map();    // mode → {source, doc} its numbers came from (absent = still the sample)
-const handEdited = new Set();    // modes whose numbers were typed into the table
+const loadedFrom = new Map();    // mode → {source, doc, data}: where the numbers on screen came from
+const handEdited = new Map();    // mode → the data object whose numbers were typed into the table
 const missingByMode = new Map(); // mode → requested tickers that came back without a price
 let lastMissing = [];
 
 function stocksInUse(mode) {
   return mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
+}
+
+// The object a market sticker draws from: moodData for mood, the shared
+// `stocks` array for topn and star. Switching modes replaces it (and topn and
+// star share it), so a record only counts while it still points at the data
+// on screen — otherwise a mode round trip could bring back the sample numbers
+// under a green "loaded" bar.
+function dataRef(mode) { return mode === 'mood' ? moodData : stocks; }
+function sourceOf(mode) {
+  const f = loadedFrom.get(mode);
+  return f && f.data && f.data === dataRef(mode) ? f : undefined;
+}
+function isHandEdited(mode) {
+  const d = handEdited.get(mode);
+  return !!d && d === dataRef(mode);
 }
 
 function updateQuoteBar() {
@@ -1306,12 +1321,14 @@ function updateQuoteBar() {
   const mode = $('labelMode').value;
   if (!MARKET_MODES.includes(mode)) { bar.className = 'quote-bar'; bar.textContent = ''; return; }
   const QF = QuoteFreshness, lang = T('en', 'zh');
-  const from = loadedFrom.get(mode);
+  const from = sourceOf(mode), edited = isHandEdited(mode);
   const lines = [];
   let cls = 'none';
-  if (!from && !handEdited.has(mode)) {
-    lines.push(T('Sample numbers: prices are not loaded yet. Tap "Generate sticker" above.',
-                 '现在是示例数字，还没加载行情。请点上方「🔄 生成贴纸」。'));
+  if (!from && !edited) {
+    lines.push($('dataSource').value === 'manual'
+      ? T('Manual input: type the numbers into the table below.', '手动输入：请在下方表格里填数字。')
+      : T('Sample numbers: prices are not loaded yet. Tap "Generate sticker" above.',
+          '现在是示例数字，还没加载行情。请点上方「🔄 生成贴纸」。'));
   } else if (from && from.source === 'static' && from.doc) {
     const us = QF.formatDate(QF.usTradeDate(from.doc), lang);
     const otherIso = QF.otherTradeDate(stocksInUse(mode));
@@ -1333,8 +1350,8 @@ function updateQuoteBar() {
     lines.push(T('Live prices from the local proxy / Finnhub (intraday prices if run during US trading hours).',
                  '来自本地代理 / Finnhub 的即时价格（美股交易时段运行会是盘中价）。'));
   }
-  if (handEdited.has(mode) && from) lines.push(T('Some numbers were edited by hand.', '表格里有手动改过的数字。'));
-  if (!from && handEdited.has(mode)) lines.push(T('Numbers typed into the table by hand.', '表格里是手动填的数字。'));
+  if (edited && from) lines.push(T('Some numbers were edited by hand.', '表格里有手动改过的数字。'));
+  if (!from && edited) lines.push(T('Numbers typed into the table by hand.', '表格里是手动填的数字。'));
   const missing = missingByMode.get(mode) || [];
   if (from && from.source !== 'manual' && missing.length) {
     lines.push(T(`No price for: ${missing.join(', ')}${from.source === 'static' ? ' (the cloud only fetches a fixed list)' : ''}.`,
@@ -1350,11 +1367,13 @@ function okToOutput(action) {
   const mode = $('labelMode').value;
   if (!MARKET_MODES.includes(mode)) return true;
   const isPrint = action === 'print';
-  const from = loadedFrom.get(mode);
-  if (!from && !handEdited.has(mode)) {
+  const from = sourceOf(mode);
+  if (!from && !isHandEdited(mode)) {
     if (isPrint) {
-      showStatus(T('These are sample numbers, so printing is blocked. Tap "Generate sticker" to load prices first.',
-                   '现在是示例数字，不能打印。请先点「🔄 生成贴纸」加载行情。'), 'err');
+      showStatus($('dataSource').value === 'manual'
+        ? T('Manual input: type the numbers into the table first, then print.', '手动输入：请先在表格里填好数字再打印。')
+        : T('These are sample numbers, so printing is blocked. Tap "Generate sticker" to load prices first.',
+            '现在是示例数字，不能打印。请先点「🔄 生成贴纸」加载行情。'), 'err');
       return false;
     }
     return confirm(T('These are sample numbers, not real prices. Download anyway?',
@@ -1376,7 +1395,7 @@ function okToOutput(action) {
 function autoLoadQuotes() {
   const mode = $('labelMode').value;
   if ($('dataSource').value !== 'static' || !MARKET_MODES.includes(mode)) return;
-  if (handEdited.has(mode) || (loadedFrom.get(mode) || {}).source === 'static') return;
+  if (isHandEdited(mode) || (sourceOf(mode) || {}).source === 'static') return;
   generate();
 }
 
@@ -1450,7 +1469,8 @@ async function generate() {
           stocks = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
           const n = parseInt($('topN').value) || 3;
           stocks = stocks.slice(0, n);
-        } else if (stocks.length === 0) {
+        } else if (stocks.length === 0 || (!sourceOf('topn') && !isHandEdited('topn'))) {
+          // Manual: start from blank rows rather than the built-in sample
           stocks = Array.from({length: parseInt($('topN').value)||3}, () => ({ticker:'', price:0, changePct:0, name:''}));
         }
         dataTime = nowTimeStr();
@@ -1519,10 +1539,11 @@ async function generate() {
     return;
   }
 
-  if (MARKET_MODES.includes(mode)) {
-    loadedFrom.set(mode, { source, doc: source === 'static' ? staticCache : null });
+  // Manual numbers only count once typed into the table (handEdited).
+  if (MARKET_MODES.includes(mode) && source !== 'manual') {
+    loadedFrom.set(mode, { source, doc: source === 'static' ? staticCache : null, data: dataRef(mode) });
     handEdited.delete(mode);
-    missingByMode.set(mode, source === 'manual' ? [] : lastMissing);
+    missingByMode.set(mode, lastMissing);
   }
   updateQuoteBar();
   renderTable();
@@ -1534,7 +1555,8 @@ function renderTable() {
   const tbody = $('dataTable').querySelector('tbody');
   tbody.innerHTML = '';
   const mode = $('labelMode').value;
-  stocks.forEach((s, i) => {
+  const rows = mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
+  rows.forEach((s, i) => {
     const tr = document.createElement('tr');
     if (mode === 'history') {
       tr.innerHTML = `<td>日期</td><td colspan="3">${s.date} (${s.year})：${s.text}</td>`;
@@ -1558,8 +1580,8 @@ function renderTable() {
       const i = +e.target.dataset.i, k = e.target.dataset.k;
       let v = e.target.value;
       if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
-      stocks[i][k] = v;
-      if (MARKET_MODES.includes(mode) && k !== 'name') { handEdited.add(mode); updateQuoteBar(); }
+      rows[i][k] = v;
+      if (MARKET_MODES.includes(mode) && k !== 'name') { handEdited.set(mode, dataRef(mode)); updateQuoteBar(); }
       render();
     });
   });
