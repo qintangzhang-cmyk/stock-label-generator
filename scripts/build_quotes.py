@@ -11,18 +11,23 @@ Required env vars (read by Config.from_apikey_env):
     LONGBRIDGE_ACCESS_TOKEN
 Set LONGBRIDGE_PRINT_QUOTE_PACKAGES=false to keep the SDK banner quiet.
 
-The stickers show the latest *completed* session, whenever the job runs:
-  * Hong Kong / A-share symbols: the stickers are printed in the Hong Kong
-    morning and show *yesterday's* moves, so the change always comes from the
-    last two daily candles before today (exchange-local). The live quote is
-    not used: around 08:50-09:20 HKT Longbridge has already rolled
-    prev_close to yesterday's close while last_done has not moved, which
-    reads as 0% for every stock (seen 2026-08-27, 09-23, 10-02, 10-07, 10-23).
-    The quote is only a fallback if the candles cannot be fetched.
-  * US symbols: after the US close last_done vs prev_close is the session
-    that just ended. If today's US session is still open (a manual run during
-    New York trading hours), or the quote has been rolled over (no volume and
-    last_done == prev_close), the last two completed daily candles are used.
+The stickers show the latest *completed* session, whenever the job runs.
+The live quote is used when it is "settled" — it describes that session and
+has traded — because its prev_close is adjusted on ex-dividend days (a raw
+close-to-close would print the dividend gap as a drop). Otherwise the change
+comes from daily candles:
+  * Hong Kong / A-shares show *yesterday's* moves (stickers are printed in the
+    HK morning). Settled = volume > 0 and the quote is from before today. This
+    is the case at the scheduled run (~05:15 HKT). From ~08:50 HKT Longbridge
+    has rolled prev_close while last_done has not moved (0% on no volume;
+    seen 2026-08-27, 09-23, 10-02, 10-07, 10-23), then come the pre-opening
+    auction and the session itself: all of these use candles.
+  * US: settled unless the quote has rolled over (no volume, last == prev,
+    e.g. pre-market or a holiday) or today's session is still open.
+Candle changes use forward-adjusted closes (so an ex-date is handled like the
+quote does) and the unadjusted last close as the price. If candles are
+needed but cannot be fetched, the symbol is left out rather than published
+with a rolled or intraday number.
 
 A last check refuses to publish when half or more of the US, or of the
 HK/A-share, symbols show exactly 0% on zero volume: the "one good copy per
@@ -42,7 +47,7 @@ import re
 import sys
 import tempfile
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo
 
 from longbridge.openapi import AdjustType, Config, Period, QuoteContext, TradeSessions
@@ -105,16 +110,28 @@ def local_date(ts, tz):
     return ts.astimezone(tz).date()
 
 
-def yesterday_from_candles(ctx, sym, today):
-    """(close, prev_close, volume, turnover, trade_date) of the last completed session before `today`."""
-    tz = MARKET_TZ[market(sym)]
+def _completed(ctx, sym, adjust, before, tz):
     time.sleep(CANDLE_PAUSE)
-    candles = ctx.candlesticks(sym, Period.Day, 5, AdjustType.NoAdjust, TradeSessions.Intraday)
-    done = [c for c in candles if local_date(c.timestamp, tz) and local_date(c.timestamp, tz) < today]
-    if len(done) < 2:
+    candles = ctx.candlesticks(sym, Period.Day, 5, adjust, TradeSessions.Intraday)
+    return [c for c in candles if local_date(c.timestamp, tz) and local_date(c.timestamp, tz) < before]
+
+
+def last_session_from_candles(ctx, sym, before):
+    """(price, prev_close, volume, turnover, trade_date) of the last session before `before`.
+
+    The change comes from forward-adjusted closes, so an ex-dividend day reads
+    like the exchange's adjusted prev_close; the price is the actual close.
+    """
+    tz = MARKET_TZ[market(sym)]
+    raw = _completed(ctx, sym, AdjustType.NoAdjust, before, tz)
+    if len(raw) < 2:
         return None
-    last, prev = done[-1], done[-2]
-    return num(last.close), num(prev.close), int(num(last.volume)), num(last.turnover), local_date(last.timestamp, tz)
+    last = raw[-1]
+    price, prev = num(last.close), num(raw[-2].close)
+    adj = _completed(ctx, sym, AdjustType.ForwardAdjust, before, tz)
+    if len(adj) >= 2 and local_date(adj[-1].timestamp, tz) == local_date(last.timestamp, tz) and num(adj[-2].close):
+        prev = price / (num(adj[-1].close) / num(adj[-2].close))
+    return price, prev, int(num(last.volume)), num(last.turnover), local_date(last.timestamp, tz)
 
 
 def build(ctx, now):
@@ -141,21 +158,28 @@ def build(ctx, now):
         today = now.astimezone(tz).date()
         rolled = volume == 0 and last == prev
         if mkt in ("HK", "SH", "SZ"):
-            use_candles = True
+            settled = volume > 0 and trade_date is not None and trade_date < today
+            before = today
         elif mkt == "US":
             session_open = now < datetime.combine(today, READY_AT, tzinfo=NY)
-            use_candles = rolled or (trade_date is not None and trade_date >= today and session_open)
+            settled = not rolled and not (trade_date is not None and trade_date >= today and session_open)
+            # a rolled quote after today's close still means "use up to today"
+            before = today if session_open else today + timedelta(days=1)
         else:
-            use_candles = False
-        if use_candles:
-            try:
-                y = yesterday_from_candles(ctx, sym, today)
-            except Exception as e:  # noqa: BLE001 — keep the quote rather than drop the symbol
-                sys.stderr.write("candlesticks failed for %s (%s); using quote\n" % (sym, e))
-                y = None
-            if y:
-                last, prev, volume, turnover, trade_date = y
-                source = "daily"
+            settled, before = True, today
+        if not settled:
+            y = None
+            for attempt in (1, 2):
+                try:
+                    y = last_session_from_candles(ctx, sym, before)
+                    break
+                except Exception as e:  # noqa: BLE001
+                    sys.stderr.write("candlesticks failed for %s (attempt %d): %s\n" % (sym, attempt, e))
+            if not y:
+                sys.stderr.write("%s: quote is not a settled session and candles are unavailable; left out\n" % sym)
+                continue
+            last, prev, volume, turnover, trade_date = y
+            source = "daily"
 
         change_pct = ((last - prev) / prev * 100) if prev else 0.0
         out.append({

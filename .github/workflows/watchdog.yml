@@ -27,7 +27,8 @@ permissions:
 jobs:
   watchdog:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # Worst case: ~20 min waiting for the fetch run + 8 min for Pages + alerting.
+    timeout-minutes: 45
     env:
       GH_TOKEN: ${{ github.token }}
       REPO: ${{ github.repository }}
