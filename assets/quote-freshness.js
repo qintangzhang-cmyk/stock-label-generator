@@ -107,8 +107,22 @@
     return lang === 'en' ? `${p.day} ${MON_EN[+p.month - 1]} ${p.hour}:${p.minute}` : `${p.month}月${p.day}日 ${p.hour}:${p.minute}`;
   }
 
+  // '3 小时前' / '3 h ago'
+  function formatAgo(doc, lang, now) {
+    const g = new Date(doc && doc.generatedAt);
+    if (isNaN(g)) return '';
+    const mins = Math.max(0, Math.floor(((now || new Date()) - g) / 60000));
+    const en = lang === 'en';
+    if (mins < 1) return en ? 'just now' : '刚刚';
+    if (mins < 60) return en ? `${mins} min ago` : `${mins} 分钟前`;
+    const h = Math.floor(mins / 60);
+    if (h < 48) return en ? `${h} h ago` : `${h} 小时前`;
+    const d = Math.floor(h / 24);
+    return en ? `${d} days ago` : `${d} 天前`;
+  }
+
   root.QuoteFreshness = {
     latestUsClose, isFresh, usTradeDate, expectedUsTradeDate, otherTradeDate,
-    missingTickers, formatDate, formatUpdated,
+    missingTickers, formatDate, formatUpdated, formatAgo,
   };
 })(window);

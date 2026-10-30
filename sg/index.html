@@ -230,6 +230,10 @@
     color: var(--text);
   }
   .app-title .sub { font-size: 11px; color: var(--muted); font-weight: normal; margin-left: 8px; }
+  .data-stamp { margin: 6px 20px 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+                background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+  .data-stamp.fresh { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+  .data-stamp.stale { background: #fffbeb; color: #92400e; border-color: #fcd34d; font-weight: 600; }
   /* Language switch (EN / 中文) */
   .lang-switch { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; flex-shrink: 0; }
   .lang-switch .lang-btn { width: auto; margin: 0; padding: 4px 10px; border: 0; border-radius: 0; background: #fff; color: var(--muted); font-size: 12px; font-weight: 700; cursor: pointer; }
@@ -287,6 +291,7 @@
         <button type="button" class="lang-btn" data-lang="en">EN</button><button type="button" class="lang-btn" data-lang="zh">中文</button>
       </span>
     </div>
+    <div id="dataStamp" class="data-stamp" aria-live="polite">🕒 <span data-en="Data update time: loading…" data-zh="数据更新时间：加载中…">Data update time: loading…</span></div>
 
     <nav class="tabs">
       <button class="tab-btn active" data-tab="data">📊 <span data-en="Data" data-zh="数据">Data</span></button>
@@ -1173,6 +1178,7 @@ async function fetchFromStatic(tickers) {
     const res = await fetch('../quotes.json?t=' + Date.now());
     if (!res.ok) throw new Error(`quotes.json HTTP ${res.status}`);
     staticCache = await res.json();
+    cloudDoc = staticCache; cloudErr = false; updateDataStamp();
   }
   const want = new Set(tickers.map(t => t.toUpperCase()));
   return (staticCache.quotes || [])
@@ -1222,6 +1228,44 @@ async function fetchDataFrom(source, tickers) {
   } else {
     return [];  // manual
   }
+}
+
+// ============ DATA UPDATE TIME (page header) ============
+// Always shows when the cloud data was last updated, whatever sticker is
+// selected. Re-checked every 15 minutes and whenever the tab comes back into
+// view, so a page left open overnight does not show yesterday's time.
+let cloudDoc = null, cloudErr = false;
+
+function updateDataStamp() {
+  const el = $('dataStamp');
+  if (!el) return;
+  const QF = QuoteFreshness, lang = T('en', 'zh');
+  if (!cloudDoc) {
+    el.className = 'data-stamp' + (cloudErr ? ' stale' : '');
+    el.textContent = cloudErr
+      ? T('🕒 Data update time: could not be loaded. Check the network and refresh.', '🕒 数据更新时间：读取失败，请检查网络后刷新页面。')
+      : T('🕒 Data update time: loading…', '🕒 数据更新时间：加载中…');
+    return;
+  }
+  const fresh = QF.isFresh(cloudDoc);
+  const updated = QF.formatUpdated(cloudDoc, lang), ago = QF.formatAgo(cloudDoc, lang);
+  const us = QF.formatDate(QF.usTradeDate(cloudDoc), lang);
+  el.className = 'data-stamp ' + (fresh ? 'fresh' : 'stale');
+  el.textContent = fresh
+    ? T(`🕒 Data updated ${updated} (${ago}) · US close ${us}`, `🕒 数据更新于 ${updated}（${ago}）· 美股 ${us}收市`)
+    : T(`⚠ Data updated ${updated} (${ago}) · US close ${us}, not the latest yet`, `⚠ 数据更新于 ${updated}（${ago}）· 美股 ${us}收市，还不是最新`);
+}
+
+async function refreshCloudStamp() {
+  try {
+    const res = await fetch('../quotes.json?t=' + Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    cloudDoc = await res.json();
+    cloudErr = false;
+  } catch (e) {
+    if (!cloudDoc) cloudErr = true;  // keep showing the last good time on a blip
+  }
+  updateDataStamp();
 }
 
 // ============ DATA FRESHNESS ============
@@ -2885,6 +2929,7 @@ function applyLang() {
   refreshHolidayBanner();
   renderTable();
   updateQuoteBar();
+  updateDataStamp();
   const po = $('printerName') && $('printerName').options[0];
   if (po && po.value === '') po.textContent = printerAutoLabel();
 }
@@ -3076,6 +3121,10 @@ renderTable();
 render();
 applyLang();
 autoLoadQuotes();
+refreshCloudStamp();
+setInterval(refreshCloudStamp, 15 * 60 * 1000);
+setInterval(updateDataStamp, 60 * 1000);  // keep "N 分钟前" current
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCloudStamp(); });
 // Cera Pro loads lazily; redraw once every weight is ready so text is measured with the real font
 if (document.fonts && document.fonts.load) {
   Promise.all(['400', '700', '900'].map(w => document.fonts.load(`${w} 20px "Cera Pro"`)))
