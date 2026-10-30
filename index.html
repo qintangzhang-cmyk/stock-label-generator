@@ -1285,6 +1285,9 @@ async function refreshCloudStamp() {
     if (!cloudDoc) cloudErr = true;  // keep showing the last good time on a blip
   }
   updateDataStamp();
+  // A page left open overnight: newer cloud data reloads the sticker on screen
+  // (other sticker types reload when switched to).
+  autoLoadQuotes();
 }
 
 // ============ DATA FRESHNESS ============
@@ -1296,7 +1299,8 @@ const loadedFrom = new Map();    // mode → {source, doc, data}: where the numb
 const handEdited = new Map();    // mode → the data object whose numbers were typed into the table
 const missingByMode = new Map(); // mode → requested tickers that came back without a price
 let lastMissing = [];
-let starAuto = null;             // {ticker, caption} last written automatically for the star sticker
+let starAuto = null;             // {ticker, pct, caption} last written automatically for the star sticker
+let autoLoading = false;         // an automatic load is in flight
 
 function stocksInUse(mode) {
   return mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
@@ -1418,8 +1422,13 @@ function clearSampleForManual() {
 function autoLoadQuotes() {
   const mode = $('labelMode').value;
   if ($('dataSource').value !== 'static' || !MARKET_MODES.includes(mode)) return;
-  if (isHandEdited(mode) || (sourceOf(mode) || {}).source === 'static') return;
-  generate({ auto: true });
+  if (isHandEdited(mode) || autoLoading) return;
+  const f = sourceOf(mode);
+  // Already showing cloud data that is current and not older than the latest cloud file
+  if (f && f.source === 'static' && f.doc && QuoteFreshness.isFresh(f.doc)
+      && !(cloudDoc && new Date(cloudDoc.generatedAt) > new Date(f.doc.generatedAt))) return;
+  autoLoading = true;
+  generate({ auto: true }).finally(() => { autoLoading = false; });
 }
 
 function showStatus(msg, type = 'ok') {
@@ -1534,10 +1543,12 @@ async function generate(opts) {
         else if (p > -3)    trend = '昨日承壓回落';
         else                trend = '昨日大幅下挫';
         const caption = `${t} ${trend}\n收 ${sign}${p.toFixed(2)}%`;
-        // On automatic reloads keep a caption the user typed for this same star;
-        // a new star (e.g. the next morning) or a Generate tap always rewrites it.
-        const keepTyped = auto && starAuto && starAuto.ticker === t && $('starCaption').value !== starAuto.caption;
-        if (!keepTyped) { $('starCaption').value = caption; starAuto = { ticker: t, caption }; saveConfig(); }
+        // On automatic reloads keep a caption the user typed for this same star and
+        // the same move; new data (e.g. the next morning, even if the same stock
+        // leads again) or a Generate tap always rewrites it.
+        const keepTyped = auto && starAuto && starAuto.ticker === t && starAuto.pct === p
+          && $('starCaption').value !== starAuto.caption;
+        if (!keepTyped) { $('starCaption').value = caption; starAuto = { ticker: t, pct: p, caption }; saveConfig(); }
       }
       showStatus(`✓ 主角：${stocks[0].ticker}`);
     }
