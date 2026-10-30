@@ -1227,6 +1227,7 @@ async function fetchFinnhubQuote(ticker, apiKey) {
 async function fetchData(tickers) {
   const source = $('dataSource').value;
   const data = await fetchDataFrom(source, tickers);
+  if (autoGuardSeq !== null && editSeq !== autoGuardSeq) throw new AutoLoadCancelled();  // typed meanwhile
   lastMissing = source === 'manual' ? [] : QuoteFreshness.missingTickers(tickers, data);
   return data;
 }
@@ -1287,7 +1288,7 @@ async function refreshCloudStamp() {
   updateDataStamp();
   // A page left open overnight: newer cloud data reloads the sticker on screen
   // (other sticker types reload when switched to).
-  autoLoadQuotes();
+  autoLoadQuotes({ refresh: true });
 }
 
 // ============ DATA FRESHNESS ============
@@ -1301,6 +1302,10 @@ const missingByMode = new Map(); // mode → requested tickers that came back wi
 let lastMissing = [];
 let starAuto = null;             // {ticker, pct, caption} last written automatically for the star sticker
 let autoLoading = false;         // an automatic load is in flight
+const touched = new Map();       // mode → data object with any cell typed (ticker too): no automatic reloads over it
+let editSeq = 0, autoGuardSeq = null;  // typing during an automatic load cancels that load
+class AutoLoadCancelled extends Error {}
+function isTouched(mode) { const d = touched.get(mode); return !!d && d === dataRef(mode); }
 
 function stocksInUse(mode) {
   return mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
@@ -1419,16 +1424,26 @@ function clearSampleForManual() {
 
 // Opening the page, or switching to a market sticker, loads the cloud prices
 // right away so nobody starts from the sample numbers.
-function autoLoadQuotes() {
+function autoLoadQuotes(opts) {
   const mode = $('labelMode').value;
   if ($('dataSource').value !== 'static' || !MARKET_MODES.includes(mode)) return;
-  if (isHandEdited(mode) || autoLoading) return;
+  if (isHandEdited(mode) || isTouched(mode) || autoLoading) return;
   const f = sourceOf(mode);
-  // Already showing cloud data that is current and not older than the latest cloud file
-  if (f && f.source === 'static' && f.doc && QuoteFreshness.isFresh(f.doc)
-      && !(cloudDoc && new Date(cloudDoc.generatedAt) > new Date(f.doc.generatedAt))) return;
+  const cloudIsNewer = !!(f && f.doc && cloudDoc && new Date(cloudDoc.generatedAt) > new Date(f.doc.generatedAt));
+  if (opts && opts.refresh) {
+    // Header refresh (every 15 min / tab focus): only when the cloud really has
+    // newer data, and never while someone is typing in the table.
+    if (f && f.source === 'static' && !cloudIsNewer) return;
+    if ($('dataTable').contains(document.activeElement)) return;
+  } else if (f && f.source === 'static' && f.doc && QuoteFreshness.isFresh(f.doc) && !cloudIsNewer) {
+    return;  // already showing current cloud data
+  }
   autoLoading = true;
-  generate({ auto: true }).finally(() => { autoLoading = false; });
+  generate({ auto: true }).finally(() => {
+    autoLoading = false;
+    // staff switched sticker type while this was loading: load that one now
+    if ($('labelMode').value !== mode) autoLoadQuotes();
+  });
 }
 
 function showStatus(msg, type = 'ok') {
@@ -1462,6 +1477,7 @@ function nowTimeStr() {
 async function generate(opts) {
   // true for automatic loads (page open, mode switch); a Generate tap passes a click event
   const auto = !!(opts && opts.auto === true);
+  autoGuardSeq = auto ? editSeq : null;
   saveConfig();
   const mode = $('labelMode').value;
   const source = $('dataSource').value;
@@ -1571,6 +1587,7 @@ async function generate(opts) {
       showStatus(`✓ ${h.name}${h.isToday ? '（今日）' : '（預覽）'}`);
     }
   } catch (e) {
+    if (e instanceof AutoLoadCancelled) { $('status').classList.remove('show'); updateQuoteBar(); return; }
     const hint = source === 'longbridge' && mode !== 'history' && mode !== 'earnings'
       ? '（检查代理是否启动：python3 longbridge_proxy.py）' : '';
     showStatus(`失败: ${e.message}${hint}`, 'err');
@@ -1620,6 +1637,8 @@ function renderTable() {
       let v = e.target.value;
       if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
       rows[i][k] = v;
+      editSeq++;
+      if (MARKET_MODES.includes(mode)) for (const m of (mode === 'mood' ? ['mood'] : ['topn', 'star'])) touched.set(m, dataRef(m));
       if (MARKET_MODES.includes(mode) && (k === 'price' || k === 'changePct')) {
         delete rows[i].missing;  // a typed M7 cell is no longer "missing", so it shows on the sticker
         // topn and star share `stocks`, so a typed number counts for both
