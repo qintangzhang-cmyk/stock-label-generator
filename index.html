@@ -158,6 +158,11 @@
   .status.ok { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
   .status.err { background: #fef2f2; color: #991b1b; border: 1px solid #fecaca; }
   .status.info { background: #eff6ff; color: #1e40af; border: 1px solid #bfdbfe; }
+  .quote-bar { display: none; padding: 9px 12px; border-radius: 8px; font-size: 12px; line-height: 1.55; margin-bottom: 10px; white-space: pre-line; }
+  .quote-bar.show { display: block; }
+  .quote-bar.fresh { background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0; }
+  .quote-bar.stale { background: #fffbeb; color: #92400e; border: 1px solid #fcd34d; font-weight: 600; }
+  .quote-bar.none { background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
 
   .hint { font-size: 11px; color: var(--muted); margin-top: 5px; line-height: 1.5; }
   .hint code { background: #f3f4f6; padding: 1px 5px; border-radius: 3px; font-family: var(--mono); font-size: 11px; }
@@ -225,6 +230,10 @@
     color: var(--text);
   }
   .app-title .sub { font-size: 11px; color: var(--muted); font-weight: normal; margin-left: 8px; }
+  .data-stamp { margin: 6px 20px 0; padding: 6px 10px; border-radius: 8px; font-size: 12px; line-height: 1.5;
+                background: #f3f4f6; color: #374151; border: 1px solid #e5e7eb; }
+  .data-stamp.fresh { background: #ecfdf5; color: #065f46; border-color: #a7f3d0; }
+  .data-stamp.stale { background: #fffbeb; color: #92400e; border-color: #fcd34d; font-weight: 600; }
 </style>
 </head>
 <body>
@@ -274,6 +283,7 @@
   <!-- LEFT: CONFIG -->
   <div class="panel">
     <div class="app-title">☕ 咖啡贴纸生成器<span class="sub">Coffee × Securities</span></div>
+    <div id="dataStamp" class="data-stamp" aria-live="polite">🕒 数据更新时间：加载中…</div>
 
     <nav class="tabs">
       <button class="tab-btn active" data-tab="data">📊 数据</button>
@@ -337,7 +347,7 @@
       </select>
 
       <div id="staticFields" class="mode-field show">
-        <div class="hint">由 GitHub Actions 每天 HKT 07:30 自动拉取，无需开电脑。</div>
+        <div class="hint">美股收市后云端自动更新（通常香港时间早上 6 点前），打开页面会自动加载，无需开电脑。</div>
       </div>
 
       <div id="lbFields" class="mode-field">
@@ -502,6 +512,7 @@ AI 持續強勢</textarea>
     </section>
 
     <div class="panel-body" style="padding: 0 20px 20px">
+      <div id="quoteBar" class="quote-bar" aria-live="polite"></div>
       <div class="row2">
         <button id="downloadBtn" class="secondary">📥 下载 JPG</button>
         <button id="printBtn">🖨️ 直接打印</button>
@@ -527,6 +538,7 @@ AI 持續強勢</textarea>
 
 </div>
 
+<script src="./assets/quote-freshness.js"></script>
 <script>
 const $ = id => document.getElementById(id);
 const canvas = $('canvas');
@@ -1148,7 +1160,8 @@ function resetStocksForMode() {
     stocks = parseEarningsEntries();
     if (!stocks.length) stocks = [{ticker:'', day:'', note:'', price:0, changePct:0}];
   } else if (mode === 'star') {
-    if (stocks.length && isStockShape(stocks[0])) stocks = [stocks[0]];
+    if (stocks.length === 1 && isStockShape(stocks[0])) { /* already a one-row star: keep the same array */ }
+    else if (stocks.length && isStockShape(stocks[0])) stocks = [stocks[0]];
     else stocks = [{ticker:'NVDA', changePct:4.20, price:201.68, name:'NVIDIA'}];
   } else if (mode === 'topn') {
     if (!stocks.length || !isStockShape(stocks[0])) {
@@ -1182,12 +1195,13 @@ async function fetchFromStatic(tickers) {
     const res = await fetch('./quotes.json?t=' + Date.now());
     if (!res.ok) throw new Error(`quotes.json HTTP ${res.status}`);
     staticCache = await res.json();
+    cloudDoc = staticCache; cloudErr = false; updateDataStamp();
   }
   const want = new Set(tickers.map(t => t.toUpperCase()));
   return (staticCache.quotes || [])
     .filter(q => want.has(q.symbol) || want.has(q.ticker))
     .filter(q => q.price > 0)
-    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: q.name || '' }));
+    .map(q => ({ ticker: q.ticker, symbol: q.symbol, price: q.price, changePct: q.changePct, name: q.name || '', tradeDate: q.tradeDate || '' }));
 }
 async function fetchFromLongbridge(proxyUrl, tickers) {
   const base = proxyUrl.replace(/\/$/, '');
@@ -1209,8 +1223,16 @@ async function fetchFinnhubQuote(ticker, apiKey) {
   return { ticker: t, symbol: t, price: d.c, changePct: d.dp, name: '' };
 }
 
+// Fetch, and remember which requested tickers came back without a price.
 async function fetchData(tickers) {
   const source = $('dataSource').value;
+  const data = await fetchDataFrom(source, tickers);
+  if (autoGuardSeq !== null && editSeq !== autoGuardSeq) throw new AutoLoadCancelled();  // typed meanwhile
+  lastMissing = source === 'manual' ? [] : QuoteFreshness.missingTickers(tickers, data);
+  return data;
+}
+
+async function fetchDataFrom(source, tickers) {
   if (source === 'static') {
     staticCache = null;  // force refresh each generate
     return fetchFromStatic(tickers);
@@ -1224,6 +1246,204 @@ async function fetchData(tickers) {
   } else {
     return [];  // manual
   }
+}
+
+const T = (en, zh) => zh;  // this page's UI is Chinese only; the shared freshness code takes both
+
+// ============ DATA UPDATE TIME (page header) ============
+// Always shows when the cloud data was last updated, whatever sticker is
+// selected. Re-checked every 15 minutes and whenever the tab comes back into
+// view, so a page left open overnight does not show yesterday's time.
+let cloudDoc = null, cloudErr = false;
+
+function updateDataStamp() {
+  const el = $('dataStamp');
+  if (!el) return;
+  const QF = QuoteFreshness, lang = T('en', 'zh');
+  if (!cloudDoc) {
+    el.className = 'data-stamp' + (cloudErr ? ' stale' : '');
+    el.textContent = cloudErr
+      ? T('🕒 Data update time: could not be loaded. Check the network and refresh.', '🕒 数据更新时间：读取失败，请检查网络后刷新页面。')
+      : T('🕒 Data update time: loading…', '🕒 数据更新时间：加载中…');
+    return;
+  }
+  const fresh = QF.isFresh(cloudDoc);
+  const updated = QF.formatUpdated(cloudDoc, lang), ago = QF.formatAgo(cloudDoc, lang);
+  const us = QF.formatDate(QF.usTradeDate(cloudDoc), lang);
+  el.className = 'data-stamp ' + (fresh ? 'fresh' : 'stale');
+  el.textContent = fresh
+    ? T(`🕒 Data updated ${updated} (${ago}) · US close ${us}`, `🕒 数据更新于 ${updated}（${ago}）· 美股 ${us}收市`)
+    : T(`⚠ Data updated ${updated} (${ago}) · US close ${us}, not the latest yet`, `⚠ 数据更新于 ${updated}（${ago}）· 美股 ${us}收市，还不是最新`);
+}
+
+async function refreshCloudStamp() {
+  try {
+    const res = await fetch('./quotes.json?t=' + Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    cloudDoc = await res.json();
+    cloudErr = false;
+  } catch (e) {
+    if (!cloudDoc) cloudErr = true;  // keep showing the last good time on a blip
+  }
+  updateDataStamp();
+  // A page left open overnight: newer cloud data reloads the sticker on screen
+  // (other sticker types reload when switched to).
+  autoLoadQuotes({ refresh: true });
+}
+
+// ============ DATA FRESHNESS ============
+// Market-data stickers must not go out with the built-in sample numbers, and
+// cloud data older than the latest US close gets a visible warning.
+// The date logic lives in assets/quote-freshness.js (shared by both pages).
+const MARKET_MODES = ['topn', 'mood', 'star'];
+const loadedFrom = new Map();    // mode → {source, doc, data}: where the numbers on screen came from
+const handEdited = new Map();    // mode → the data object whose numbers were typed into the table
+const missingByMode = new Map(); // mode → requested tickers that came back without a price
+let lastMissing = [];
+let starAuto = null;             // {ticker, pct, caption} last written automatically for the star sticker
+let autoLoading = false;         // an automatic load is in flight
+const touched = new Map();       // mode → data object with any cell typed (ticker too): no automatic reloads over it
+let editSeq = 0, autoGuardSeq = null;  // typing during an automatic load cancels that load
+class AutoLoadCancelled extends Error {}
+function isTouched(mode) { const d = touched.get(mode); return !!d && d === dataRef(mode); }
+
+function stocksInUse(mode) {
+  return mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
+}
+
+// The object a market sticker draws from: moodData for mood, the shared
+// `stocks` array for topn and star. Switching modes replaces it (and topn and
+// star share it), so a record only counts while it still points at the data
+// on screen — otherwise a mode round trip could bring back the sample numbers
+// under a green "loaded" bar.
+function dataRef(mode) { return mode === 'mood' ? moodData : stocks; }
+function sourceOf(mode) {
+  const f = loadedFrom.get(mode);
+  return f && f.data && f.data === dataRef(mode) ? f : undefined;
+}
+function isHandEdited(mode) {
+  const d = handEdited.get(mode);
+  return !!d && d === dataRef(mode);
+}
+
+function updateQuoteBar() {
+  const bar = $('quoteBar');
+  if (!bar) return;
+  const mode = $('labelMode').value;
+  if (!MARKET_MODES.includes(mode)) { bar.className = 'quote-bar'; bar.textContent = ''; return; }
+  const QF = QuoteFreshness, lang = T('en', 'zh');
+  const from = sourceOf(mode), edited = isHandEdited(mode);
+  const lines = [];
+  let cls = 'none';
+  if (!from && !edited) {
+    lines.push($('dataSource').value === 'manual'
+      ? T('Manual input: type the numbers into the table below.', '手动输入：请在下方表格里填数字。')
+      : T('Sample numbers: prices are not loaded yet. Tap "Generate sticker" above.',
+          '现在是示例数字，还没加载行情。请点上方「🔄 生成贴纸」。'));
+  } else if (from && from.source === 'static' && from.doc) {
+    const us = QF.formatDate(QF.usTradeDate(from.doc), lang);
+    const otherIso = QF.otherTradeDate(stocksInUse(mode));
+    const other = otherIso ? QF.formatDate(otherIso, lang) : '';
+    const updated = QF.formatUpdated(from.doc, lang);
+    if (QF.isFresh(from.doc)) {
+      cls = 'fresh';
+      lines.push(T(`✓ Prices: US close ${us}${other ? `, HK/China ${other}` : ''}. Updated ${updated}.`,
+                   `✓ 行情：美股 ${us}收市${other ? `，港股/A股 ${other}` : ''}。云端更新于 ${updated}。`));
+    } else {
+      cls = 'stale';
+      const expected = QF.formatDate(QF.expectedUsTradeDate(), lang);
+      lines.push(T(`⚠ Cloud prices are still from the US close on ${us}; the latest close was ${expected}, so today's update has not landed yet. Try "Generate sticker" again in a few minutes. You can still print, but the numbers are old.`,
+                   `⚠ 云端行情还停在美股 ${us}收市，最近一次收市是 ${expected}，今天的还没更新。建议过几分钟再点「生成贴纸」；急用也能打印，但数字是旧的。`));
+    }
+  } else if (from && from.source === 'manual') {
+    lines.push(T('Manual input.', '手动输入的数字。'));
+  } else if (from) {
+    lines.push(T('Live prices from the local proxy / Finnhub (intraday prices if run during US trading hours).',
+                 '来自本地代理 / Finnhub 的即时价格（美股交易时段运行会是盘中价）。'));
+  }
+  if (edited && from) lines.push(T('Some numbers were edited by hand.', '表格里有手动改过的数字。'));
+  if (!from && edited) lines.push(T('Numbers typed into the table by hand.', '表格里是手动填的数字。'));
+  const missing = missingByMode.get(mode) || [];
+  if (from && from.source !== 'manual' && missing.length) {
+    lines.push(T(`No price for: ${missing.join(', ')}${from.source === 'static' ? ' (the cloud only fetches a fixed list)' : ''}.`,
+                 `这些代码没取到价格：${missing.join('、')}${from.source === 'static' ? '（云端只抓固定名单，需要请找管理员加）' : ''}。`));
+  }
+  bar.className = `quote-bar show ${cls}`;
+  bar.textContent = lines.join('\n');
+}
+
+// Called before printing or downloading. Printing sample numbers is blocked;
+// downloading them or printing old cloud data asks first.
+function okToOutput(action) {
+  const mode = $('labelMode').value;
+  if (!MARKET_MODES.includes(mode)) return true;
+  const isPrint = action === 'print';
+  const from = sourceOf(mode);
+  if (!from && !isHandEdited(mode)) {
+    if (isPrint) {
+      showStatus($('dataSource').value === 'manual'
+        ? T('Manual input: type the numbers into the table first, then print.', '手动输入：请先在表格里填好数字再打印。')
+        : T('These are sample numbers, so printing is blocked. Tap "Generate sticker" to load prices first.',
+            '现在是示例数字，不能打印。请先点「🔄 生成贴纸」加载行情。'), 'err');
+      return false;
+    }
+    return confirm(T('These are sample numbers, not real prices. Download anyway?',
+                     '现在是示例数字，不是真实行情。确定要下载吗？'));
+  }
+  if (from && from.source === 'static' && from.doc && !QuoteFreshness.isFresh(from.doc)) {
+    const us = QuoteFreshness.formatDate(QuoteFreshness.usTradeDate(from.doc), T('en', 'zh'));
+    return confirm(isPrint
+      ? T(`The cloud prices are from the US close on ${us}, not the latest trading day.\n\nPrint anyway?`,
+          `云端行情还停在美股 ${us}收市，不是最近一个交易日。\n\n确定仍要打印吗？`)
+      : T(`The cloud prices are from the US close on ${us}, not the latest trading day.\n\nDownload anyway?`,
+          `云端行情还停在美股 ${us}收市，不是最近一个交易日。\n\n确定仍要下载吗？`));
+  }
+  return true;
+}
+
+// Manual input starts from blank rows, never from the built-in sample numbers
+// (otherwise typing one cell would let the untouched sample rows print).
+function clearSampleForManual() {
+  const mode = $('labelMode').value;
+  if ($('dataSource').value !== 'manual' || !MARKET_MODES.includes(mode)) return;
+  if (sourceOf(mode) || isHandEdited(mode)) return;
+  const blank = () => ({ticker:'', price:0, changePct:0, name:''});
+  if (mode === 'mood') {
+    moodData = {ticker: ($('moodIndex').value.trim() || 'SPY').replace(/\.US$/i, ''), price: 0, changePct: 0};
+  } else if (mode === 'star') {
+    stocks = [blank()];
+  } else if (isLb()) {
+    stocks = M7_LAYOUT.map(m => ({
+      ticker: m.label, symbol: m.fetch + '.US', label: m.label, col: m.col, row: m.row,
+      price: 0, changePct: 0, missing: true,
+    }));
+  } else {
+    stocks = Array.from({length: parseInt($('topN').value) || 3}, blank);
+  }
+}
+
+// Opening the page, or switching to a market sticker, loads the cloud prices
+// right away so nobody starts from the sample numbers.
+function autoLoadQuotes(opts) {
+  const mode = $('labelMode').value;
+  if ($('dataSource').value !== 'static' || !MARKET_MODES.includes(mode)) return;
+  if (isHandEdited(mode) || isTouched(mode) || autoLoading) return;
+  const f = sourceOf(mode);
+  const cloudIsNewer = !!(f && f.doc && cloudDoc && new Date(cloudDoc.generatedAt) > new Date(f.doc.generatedAt));
+  if (opts && opts.refresh) {
+    // Header refresh (every 15 min / tab focus): only when the cloud really has
+    // newer data, and never while someone is typing in the table.
+    if (f && f.source === 'static' && !cloudIsNewer) return;
+    if ($('dataTable').contains(document.activeElement)) return;
+  } else if (f && f.source === 'static' && f.doc && QuoteFreshness.isFresh(f.doc) && !cloudIsNewer) {
+    return;  // already showing current cloud data
+  }
+  autoLoading = true;
+  generate({ auto: true }).finally(() => {
+    autoLoading = false;
+    // staff switched sticker type while this was loading: load that one now
+    if ($('labelMode').value !== mode) autoLoadQuotes();
+  });
 }
 
 function showStatus(msg, type = 'ok') {
@@ -1246,13 +1466,18 @@ function nowTimeStr() {
     }).format(d) + ' HKT';
   }
   const now = new Date();
+  const zone = new Intl.DateTimeFormat('en-US', { timeZone: 'America/New_York', timeZoneName: 'short' })
+    .formatToParts(now).find(p => p.type === 'timeZoneName')?.value || 'ET';
   return new Intl.DateTimeFormat('zh-CN', {
     timeZone: 'America/New_York',
     month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false
-  }).format(now) + ' EDT';
+  }).format(now) + ' ' + zone;
 }
 
-async function generate() {
+async function generate(opts) {
+  // true for automatic loads (page open, mode switch); a Generate tap passes a click event
+  const auto = !!(opts && opts.auto === true);
+  autoGuardSeq = auto ? editSeq : null;
   saveConfig();
   const mode = $('labelMode').value;
   const source = $('dataSource').value;
@@ -1294,7 +1519,8 @@ async function generate() {
           stocks = (await fetchData(tickers)).sort((a, b) => b.changePct - a.changePct);
           const n = parseInt($('topN').value) || 3;
           stocks = stocks.slice(0, n);
-        } else if (stocks.length === 0) {
+        } else if (stocks.length === 0 || (!sourceOf('topn') && !isHandEdited('topn'))) {
+          // Manual: start from blank rows rather than the built-in sample
           stocks = Array.from({length: parseInt($('topN').value)||3}, () => ({ticker:'', price:0, changePct:0, name:''}));
         }
         dataTime = nowTimeStr();
@@ -1332,8 +1558,13 @@ async function generate() {
         else if (p > -1)    trend = '昨日小幅回調';
         else if (p > -3)    trend = '昨日承壓回落';
         else                trend = '昨日大幅下挫';
-        $('starCaption').value = `${t} ${trend}\n收 ${sign}${p.toFixed(2)}%`;
-        saveConfig();
+        const caption = `${t} ${trend}\n收 ${sign}${p.toFixed(2)}%`;
+        // On automatic reloads keep a caption the user typed for this same star and
+        // the same move; new data (e.g. the next morning, even if the same stock
+        // leads again) or a Generate tap always rewrites it.
+        const keepTyped = auto && starAuto && starAuto.ticker === t && starAuto.pct === p
+          && $('starCaption').value !== starAuto.caption;
+        if (!keepTyped) { $('starCaption').value = caption; starAuto = { ticker: t, pct: p, caption }; saveConfig(); }
       }
       showStatus(`✓ 主角：${stocks[0].ticker}`);
     }
@@ -1356,12 +1587,21 @@ async function generate() {
       showStatus(`✓ ${h.name}${h.isToday ? '（今日）' : '（預覽）'}`);
     }
   } catch (e) {
+    if (e instanceof AutoLoadCancelled) { $('status').classList.remove('show'); updateQuoteBar(); return; }
     const hint = source === 'longbridge' && mode !== 'history' && mode !== 'earnings'
       ? '（检查代理是否启动：python3 longbridge_proxy.py）' : '';
     showStatus(`失败: ${e.message}${hint}`, 'err');
+    updateQuoteBar();
     return;
   }
 
+  // Manual numbers only count once typed into the table (handEdited).
+  if (MARKET_MODES.includes(mode) && source !== 'manual') {
+    loadedFrom.set(mode, { source, doc: source === 'static' ? staticCache : null, data: dataRef(mode) });
+    handEdited.delete(mode);
+    missingByMode.set(mode, lastMissing);
+  }
+  updateQuoteBar();
   renderTable();
   render();
 }
@@ -1371,7 +1611,8 @@ function renderTable() {
   const tbody = $('dataTable').querySelector('tbody');
   tbody.innerHTML = '';
   const mode = $('labelMode').value;
-  stocks.forEach((s, i) => {
+  const rows = mode === 'mood' ? (moodData ? [moodData] : []) : stocks;
+  rows.forEach((s, i) => {
     const tr = document.createElement('tr');
     if (mode === 'history') {
       tr.innerHTML = `<td>日期</td><td colspan="3">${s.date} (${s.year})：${s.text}</td>`;
@@ -1395,7 +1636,15 @@ function renderTable() {
       const i = +e.target.dataset.i, k = e.target.dataset.k;
       let v = e.target.value;
       if (k === 'changePct' || k === 'price') v = parseFloat(v) || 0;
-      stocks[i][k] = v;
+      rows[i][k] = v;
+      editSeq++;
+      if (MARKET_MODES.includes(mode)) for (const m of (mode === 'mood' ? ['mood'] : ['topn', 'star'])) touched.set(m, dataRef(m));
+      if (MARKET_MODES.includes(mode) && (k === 'price' || k === 'changePct')) {
+        delete rows[i].missing;  // a typed M7 cell is no longer "missing", so it shows on the sticker
+        // topn and star share `stocks`, so a typed number counts for both
+        for (const m of (mode === 'mood' ? ['mood'] : ['topn', 'star'])) handEdited.set(m, dataRef(m));
+        updateQuoteBar();
+      }
       render();
     });
   });
@@ -2684,6 +2933,7 @@ function withExportRender(fn) {
 }
 
 $('downloadBtn').addEventListener('click', () => {
+  if (!okToOutput('download')) return;
   withExportRender(() => {
     const a = document.createElement('a');
     const d = new Date();
@@ -2714,6 +2964,7 @@ async function refreshPrinters() {
 }
 
 async function printSticker() {
+  if (!okToOutput('print')) return;
   const proxyUrl = ($('proxyUrl').value.trim() || 'http://localhost:8787').replace(/\/$/, '');
   const widthMm = parseFloat($('widthMm').value) || 58;
   const heightMm = parseFloat($('heightMm').value) || 40;
@@ -2760,16 +3011,25 @@ $('labelMode').addEventListener('change', () => {
   applyModeTemplate(currentMode);
   updateModeUI();
   resetStocksForMode();
+  clearSampleForManual();
   saveConfig();
   renderTable();
   render();
   refreshHolidayBanner();
+  updateQuoteBar();
+  autoLoadQuotes();
 });
 $('earningsList').addEventListener('input', () => {
   if ($('labelMode').value === 'earnings') { resetStocksForMode(); renderTable(); }
   saveConfig(); render();
 });
-$('dataSource').addEventListener('change', () => { updateSourceUI(); saveConfig(); });
+// Manual input: switching style rebuilds the blank rows in the new style's shape.
+$('uiStyle').addEventListener('change', () => { clearSampleForManual(); renderTable(); render(); updateQuoteBar(); });
+$('dataSource').addEventListener('change', () => {
+  updateSourceUI(); saveConfig();
+  clearSampleForManual(); renderTable(); render();
+  updateQuoteBar(); autoLoadQuotes();
+});
 $('sizePreset').addEventListener('change', () => { applySizePreset(); saveConfig(); render(); });
 document.getElementById('holidayPick')?.addEventListener('change', () => { saveConfig(); render(); });
 
@@ -2830,9 +3090,16 @@ updateSourceUI();
 moodData = {ticker:'SPY', changePct:1.23, price:520.45};
 dataTime = nowTimeStr();
 resetStocksForMode();
+clearSampleForManual();
 renderTable();
 render();
 refreshHolidayBanner();
+updateQuoteBar();
+autoLoadQuotes();
+refreshCloudStamp();
+setInterval(refreshCloudStamp, 15 * 60 * 1000);
+setInterval(updateDataStamp, 60 * 1000);  // keep "N 分钟前" current
+document.addEventListener('visibilitychange', () => { if (!document.hidden) refreshCloudStamp(); });
 </script>
 
 </body>
