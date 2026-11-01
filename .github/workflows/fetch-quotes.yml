@@ -19,6 +19,10 @@ on:
         description: 'Fetch now even if today''s data already exists'
         type: boolean
         default: false
+      dry_run:
+        description: 'Test only: fetch and print the result, do not save it or send alerts'
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -89,12 +93,27 @@ jobs:
           esac
           exit "$RC"
 
+      - name: Show result (dry run, nothing saved)
+        if: inputs.dry_run == true && steps.gate.outputs.action == 'fetch'
+        run: |
+          python3 - <<'PY'
+          import collections, json
+          d = json.load(open("quotes.json"))
+          q = {x["symbol"]: x for x in d["quotes"]}
+          print("generatedAt", d["generatedAt"], "| usTradeDate", d["usTradeDate"], "| count", d["count"])
+          print("sources", dict(collections.Counter(x["source"] for x in d["quotes"])))
+          print("trade dates", dict(collections.Counter(x["symbol"].rsplit(".", 1)[1] + " " + x["tradeDate"] for x in d["quotes"])))
+          for s in ["AAPL.US", "NVDA.US", "SPY.US", "700.HK", "1299.HK", "9988.HK", "600519.SH", "300750.SZ"]:
+              x = q.get(s)
+              print(s, x and (x["price"], round(x["changePct"], 2), x["tradeDate"], x["source"]))
+          PY
+
       # The `if:` has no status function, so success() is implied: this only
       # runs when the build succeeded, and a failed fetch never overwrites good
       # data (build_quotes.py also refuses to write an incomplete file).
       - name: Commit quotes.json
         id: commit
-        if: steps.gate.outputs.action == 'fetch'
+        if: steps.gate.outputs.action == 'fetch' && inputs.dry_run != true
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
@@ -115,7 +134,7 @@ jobs:
       # A newly opened issue also queues a short Slack message (sent by the last
       # step); later failures only comment on the issue, so Slack is not spammed.
       - name: Open or update failure issue
-        if: failure()
+        if: failure() && inputs.dry_run != true
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -178,7 +197,7 @@ jobs:
       # Best-effort: Gmail has been rejecting the app password (SMTP 535) in
       # recent runs, so this must not mask the real failure. Fix MAIL_PASSWORD to revive.
       - name: Email alert on failure
-        if: failure()
+        if: failure() && inputs.dry_run != true
         continue-on-error: true
         env:
           MAIL_USERNAME: ${{ secrets.MAIL_USERNAME }}
@@ -196,7 +215,7 @@ jobs:
         run: python3 scripts/send_alert_email.py
 
       - name: Close failure issue on success
-        if: success()
+        if: success() && inputs.dry_run != true
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
@@ -212,7 +231,7 @@ jobs:
       # Sends whatever the alert / recovery steps queued. Best-effort: without the
       # SLACK_WEBHOOK_URL secret it just skips; the GitHub issue still alerts.
       - name: Slack alert
-        if: always()
+        if: always() && inputs.dry_run != true
         continue-on-error: true
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
