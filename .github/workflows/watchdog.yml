@@ -82,7 +82,9 @@ jobs:
 
           ---
 
-          **最可能原因：API Key access token 過期且自動續期沒跑成功**，或長橋 API 故障。人工恢復：
+          原因請看 Fetch Quotes 那邊的失敗 issue —— 它會貼出真實報錯和 access token 的剩餘有效期。
+          **別預設是 token 過期**：剩餘天數大於 0 卻報 token invalid，是被吊銷而不是到期，兩者都要重新生成，
+          但前者不用去查續期機制。人工恢復：
 
           \`\`\`bash
           # 去用戶中心(open.longbridge.com)重新生成 Access Token，然後：
